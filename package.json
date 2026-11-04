@@ -1,0 +1,16 @@
+{
+  "name": "manajemen_klien",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+  "dev": "tailwindcss -i ./src/input.css -o ./assets/css/tailwind.css --watch",
+  "build": "tailwindcss -i ./src/input.css -o ./assets/css/tailwind.css --minify"
+},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
+}
