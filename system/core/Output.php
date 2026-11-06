@@ -417,7 +417,7 @@ class CI_Output {
 	 * @param	string	$output	Output data override
 	 * @return	void
 	 */
-	public function _display($output = '')
+	public function _display($output = NULL)
 	{
 		// Note:  We use load_class() because we can't use $CI =& get_instance()
 		// since this function is sometimes called by the caching mechanism,
@@ -434,7 +434,7 @@ class CI_Output {
 		// --------------------------------------------------------------------
 
 		// Set the output data
-		if ($output === '')
+		if ($output === NULL)
 		{
 			$output =& $this->final_output;
 		}
@@ -456,7 +456,7 @@ class CI_Output {
 
 		$elapsed = $BM->elapsed_time('total_execution_time_start', 'total_execution_time_end');
 
-		if ($this->parse_exec_vars === TRUE)
+		if ($this->parse_exec_vars === TRUE && !empty($output))
 		{
 			$memory	= round(memory_get_usage() / 1024 / 1024, 2).'MB';
 			$output = str_replace(array('{elapsed_time}', '{memory_usage}'), array($elapsed, $memory), $output);
@@ -507,7 +507,7 @@ class CI_Output {
 
 			echo $output;
 			log_message('info', 'Final output sent to browser');
-			log_message('debug', 'Total execution time: '.$elapsed);
+			log_message('info', 'Total execution time: '.$elapsed);
 			return;
 		}
 
@@ -544,7 +544,7 @@ class CI_Output {
 		}
 
 		log_message('info', 'Final output sent to browser');
-		log_message('debug', 'Total execution time: '.$elapsed);
+		log_message('info', 'Total execution time: '.$elapsed);
 	}
 
 	// --------------------------------------------------------------------
@@ -558,8 +558,7 @@ class CI_Output {
 	public function _write_cache($output)
 	{
 		$CI =& get_instance();
-		$path = $CI->config->item('cache_path');
-		$cache_path = ($path === '') ? APPPATH.'cache/' : $path;
+		$cache_path = $this->_get_cache_path($CI->config->item('cache_path'));
 
 		if ( ! is_dir($cache_path) OR ! is_really_writable($cache_path))
 		{
@@ -568,7 +567,7 @@ class CI_Output {
 		}
 
 		$uri = $CI->config->item('base_url')
-			.$CI->config->item('index_page')
+			.$CI->config->slash_item('index_page')
 			.$CI->uri->uri_string();
 
 		if (($cache_query_string = $CI->config->item('cache_query_string')) && ! empty($_SERVER['QUERY_STRING']))
@@ -660,10 +659,10 @@ class CI_Output {
 	 */
 	public function _display_cache(&$CFG, &$URI)
 	{
-		$cache_path = ($CFG->item('cache_path') === '') ? APPPATH.'cache/' : $CFG->item('cache_path');
+		$cache_path = $this->_get_cache_path($CFG->item('cache_path'));
 
 		// Build the file path. The file name is an MD5 hash of the full URI
-		$uri = $CFG->item('base_url').$CFG->item('index_page').$URI->uri_string;
+		$uri = $CFG->item('base_url').$CFG->slash_item('index_page').$URI->uri_string;
 
 		if (($cache_query_string = $CFG->item('cache_query_string')) && ! empty($_SERVER['QUERY_STRING']))
 		{
@@ -737,11 +736,7 @@ class CI_Output {
 	public function delete_cache($uri = '')
 	{
 		$CI =& get_instance();
-		$cache_path = $CI->config->item('cache_path');
-		if ($cache_path === '')
-		{
-			$cache_path = APPPATH.'cache/';
-		}
+		$cache_path = $this->_get_cache_path($CI->config->item('cache_path'));
 
 		if ( ! is_dir($cache_path))
 		{
@@ -766,7 +761,7 @@ class CI_Output {
 			}
 		}
 
-		$cache_path .= md5($CI->config->item('base_url').$CI->config->item('index_page').ltrim($uri, '/'));
+		$cache_path .= md5($CI->config->item('base_url').$CI->config->slash_item('index_page').ltrim($uri, '/'));
 
 		if ( ! @unlink($cache_path))
 		{
@@ -775,6 +770,19 @@ class CI_Output {
 		}
 
 		return TRUE;
+	}
+
+	// --------------------------------------------------------------------
+
+	/**
+	 * Get cache path
+	 *
+	 * @param	string	$path	The configured cache_path value
+	 * @return	string	Cache directory path with a trailing directory separator
+	 */
+	protected function _get_cache_path($path)
+	{
+		return empty($path) ? APPPATH.'cache'.DIRECTORY_SEPARATOR : rtrim($path, '/\\').DIRECTORY_SEPARATOR;
 	}
 
 	// --------------------------------------------------------------------
@@ -834,9 +842,6 @@ class CI_Output {
 	{
 		if (self::$func_overload)
 		{
-			// mb_substr($str, $start, null, '8bit') returns an empty
-			// string on PHP 5.3
-			isset($length) OR $length = ($start >= 0 ? self::strlen($str) - $start : -$start);
 			return mb_substr($str, $start, $length, '8bit');
 		}
 

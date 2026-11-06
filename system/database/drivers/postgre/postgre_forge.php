@@ -87,7 +87,7 @@ class CI_DB_postgre_forge extends CI_DB_forge {
 
 		if (version_compare($this->db->version(), '9.0', '>'))
 		{
-			$this->create_table_if = 'CREATE TABLE IF NOT EXISTS';
+			$this->_create_table_if = 'CREATE TABLE IF NOT EXISTS';
 		}
 	}
 
@@ -144,7 +144,8 @@ class CI_DB_postgre_forge extends CI_DB_forge {
 			if ( ! empty($field[$i]['comment']))
 			{
 				$sqls[] = 'COMMENT ON COLUMN '
-					.$this->db->escape_identifiers($table).'.'.$this->db->escape_identifiers($field[$i]['name'])
+					.$this->db->escape_identifiers($table).'.'
+					.$this->db->escape_identifiers( ! empty($field[$i]['new_name']) ? $field[$i]['new_name'] : $field[$i]['name'])
 					.' IS '.$field[$i]['comment'];
 			}
 		}
