@@ -53,4 +53,10 @@ $route['default_controller'] = 'auth';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
-$route['views/login'] = 'auth/login';
+$route['dashboard'] = 'content/dashboard';
+$route['klien'] = 'content/klien/index';
+$route['project'] = 'content/project/index';
+$route['dokumen'] = 'content/dokumen/index';
+$route['pembayaran'] = 'content/pembayaran/index';
+$route['pengaturan'] = 'content/pengaturan/index';
+
