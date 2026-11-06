@@ -54,9 +54,17 @@ $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
 $route['dashboard'] = 'content/dashboard';
+
 $route['klien'] = 'content/klien/index';
+$route['klien/tambah'] = 'content/klien/tambah'; // <--- INI YANG KURANG
+$route['klien/simpan'] = 'content/klien/simpan'; // Untuk nanti menyimpan data
+
+
 $route['project'] = 'content/project/index';
 $route['dokumen'] = 'content/dokumen/index';
 $route['pembayaran'] = 'content/pembayaran/index';
 $route['pengaturan'] = 'content/pengaturan/index';
+
+
+
 

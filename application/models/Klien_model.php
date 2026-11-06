@@ -12,4 +12,7 @@ class Klien_model extends CI_Model {
     public function get_all_klien() {
         return $this->db->order_by('id', 'DESC')->get('clients')->result();
     }
+    public function insert_klien($data) {
+        return $this->db->insert('clients', $data);
+    }
 }
