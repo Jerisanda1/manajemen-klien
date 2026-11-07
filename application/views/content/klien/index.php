@@ -18,6 +18,31 @@
         </div>
     </div>
 
+    <!-- Notifikasi Sukses / Error -->
+    <?php if($this->session->flashdata('success')): ?>
+        <div id="alert-success" class="flex items-center justify-between bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-4 rounded-xl mb-5 shadow-sm transition-all duration-300">
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="font-medium text-sm"><?= $this->session->flashdata('success'); ?></span>
+            </div>
+            <button type="button" onclick="document.getElementById('alert-success').remove()" class="text-emerald-500 hover:text-emerald-700 focus:outline-none">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    <?php endif; ?>
+
+    <?php if($this->session->flashdata('error')): ?>
+        <div id="alert-error" class="flex items-center justify-between bg-red-50 border border-red-200 text-red-800 px-5 py-4 rounded-xl mb-5 shadow-sm transition-all duration-300">
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="font-medium text-sm"><?= $this->session->flashdata('error'); ?></span>
+            </div>
+            <button type="button" onclick="document.getElementById('alert-error').remove()" class="text-red-500 hover:text-red-700 focus:outline-none">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    <?php endif; ?>
+
     <!-- Card Tabel -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         
@@ -31,7 +56,7 @@
             </div>
         </div>
 
-        <!-- Tabel Data (Gaya Sebelumnya) -->
+        <!-- Tabel Data -->
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse" id="klienTable">
                 <thead>
@@ -46,7 +71,7 @@
                 </thead>
                 <tbody id="tableBody">
                     <?php if(empty($data_klien)): ?>
-                        <tr>
+                        <tr id="empty-db-row">
                             <td colspan="6" class="px-6 py-12 text-center">
                                 <div class="flex flex-col items-center justify-center text-gray-400">
                                     <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
@@ -56,9 +81,9 @@
                         </tr>
                     <?php else: ?>
                         <?php foreach($data_klien as $k): ?>
-                        <tr class="border-b border-gray-100 hover:bg-gray-50/80 transition-colors group">
+                        <tr class="data-row border-b border-gray-100 hover:bg-gray-50/80 transition-colors group">
                             
-                            <!-- Nama Klien (Tanpa Avatar) -->
+                            <!-- Nama Klien -->
                             <td class="px-6 py-4">
                                 <div class="text-sm font-bold text-gray-900 group-hover:text-[#9f2b2b] transition-colors"><?= $k->nama_klien ?></div>
                             </td>
@@ -83,21 +108,21 @@
                                 </div>
                             </td>
                             
-                            <!-- Project (Badge Sebelumnya) -->
+                            <!-- Project -->
                             <td class="px-6 py-4 text-center">
                                 <span class="inline-flex items-center justify-center bg-purple-50 text-purple-600 text-xs font-semibold px-3 py-1 rounded-full border border-purple-100">
                                     0 Project
                                 </span>
                             </td>
                             
-                            <!-- Dokumen (Badge Sebelumnya) -->
+                            <!-- Dokumen -->
                             <td class="px-6 py-4 text-center">
                                 <span class="inline-flex items-center justify-center bg-orange-50 text-orange-600 text-xs font-semibold px-3 py-1 rounded-full border border-orange-100">
                                     0 Dokumen
                                 </span>
                             </td>
                             
-                            <!-- Aksi (Tombol Bergaya Sebelumnya) -->
+                            <!-- Aksi -->
                             <td class="px-6 py-4 text-center">
                                 <div class="flex justify-center items-center gap-1.5">
                                     <a href="<?= site_url('klien/detail/' . $k->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Lihat Detail">
@@ -106,7 +131,7 @@
                                     <a href="<?= site_url('klien/edit/' . $k->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                     </a>
-                                    <button onclick="bukaModalHapus(<?= $k->id ?>, '<?= $k->nama_klien ?>')" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm" title="Hapus Klien">
+                                    <button type="button" onclick="bukaModalHapus(<?= $k->id ?>, '<?= htmlspecialchars($k->nama_klien, ENT_QUOTES) ?>')" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm" title="Hapus Klien">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                     </button>
                                 </div>
@@ -117,10 +142,21 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- PAGINATION FOOTER -->
+        <div class="flex flex-col sm:flex-row items-center justify-between border-t border-gray-200 bg-white px-6 py-4 gap-4">
+            <span id="pagination-info" class="text-sm text-gray-500">
+                Menampilkan 0-0 dari 0 Klien
+            </span>
+            <div id="pagination-controls" class="flex items-center gap-1.5">
+                <!-- Tombol akan digenerate via JavaScript -->
+            </div>
+        </div>
+
     </div>
 </main>
 
-<!-- MODAL KONFIRMASI HAPUS (Tetap Modern) -->
+<!-- MODAL KONFIRMASI HAPUS -->
 <div id="modalHapus" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <div class="absolute inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity" onclick="tutupModalHapus()"></div>
     
@@ -139,35 +175,140 @@
         </p>
         
         <div class="flex justify-center gap-3">
-            <button onclick="tutupModalHapus()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors w-full text-sm">Batal</button>
-            <button onclick="eksekusiHapus()" class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all shadow-md shadow-red-500/30 w-full text-sm">Ya, Hapus</button>
+            <button type="button" onclick="tutupModalHapus()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors w-full text-sm">Batal</button>
+            <button type="button" onclick="eksekusiHapus()" class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all shadow-md shadow-red-500/30 w-full text-sm">Ya, Hapus</button>
         </div>
     </div>
 </div>
 
 <!-- JavaScript -->
 <script>
+    // --- LOGIKA PAGINATION & LIVE SEARCH ---
+    const rowsPerPage = 5; // Ubah angka ini jika ingin menampilkan lebih banyak
+    let currentPage = 1;
+    let allRows = [];
+    let filteredRows = [];
+
     document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('searchInput');
         const tableBody = document.getElementById('tableBody');
-        
-        if (searchInput && tableBody) {
+        // Ambil semua baris data (abaikan baris "Belum ada data klien")
+        allRows = Array.from(tableBody.querySelectorAll('.data-row'));
+        filteredRows = [...allRows];
+
+        // Render awal
+        updateTablePagination();
+
+        // Live Search
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
             searchInput.addEventListener('keyup', function() {
                 const filter = this.value.toLowerCase();
-                const rows = tableBody.querySelectorAll('tr'); 
                 
-                rows.forEach(row => {
+                filteredRows = allRows.filter(row => {
                     const text = row.textContent.toLowerCase();
-                    if (text.includes(filter)) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
+                    return text.includes(filter);
                 });
+
+                currentPage = 1; // Reset ke halaman 1 setiap mencari
+                updateTablePagination();
             });
         }
+
+        // Auto-hide Notifikasi setelah 4 detik
+        setTimeout(() => {
+            const successAlert = document.getElementById('alert-success');
+            const errorAlert = document.getElementById('alert-error');
+            if (successAlert) { successAlert.style.opacity = '0'; setTimeout(() => successAlert.remove(), 300); }
+            if (errorAlert) { errorAlert.style.opacity = '0'; setTimeout(() => errorAlert.remove(), 300); }
+        }, 4000);
     });
 
+    function updateTablePagination() {
+        const totalRows = filteredRows.length;
+        const totalPages = Math.ceil(totalRows / rowsPerPage);
+        const tableBody = document.getElementById('tableBody');
+
+        // --- LOGIKA EMPTY STATE SAAT PENCARIAN TIDAK KETEMU ---
+        const emptyRow = document.getElementById('search-empty-row');
+        if (emptyRow) emptyRow.remove();
+
+        // Jika hasil filter kosong, tapi data asli di database sebenarnya ada
+        if (totalRows === 0 && allRows.length > 0) {
+            const tr = document.createElement('tr');
+            tr.id = 'search-empty-row';
+            tr.innerHTML = `<td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <p class="text-sm font-medium">Data tidak ditemukan.</p>
+                <p class="text-xs text-gray-400 mt-1">Coba gunakan kata kunci lain.</p>
+            </td>`;
+            tableBody.appendChild(tr);
+        }
+        // -----------------------------------------------------
+
+        // Pastikan currentPage tidak melebihi totalPages
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        // Sembunyikan semua baris terlebih dahulu
+        allRows.forEach(row => row.style.display = 'none');
+
+        // Tampilkan baris yang sesuai halaman
+        if (totalRows > 0) {
+            const startIndex = (currentPage - 1) * rowsPerPage;
+            const endIndex = Math.min(startIndex + rowsPerPage, totalRows);
+
+            for (let i = startIndex; i < endIndex; i++) {
+                filteredRows[i].style.display = '';
+            }
+
+            document.getElementById('pagination-info').innerText = `Menampilkan ${startIndex + 1}–${endIndex} dari ${totalRows} Klien`;
+        } else {
+            document.getElementById('pagination-info').innerText = `Menampilkan 0 dari 0 Klien`;
+        }
+
+        renderPaginationControls(totalPages);
+    }
+
+    function renderPaginationControls(totalPages) {
+        const container = document.getElementById('pagination-controls');
+        container.innerHTML = '';
+
+        if (totalPages <= 1) return; // Sembunyikan jika hanya 1 halaman
+
+        // Tombol Prev
+        const prevBtn = document.createElement('button');
+        prevBtn.type = 'button'; // Tambahkan type
+        prevBtn.className = `flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`;
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>`;
+        prevBtn.onclick = () => { currentPage--; updateTablePagination(); };
+        container.appendChild(prevBtn);
+
+        // Tombol Angka
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            btn.type = 'button'; // Tambahkan type
+            if (i === currentPage) {
+                btn.className = `flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-[#9f2b2b] bg-[#9f2b2b] text-white text-sm font-medium shadow-sm`;
+            } else {
+                btn.className = `flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium transition-colors`;
+            }
+            btn.innerText = i;
+            btn.onclick = () => { currentPage = i; updateTablePagination(); };
+            container.appendChild(btn);
+        }
+
+        // Tombol Next
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button'; // Tambahkan type
+        nextBtn.className = `flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`;
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>`;
+        nextBtn.onclick = () => { currentPage++; updateTablePagination(); };
+        container.appendChild(nextBtn);
+    }
+
+    // --- LOGIKA MODAL HAPUS ---
     let hapusId = null;
     const modal = document.getElementById('modalHapus');
     const modalContent = document.getElementById('modalContent');
@@ -175,10 +316,8 @@
     function bukaModalHapus(id, nama) {
         hapusId = id;
         document.getElementById('namaKlienHapus').innerText = nama;
-        
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        
         setTimeout(() => {
             modalContent.classList.remove('scale-95', 'opacity-0');
             modalContent.classList.add('scale-100', 'opacity-100');
@@ -187,10 +326,8 @@
 
     function tutupModalHapus() {
         hapusId = null;
-        
         modalContent.classList.remove('scale-100', 'opacity-100');
         modalContent.classList.add('scale-95', 'opacity-0');
-        
         setTimeout(() => {
             modal.classList.add('hidden');
             modal.classList.remove('flex');

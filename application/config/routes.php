@@ -58,6 +58,10 @@ $route['dashboard'] = 'content/dashboard';
 $route['klien'] = 'content/klien/index';
 $route['klien/tambah'] = 'content/klien/tambah'; // <--- INI YANG KURANG
 $route['klien/simpan'] = 'content/klien/simpan'; // Untuk nanti menyimpan data
+$route['klien/detail/(:num)'] = 'content/klien/detail/$1';
+$route['klien/hapus/(:num)'] = 'content/klien/hapus/$1';
+$route['klien/edit/(:num)'] = 'content/klien/edit/$1';
+$route['klien/update'] = 'content/klien/update';
 
 
 $route['project'] = 'content/project/index';

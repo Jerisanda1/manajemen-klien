@@ -11,4 +11,7 @@ class User_model extends CI_Model {
     public function cek_login($username) {
         return $this->db->get_where('users', ['username' => $username])->row();
     }
+        public function get_klien_by_id($id) {
+        return $this->db->get_where('clients', array('id' => $id))->row();
+    }
 }
