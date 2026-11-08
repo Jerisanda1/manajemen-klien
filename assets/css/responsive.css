@@ -1,0 +1,24 @@
+/* Halaman boleh memanjang dan bisa di-scroll */
+html, body {
+    height: auto !important;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto !important;
+}
+
+/* Pembungkus konten utama: jangan dikunci tingginya */
+.app-content, main, #content, .content, .main-content {
+    height: auto !important;
+    max-height: none !important;
+    min-width: 0;
+    overflow: visible !important;
+}
+
+/* Semua media tidak boleh melebihi lebar layar */
+img, svg, video { max-width: 100%; height: auto; }
+
+/* Tabel lebar scroll ke samping di dalam kartunya, bukan memotong halaman */
+.table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Grid dan flex tidak melebar karena isi */
+.pd-grid > *, .pd-info > * { min-width: 0; }

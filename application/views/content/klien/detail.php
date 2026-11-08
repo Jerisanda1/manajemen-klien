@@ -5,7 +5,9 @@
  */
 
 // Escape output
-$e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+$e = function ($v) {
+    return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+};
 
 // Format tanggal Indonesia (15 Feb 2025)
 $bulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -37,9 +39,9 @@ $dokumen = [
 // ----------------------------------------------------------------
 
 $jmlProject   = count($projects);
-$jmlBerjalan  = count(array_filter($projects, fn($p) => $p['status'] === 'Berjalan'));
+$jmlBerjalan  = count(array_filter($projects, function($p) { return $p['status'] === 'Berjalan'; }));
 $jmlDokumen   = count($dokumen);
-$jmlBerakhir  = count(array_filter($dokumen, fn($d) => $d['status'] === 'Akan Berakhir'));
+$jmlBerakhir  = count(array_filter($dokumen, function($d) { return $d['status'] === 'Akan Berakhir'; }));
 
 // Komponen kecil: badge status
 $renderBadge = function ($status) use ($badge) {

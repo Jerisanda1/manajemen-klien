@@ -64,7 +64,15 @@ $route['klien/edit/(:num)'] = 'content/klien/edit/$1';
 $route['klien/update'] = 'content/klien/update';
 
 
-$route['project'] = 'content/project/index';
+$route['project']              = 'content/project';
+$route['project/tambah']       = 'content/project/tambah';
+$route['project/simpan']       = 'content/project/simpan';
+$route['project/detail/(:num)'] = 'content/project/detail/$1';
+$route['project/edit/(:num)']   = 'content/project/edit/$1';
+$route['project/update/(:num)'] = 'content/project/update/$1';
+$route['project/hapus']        = 'content/project/hapus';
+$route['project/status/(:num)'] = 'content/project/status/$1';
+
 $route['dokumen'] = 'content/dokumen/index';
 $route['pembayaran'] = 'content/pembayaran/index';
 $route['pengaturan'] = 'content/pengaturan/index';
