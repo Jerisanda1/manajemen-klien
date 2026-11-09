@@ -530,3 +530,8 @@ $config['rewrite_short_tags'] = FALSE;
 | Array:		array('10.0.1.200', '192.168.5.0/24')
 */
 $config['proxy_ips'] = '';
+
+
+// Menonaktifkan tampilnya error Deprecated dan Notice
+ini_set('display_errors', 1);
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE);

@@ -87,6 +87,16 @@ $route['dokumen/update']      = 'content/dokumen/update';
 
 
 $route['pembayaran'] = 'content/pembayaran/index';
+$route['pembayaran/tambah/(:any)']         = 'content/pembayaran/tambah/$1';
+$route['pembayaran/simpan/(:any)']         = 'content/pembayaran/simpan/$1';
+$route['pembayaran/detail/(:any)/(:num)']  = 'content/pembayaran/detail/$1/$2';
+$route['pembayaran/edit/(:any)/(:num)']    = 'content/pembayaran/edit/$1/$2';
+$route['pembayaran/update/(:any)/(:num)']  = 'content/pembayaran/update/$1/$2';
+$route['pembayaran/unduh/(:any)/(:num)']   = 'content/pembayaran/unduh/$1/$2';
+$route['pembayaran/status/(:any)/(:num)'] = 'content/pembayaran/status/$1/$2';
+$route['pembayaran/pratinjau'] = 'content/pembayaran/pratinjau';
+$route['pembayaran/berkas/(:num)'] = 'content/pembayaran/berkas/$1';
+
 $route['pengaturan'] = 'content/pengaturan/index';
 
 
