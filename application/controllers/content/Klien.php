@@ -9,7 +9,7 @@ class Klien extends MY_Controller {
         // 1. Memuat Model
         $this->load->model('Klien_model', 'klien_model');
         
-        // 2. Memuat Library Form Validation (INI YANG TADI HILANG)
+        // 2. Memuat Library Form Validation
         $this->load->library('form_validation');
     }
 
@@ -55,12 +55,17 @@ class Klien extends MY_Controller {
             // 4. Simpan ke Database melalui Model
             $this->klien_model->insert_klien($data);
 
-            // 5. Buat pesan sukses dan arahkan kembali ke tabel
+            // 5. Catat Log Aktivitas untuk Dashboard
+            $this->load->model('Dashboard_model');
+            $this->Dashboard_model->log_activity('klien', 'Klien baru ditambahkan: ' . $data['nama_klien']);
+
+            // 6. Buat pesan sukses dan arahkan kembali ke tabel
             $this->session->set_flashdata('success', 'Data klien berhasil ditambahkan!');
             redirect('klien');
         }
     }
-        public function detail($id) {
+
+    public function detail($id) {
         $data['klien'] = $this->klien_model->get_klien_by_id($id);
         
         // Jika data tidak ditemukan, tampilkan 404
@@ -73,20 +78,22 @@ class Klien extends MY_Controller {
         // Panggil view detail
         $this->load->view('content/klien/detail', $data);
     }
-        public function hapus($id) {
+
+    public function hapus($id) {
         // Cek apakah ID valid
         if ($id) {
             // Panggil model untuk menghapus data
             $this->klien_model->delete_klien($id);
             
-            // Buat pesan sukses (opsional, untuk ditampilkan di halaman index)
+            // Buat pesan sukses
             $this->session->set_flashdata('success', 'Data klien berhasil dihapus!');
         }
         
         // Arahkan kembali ke halaman tabel klien
         redirect('klien');
     }
-        public function edit($id) {
+
+    public function edit($id) {
         $data['klien'] = $this->klien_model->get_klien_by_id($id);
         
         if (!$data['klien']) {
@@ -95,10 +102,11 @@ class Klien extends MY_Controller {
 
         $data['title'] = 'Edit Klien - ' . $data['klien']->nama_klien;
         
-        // Panggil view edit (tanpa sidebar, full screen seperti form tambah)
+        // Panggil view edit
         $this->load->view('content/klien/edit', $data);
     }
-        public function update() {
+
+    public function update() {
         // 1. Aturan Validasi
         $this->form_validation->set_rules('nama_klien', 'Nama Klien', 'required');
         $this->form_validation->set_rules('tanggal_mulai', 'Tanggal Mulai', 'required');

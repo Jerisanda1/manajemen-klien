@@ -1,20 +1,21 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-// 1. UBAH MENJADI extends MY_Controller
 class Dashboard extends MY_Controller {
 
     public function __construct() {
         parent::__construct(); 
-        // 2. Satpam manual (session & redirect) SUDAH DIHAPUS 
-        // karena sudah otomatis ditangani oleh MY_Controller
+        // Memuat model Dashboard
+        $this->load->model('Dashboard_model', 'dashboard_model');
     }
 
     public function index()
     {
         $data = [
-            'title'   => 'Dashboard - Tridatu',
-            'content' => 'content/dashboard'
+            'title'      => 'Dashboard - Tridatu',
+            'content'    => 'content/dashboard',
+            'stats'      => $this->dashboard_model->get_stats(), // Mengambil data statistik
+            'activities' => $this->dashboard_model->get_recent_activities(5) // Mengambil 5 aktivitas terbaru
         ];
         
         $this->load->view('main', $data);

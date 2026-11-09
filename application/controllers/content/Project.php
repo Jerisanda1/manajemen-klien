@@ -10,6 +10,7 @@ class Project extends CI_Controller
             redirect('auth');
         }
         $this->load->model('Project_model');
+        $this->load->model('Dashboard_model'); // Tambahan untuk Log Aktivitas
         $this->load->library('form_validation');
         $this->form_validation->set_error_delimiters('', '');
     }
@@ -78,44 +79,49 @@ class Project extends CI_Controller
             return $this->tambah();
         }
 
-        $this->Project_model->insert($this->ambil_input());
+        $input = $this->ambil_input();
+        $this->Project_model->insert($input);
+        
+        // Mencatat Log Aktivitas ke Dashboard
+        $this->Dashboard_model->log_activity('project', 'Project baru dibuat: ' . $input['nama_project']);
+
         $this->session->set_flashdata('success', 'Project berhasil ditambahkan.');
         redirect('project');
     }
 
-  public function edit($id)
-{
-    $project = $this->Project_model->get($id);
-    if (!$project) show_404();
+    public function edit($id)
+    {
+        $project = $this->Project_model->get($id);
+        if (!$project) show_404();
 
-    $from = $this->input->get('from') === 'detail' ? 'detail' : 'list';
+        $from = $this->input->get('from') === 'detail' ? 'detail' : 'list';
 
-    $this->render('form', [
-        'title'     => 'Edit Project',
-        'project'   => $project,
-        'klienList' => $this->Project_model->get_klien_options(),
-        'from'      => $from,
-        'action'    => site_url('project/update/' . (int) $id) . ($from === 'detail' ? '?from=detail' : ''),
-    ]);
-}
-
-public function update($id)
-{
-    if ($this->input->method() !== 'post') redirect('project');
-    if (!$this->Project_model->get($id)) show_404();
-
-    if (!$this->validasi()) {
-        return $this->edit($id);
+        $this->render('form', [
+            'title'     => 'Edit Project',
+            'project'   => $project,
+            'klienList' => $this->Project_model->get_klien_options(),
+            'from'      => $from,
+            'action'    => site_url('project/update/' . (int) $id) . ($from === 'detail' ? '?from=detail' : ''),
+        ]);
     }
 
-    $this->Project_model->update($id, $this->ambil_input());
-    $this->session->set_flashdata('success', 'Project berhasil diperbarui.');
+    public function update($id)
+    {
+        if ($this->input->method() !== 'post') redirect('project');
+        if (!$this->Project_model->get($id)) show_404();
 
-    if ($this->input->get('from') === 'detail') {
-        redirect('project/detail/' . (int) $id);
+        if (!$this->validasi()) {
+            return $this->edit($id);
+        }
+
+        $this->Project_model->update($id, $this->ambil_input());
+        $this->session->set_flashdata('success', 'Project berhasil diperbarui.');
+
+        if ($this->input->get('from') === 'detail') {
+            redirect('project/detail/' . (int) $id);
+        }
+        redirect('project');
     }
-    redirect('project');
-}
 
     public function hapus()
     {
@@ -162,15 +168,15 @@ public function update($id)
     }
 
     public function status($id)
-{
-    if ($this->input->method() !== 'post') redirect('project/detail/' . (int) $id);
-    if (!$this->Project_model->get($id)) show_404();
+    {
+        if ($this->input->method() !== 'post') redirect('project/detail/' . (int) $id);
+        if (!$this->Project_model->get($id)) show_404();
 
-    $status = (string) $this->input->post('status', TRUE);
-    if (in_array($status, ['Berjalan', 'Selesai', 'Ditunda'], TRUE)) {
-        $this->Project_model->update_status($id, $status);
-        $this->session->set_flashdata('success', 'Status project berhasil diperbarui.');
+        $status = (string) $this->input->post('status', TRUE);
+        if (in_array($status, ['Berjalan', 'Selesai', 'Ditunda'], TRUE)) {
+            $this->Project_model->update_status($id, $status);
+            $this->session->set_flashdata('success', 'Status project berhasil diperbarui.');
+        }
+        redirect('project/detail/' . (int) $id);
     }
-    redirect('project/detail/' . (int) $id);
-}
 }

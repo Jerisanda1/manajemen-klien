@@ -58,10 +58,14 @@ class Dokumen_model extends CI_Model {
 
     // Mengambil list project berdasarkan Klien (Cascading Dropdown)
     public function get_project_by_klien($client_id) {
-        // PERBAIKAN: Menggunakan 'client_id' agar sesuai dengan struktur tabel
         return $this->db->where('client_id', (int) $client_id) 
                         ->order_by('nama_project', 'ASC')
                         ->get('project')->result();
+    }
+
+    // Mengambil list jenis dokumen dari Pengaturan (UNTUK DROPDOWN DINAMIS)
+    public function get_jenis_dokumen() {
+        return $this->db->order_by('name', 'ASC')->get('document_types')->result();
     }
 
     // Menghapus dokumen

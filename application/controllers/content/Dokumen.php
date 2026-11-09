@@ -6,23 +6,26 @@ class Dokumen extends MY_Controller {
     public function __construct() {
         parent::__construct();
         $this->load->model('Dokumen_model', 'dokumen_model');
+        $this->load->model('Dashboard_model'); // Tambahan untuk Log Aktivitas
         $this->load->library('form_validation');
         $this->load->helper(['form', 'url', 'string']);
     }
 
     public function index() {
         $data = [
-            'title'     => 'Dokumen Kerja Sama - Tridatu',
-            'content'   => 'content/dokumen/index',
-            'documents' => $this->dokumen_model->get_all_documents()
+            'title'         => 'Dokumen Kerja Sama - Tridatu',
+            'content'       => 'content/dokumen/index',
+            'documents'     => $this->dokumen_model->get_all_documents(),
+            'jenis_dokumen' => $this->dokumen_model->get_jenis_dokumen() // TAMBAHAN: Kirim data jenis ke view untuk Filter
         ];
         $this->load->view('main', $data);
     }
 
     public function tambah() {
         $data = [
-            'title'  => 'Tambah Dokumen - Tridatu',
-            'klien'  => $this->dokumen_model->get_klien()
+            'title'         => 'Tambah Dokumen - Tridatu',
+            'klien'         => $this->dokumen_model->get_klien(),
+            'jenis_dokumen' => $this->dokumen_model->get_jenis_dokumen() // Dropdown dinamis
         ];
         $this->load->view('content/dokumen/tambah', $data);
     }
@@ -119,6 +122,9 @@ class Dokumen extends MY_Controller {
 
         $id = $this->dokumen_model->insert_document($data);
 
+        // Mencatat Log Aktivitas ke Dashboard
+        $this->Dashboard_model->log_activity('dokumen', 'Dokumen baru diunggah: ' . $data['nama_dokumen']);
+
         if ($this->input->is_ajax_request()) {
             return $this->_json(['status' => true, 'id' => $id, 'msg' => 'Dokumen berhasil disimpan!']);
         }
@@ -127,9 +133,6 @@ class Dokumen extends MY_Controller {
         redirect('dokumen');
     }
 
-    // ==========================================
-    // FUNGSI EDIT & UPDATE (BARU)
-    // ==========================================
     public function edit($id) {
         $doc = $this->dokumen_model->get_detail($id);
         
@@ -148,9 +151,10 @@ class Dokumen extends MY_Controller {
         }
 
         $data = [
-            'title' => 'Edit Dokumen - Tridatu',
-            'doc'   => $doc,
-            'klien' => $this->dokumen_model->get_klien()
+            'title'         => 'Edit Dokumen - Tridatu',
+            'doc'           => $doc,
+            'klien'         => $this->dokumen_model->get_klien(),
+            'jenis_dokumen' => $this->dokumen_model->get_jenis_dokumen()
         ];
         $this->load->view('content/dokumen/edit', $data);
     }
@@ -236,6 +240,9 @@ class Dokumen extends MY_Controller {
         }
 
         $this->dokumen_model->update_document($id, $update_data);
+
+        // Mencatat Log Aktivitas ke Dashboard
+        $this->Dashboard_model->log_activity('dokumen', 'Dokumen diperbarui: ' . $update_data['nama_dokumen']);
 
         if ($this->input->is_ajax_request()) {
             return $this->_json(['status' => true, 'id' => $id, 'msg' => 'Dokumen berhasil diperbarui!']);

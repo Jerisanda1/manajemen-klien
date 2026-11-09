@@ -487,6 +487,12 @@ $currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
         const uniqueJenis = new Set();
         const uniqueStatus = new Set();
 
+        // TAMBAHAN: Ambil data dari master Jenis Dokumen (Pengaturan)
+        const masterJenis = <?= json_encode(array_column($jenis_dokumen ?? [], 'name')) ?>;
+        masterJenis.forEach(val => {
+            if(val) uniqueJenis.add(val);
+        });
+
         allRows.forEach(row => {
             if(row.dataset.client) uniqueClients.add(row.dataset.client);
             if(row.dataset.jenis) uniqueJenis.add(row.dataset.jenis);

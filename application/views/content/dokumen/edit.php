@@ -136,13 +136,15 @@
                         <input type="date" name="tanggal_mulai" value="<?= $doc->tanggal_mulai ?>" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b]" required>
                     </div>
                     
-                    <!-- Jenis Dokumen -->
+                    <!-- Jenis Dokumen (DINAMIS DARI DATABASE) -->
                     <div>
                         <label class="block text-xs font-medium text-gray-700 mb-1.5">Jenis dokumen <span class="text-red-500">*</span></label>
                         <select name="jenis_dokumen" class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b]" required>
                             <option value="">Pilih Jenis</option>
-                            <?php foreach(['MOU','NDA','Kontrak','Surat Tugas'] as $j): ?>
-                                <option value="<?= $j ?>" <?= $doc->jenis_dokumen == $j ? 'selected' : '' ?>><?= $j ?></option>
+                            <?php foreach($jenis_dokumen as $j): ?>
+                                <option value="<?= htmlspecialchars($j->name) ?>" <?= $doc->jenis_dokumen == $j->name ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($j->name) ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
