@@ -8,6 +8,7 @@ class Dokumen_model extends CI_Model {
         $this->load->database();
     }
 
+    // Mengambil semua dokumen untuk halaman Index
     public function get_all_documents() {
         return $this->db
             ->select('d.*, c.nama_klien, p.nama_project')
@@ -18,37 +19,12 @@ class Dokumen_model extends CI_Model {
             ->get()->result();
     }
 
+    // Mengambil 1 dokumen berdasarkan ID (untuk Unduh, Preview, Hapus)
     public function get_by_id($id) {
         return $this->db->get_where('documents', ['id' => (int) $id])->row();
     }
 
-    public function insert_document($data) {
-        $this->db->insert('documents', $data);
-        return $this->db->insert_id();
-    }
-
-    public function update_file($id, $data) {
-        return $this->db->where('id', (int) $id)->update('documents', $data);
-    }
-
-    public function update_document($id, $data) {
-        return $this->db->where('id', (int) $id)->update('documents', $data);
-    }
-
-    public function get_klien() {
-        return $this->db->order_by('nama_klien', 'ASC')->get('clients')->result();
-    }
-
-        public function get_project_by_klien($client_id) {
-        return $this->db->where('klien_id', (int) $client_id) 
-                        ->order_by('nama_project', 'ASC')
-                        ->get('project')->result();
-    }
-
-    public function delete_document($id) {
-        return $this->db->delete('documents', ['id' => (int) $id]);
-    }
-        // Tambahkan fungsi ini untuk halaman detail
+    // Mengambil detail dokumen beserta nama Klien & Project (untuk Halaman Detail & Edit)
     public function get_detail($id) {
         return $this->db
             ->select('d.*, c.nama_klien, p.nama_project')
@@ -57,5 +33,39 @@ class Dokumen_model extends CI_Model {
             ->join('project p', 'p.id = d.project_id', 'left')
             ->where('d.id', (int) $id)
             ->get()->row();
+    }
+
+    // Menyimpan dokumen baru
+    public function insert_document($data) {
+        $this->db->insert('documents', $data);
+        return $this->db->insert_id();
+    }
+
+    // Mengupdate file (digunakan saat Sync ke Cloud)
+    public function update_file($id, $data) {
+        return $this->db->where('id', (int) $id)->update('documents', $data);
+    }
+
+    // Mengupdate seluruh data dokumen (digunakan saat Edit)
+    public function update_document($id, $data) {
+        return $this->db->where('id', (int) $id)->update('documents', $data);
+    }
+
+    // Mengambil list klien untuk dropdown
+    public function get_klien() {
+        return $this->db->order_by('nama_klien', 'ASC')->get('clients')->result();
+    }
+
+    // Mengambil list project berdasarkan Klien (Cascading Dropdown)
+    public function get_project_by_klien($client_id) {
+        // PERBAIKAN: Menggunakan 'client_id' agar sesuai dengan struktur tabel
+        return $this->db->where('client_id', (int) $client_id) 
+                        ->order_by('nama_project', 'ASC')
+                        ->get('project')->result();
+    }
+
+    // Menghapus dokumen
+    public function delete_document($id) {
+        return $this->db->delete('documents', ['id' => (int) $id]);
     }
 }

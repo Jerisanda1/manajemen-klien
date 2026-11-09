@@ -31,6 +31,19 @@ $currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
         </div>
     <?php endif; ?>
 
+    <!-- Notifikasi Khusus Edit via AJAX (Lokal) -->
+    <?php if($this->input->get('edit_success') == '1'): ?>
+        <div id="alert-success-ajax" class="flex items-center justify-between bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-4 rounded-xl mb-5 shadow-sm transition-all duration-300">
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="font-medium text-sm">Dokumen berhasil diperbarui!</span>
+            </div>
+            <button type="button" onclick="document.getElementById('alert-success-ajax').remove()" class="text-emerald-500 hover:text-emerald-700 focus:outline-none">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    <?php endif; ?>
+
     <?php if($this->session->flashdata('error')): ?>
         <div id="alert-error" class="flex items-center justify-between bg-red-50 border border-red-200 text-red-800 px-5 py-4 rounded-xl mb-5 shadow-sm transition-all duration-300">
             <div class="flex items-center gap-3">
@@ -46,7 +59,7 @@ $currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
     <!-- Card Tabel -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         
-        <!-- Search & Custom Dropdown Filter (Sudah Diperbaiki tanpa Scrollbar) -->
+        <!-- Search & Custom Dropdown Filter -->
         <div class="p-4 sm:p-5 border-b border-gray-100 bg-white flex flex-col xl:flex-row gap-3 items-center justify-between">
             
             <!-- Search Box -->
@@ -102,7 +115,7 @@ $currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
                     <input type="hidden" id="filterStatus" value="">
                 </div>
 
-                <!-- Tombol Reset Filter (Ditambahkan) -->
+                <!-- Tombol Reset Filter -->
                 <button type="button" id="btnResetFilter" class="hidden flex-shrink-0 px-3.5 py-2.5 bg-red-50 text-[#9f2b2b] hover:bg-red-100 border border-red-100 text-sm font-medium rounded-2xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     Reset
@@ -206,25 +219,31 @@ $currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
                             <td class="px-5 py-4 text-center">
                                 <div class="flex justify-center items-center gap-1.5">
                                     <?php if ($isCloud): ?>
+                                        <!-- Unduh Cloud (Hanya untuk Cloud) -->
                                         <a href="<?= site_url('dokumen/unduh/'.$d->id) ?>"
                                            class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Unduh Dokumen">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                         </a>
-                                    <?php else: ?>
+                                    <?php elseif ($isOwnLocal): ?>
+                                        <!-- HANYA Sync (Tombol Download Lokal Dihapus) -->
                                         <button type="button" data-sync-id="<?= (int)$d->id ?>"
-                                                class="btn-sync p-1.5 bg-white border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400 rounded-lg transition-all shadow-sm <?= $isOwnLocal ? '' : 'hidden' ?>" title="Unggah ke Server Sistem">
+                                                class="btn-sync p-1.5 bg-white border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400 rounded-lg transition-all shadow-sm" title="Unggah ke Server Sistem">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                                         </button>
-                                        <span class="btn-lock p-1.5 bg-white border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed <?= $isOtherLocal ? '' : 'hidden' ?>" title="File tersimpan di Perangkat Lain">
+                                    <?php else: ?>
+                                        <!-- Gembok (Perangkat Lain) -->
+                                        <span class="btn-lock p-1.5 bg-white border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed" title="File tersimpan di Perangkat Lain">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                                         </span>
                                     <?php endif; ?>
 
+                                    <!-- Edit -->
                                     <a href="<?= site_url('dokumen/edit/' . (int)$d->id) ?>"
                                        class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                     </a>
 
+                                    <!-- Hapus -->
                                     <button type="button" class="btn-hapus p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm"
                                             data-id="<?= (int)$d->id ?>"
                                             data-nama="<?= htmlspecialchars($d->nama_dokumen, ENT_QUOTES) ?>"

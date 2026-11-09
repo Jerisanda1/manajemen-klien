@@ -81,10 +81,22 @@ $route['dokumen/get_projects'] = 'content/dokumen/get_projects';
 $route['dokumen/hapus/(:num)'] = 'content/dokumen/hapus/$1';
 $route['dokumen/detail/(:num)'] = 'content/dokumen/detail/$1';
 $route['dokumen/preview/(:num)'] = 'content/dokumen/preview/$1';
+$route['dokumen/unduh/(:num)'] = 'content/dokumen/unduh/$1';
+$route['dokumen/edit/(:num)'] = 'content/dokumen/edit/$1';
+$route['dokumen/update']      = 'content/dokumen/update';
 
 
 $route['pembayaran'] = 'content/pembayaran/index';
 $route['pengaturan'] = 'content/pengaturan/index';
+
+
+
+$route['pengaturan'] = 'content/pengaturan/index';
+$route['pengaturan/update_info'] = 'content/pengaturan/update_info';
+$route['pengaturan/update_assets'] = 'content/pengaturan/update_assets';
+$route['pengaturan/hapus_asset/(:any)'] = 'content/pengaturan/hapus_asset/$1';
+$route['pengaturan/simpan_jenis'] = 'content/pengaturan/simpan_jenis';
+$route['pengaturan/hapus_jenis/(:num)'] = 'content/pengaturan/hapus_jenis/$1';
 
 
 

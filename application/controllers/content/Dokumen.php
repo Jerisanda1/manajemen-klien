@@ -127,6 +127,124 @@ class Dokumen extends MY_Controller {
         redirect('dokumen');
     }
 
+    // ==========================================
+    // FUNGSI EDIT & UPDATE (BARU)
+    // ==========================================
+    public function edit($id) {
+        $doc = $this->dokumen_model->get_detail($id);
+        
+        if (!$doc) {
+            show_404();
+        }
+
+        // Cek Device ID (Blokir jika dokumen milik perangkat lain)
+        $currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
+        $isLocal = ($doc->storage_type === 'local');
+        $isOtherLocal = ($isLocal && $doc->device_id !== $currentDeviceId);
+
+        if ($isOtherLocal) {
+            $this->session->set_flashdata('error', 'Dokumen ini tersimpan di Perangkat Lain dan tidak dapat diedit.');
+            redirect('dokumen');
+        }
+
+        $data = [
+            'title' => 'Edit Dokumen - Tridatu',
+            'doc'   => $doc,
+            'klien' => $this->dokumen_model->get_klien()
+        ];
+        $this->load->view('content/dokumen/edit', $data);
+    }
+
+    public function update() {
+        $id = (int) $this->input->post('id');
+        $doc = $this->dokumen_model->get_by_id($id);
+        if (!$doc) show_404();
+
+        // Validasi Form
+        $this->form_validation->set_rules('nama_dokumen', 'Nama Dokumen', 'required|max_length[200]');
+        $this->form_validation->set_rules('client_id', 'Klien', 'required|integer');
+        $this->form_validation->set_rules('project_id', 'Project', 'required|integer'); 
+        $this->form_validation->set_rules('jenis_dokumen', 'Jenis Dokumen', 'required|max_length[50]');
+        $this->form_validation->set_rules('tanggal_mulai', 'Tanggal Mulai', 'required');
+        $this->form_validation->set_rules('tanggal_berakhir', 'Tanggal Berakhir', 'required');
+        $this->form_validation->set_rules('storage_type', 'Tipe Penyimpanan', 'required|in_list[local,cloud]');
+
+        if ($this->form_validation->run() == FALSE) {
+            if ($this->input->is_ajax_request()) return $this->_json(['status' => false, 'msg' => strip_tags(validation_errors())]);
+            $this->session->set_flashdata('error', validation_errors());
+            redirect('dokumen/edit/'.$id);
+        }
+
+        $storage_type = $this->input->post('storage_type');
+        
+        $update_data = [
+            'client_id'        => (int) $this->input->post('client_id'),
+            'project_id'       => (int) $this->input->post('project_id'),
+            'nama_dokumen'     => $this->input->post('nama_dokumen', TRUE),
+            'jenis_dokumen'    => $this->input->post('jenis_dokumen', TRUE),
+            'storage_type'     => $storage_type,
+            'tanggal_mulai'    => $this->input->post('tanggal_mulai'),
+            'tanggal_berakhir' => $this->input->post('tanggal_berakhir'),
+        ];
+
+        // Cek apakah user mengganti file
+        $is_new_cloud_file = ($storage_type === 'cloud' && !empty($_FILES['file_dokumen']['name']));
+        $is_new_local_file = ($storage_type === 'local' && $this->input->post('file_name_local') && $this->input->post('file_name_local') !== $doc->file_name);
+
+        if ($is_new_cloud_file) {
+            $config = [
+                'upload_path'   => FCPATH . 'writable/uploads/documents/cloud/',
+                'allowed_types' => 'pdf|doc|docx|xls|xlsx|jpg|jpeg|png',
+                'max_size'      => 10240,
+                'encrypt_name'  => TRUE,
+            ];
+            $this->load->library('upload', $config);
+
+            if (!$this->upload->do_upload('file_dokumen')) {
+                $msg = strip_tags($this->upload->display_errors());
+                if ($this->input->is_ajax_request()) return $this->_json(['status' => false, 'msg' => $msg]);
+                $this->session->set_flashdata('error', $msg); redirect('dokumen/edit/'.$id);
+            }
+            
+            $up = $this->upload->data();
+            $rel = 'writable/uploads/documents/cloud/' . $up['file_name'];
+
+            // Hapus file lama JIKA sebelumnya juga di Cloud
+            if ($doc->storage_type === 'cloud' && $doc->file_path && is_file(FCPATH . $doc->file_path)) {
+                @unlink(FCPATH . $doc->file_path);
+            }
+
+            $update_data['file_path'] = $rel;
+            $update_data['file_name'] = $up['orig_name'];
+            $update_data['file_hash'] = hash_file('sha256', FCPATH . $rel);
+            $update_data['file_size'] = $up['file_size'] * 1024;
+            $update_data['mime_type'] = $up['file_type'];
+            $update_data['device_id'] = NULL; // Reset device_id karena sekarang jadi Cloud
+            
+        } elseif ($is_new_local_file) {
+            $update_data['file_path'] = NULL;
+            $update_data['file_name'] = $this->input->post('file_name_local', TRUE);
+            $update_data['file_hash'] = $this->input->post('file_hash_local', TRUE);
+            $update_data['file_size'] = (int) $this->input->post('file_size_local');
+            $update_data['mime_type'] = $this->input->post('file_type_local', TRUE);
+            $update_data['device_id'] = $this->input->post('device_id', TRUE);
+            
+            // Hapus file lama JIKA sebelumnya di Cloud
+            if ($doc->storage_type === 'cloud' && $doc->file_path && is_file(FCPATH . $doc->file_path)) {
+                @unlink(FCPATH . $doc->file_path);
+            }
+        }
+
+        $this->dokumen_model->update_document($id, $update_data);
+
+        if ($this->input->is_ajax_request()) {
+            return $this->_json(['status' => true, 'id' => $id, 'msg' => 'Dokumen berhasil diperbarui!']);
+        }
+
+        $this->session->set_flashdata('success', 'Dokumen berhasil diperbarui!');
+        redirect('dokumen');
+    }
+
     public function sync_to_cloud() {
         if ($this->input->method() !== 'post') show_404();
 
@@ -181,7 +299,6 @@ class Dokumen extends MY_Controller {
         return $this->_json(['status' => true, 'msg' => 'Berhasil diunggah ke Server Sistem!']);
     }
 
-    // Endpoint Download (Paksa Unduh)
     public function unduh($id) {
         $doc = $this->dokumen_model->get_by_id($id);
         if (!$doc || $doc->storage_type !== 'cloud' || !$doc->file_path) show_404();
@@ -193,7 +310,6 @@ class Dokumen extends MY_Controller {
         force_download($doc->file_name ?: basename($path), file_get_contents($path));
     }
 
-    // Endpoint Pratinjau (Inline) - SUDAH DIPERBAIKI
     public function preview($id) {
         $doc = $this->dokumen_model->get_by_id($id);
         if (!$doc || $doc->storage_type !== 'cloud' || !$doc->file_path) show_404();
@@ -201,25 +317,22 @@ class Dokumen extends MY_Controller {
         $path = FCPATH . $doc->file_path;
         if (!is_file($path)) show_404();
 
-        // 1. Bersihkan output buffer CodeIgniter agar PDF tidak rusak
         if (ob_get_level() > 0) {
             ob_end_clean();
         }
 
-        // 2. Tentukan MIME Type dengan aman
         $mime = $doc->mime_type;
         if (!$mime || $mime === 'application/octet-stream') {
             $mime = mime_content_type($path);
         }
         if (!$mime) {
-            $mime = 'application/pdf'; // Fallback jika deteksi gagal
+            $mime = 'application/pdf';
         }
         
-        // 3. Set header untuk Pratinjau
         header('Content-Type: ' . $mime);
         header('Content-Disposition: inline; filename="' . $doc->file_name . '"');
         header('Content-Length: ' . filesize($path));
-        header('Accept-Ranges: bytes'); // Penting untuk PDF Viewer
+        header('Accept-Ranges: bytes');
         
         readfile($path);
         exit;
