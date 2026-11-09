@@ -74,6 +74,15 @@ $route['project/hapus']        = 'content/project/hapus';
 $route['project/status/(:num)'] = 'content/project/status/$1';
 
 $route['dokumen'] = 'content/dokumen/index';
+$route['dokumen'] = 'content/dokumen/index';
+$route['dokumen/tambah'] = 'content/dokumen/tambah';
+$route['dokumen/simpan'] = 'content/dokumen/simpan';
+$route['dokumen/get_projects'] = 'content/dokumen/get_projects';
+$route['dokumen/hapus/(:num)'] = 'content/dokumen/hapus/$1';
+$route['dokumen/detail/(:num)'] = 'content/dokumen/detail/$1';
+$route['dokumen/preview/(:num)'] = 'content/dokumen/preview/$1';
+
+
 $route['pembayaran'] = 'content/pembayaran/index';
 $route['pengaturan'] = 'content/pengaturan/index';
 
