@@ -1,7 +1,7 @@
 <?php
 /**
  * Detail Klien — Manajemen Klien
- * Variabel dari controller: $title, $klien
+ * Variabel dari controller: $title, $klien, $list_project, $list_dokumen
  */
 
 // Escape output
@@ -12,36 +12,48 @@ $e = function ($v) {
 // Format tanggal Indonesia (15 Feb 2025)
 $bulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 $tgl   = function ($tanggal) use ($bulan) {
+    if (empty($tanggal)) return '-';
     $t = strtotime($tanggal);
     return $t ? date('d', $t) . ' ' . $bulan[(int) date('n', $t)] . ' ' . date('Y', $t) : '-';
 };
 
 // Gaya badge status
 $badge = [
-    'Berjalan'      => ['bg-sky-50 text-sky-700 ring-sky-200',         'bg-sky-500'],
+    'Berjalan'      => ['bg-sky-50 text-sky-700 ring-sky-200',             'bg-sky-500'],
     'Selesai'       => ['bg-emerald-50 text-emerald-700 ring-emerald-200', 'bg-emerald-500'],
-    'Aktif'         => ['bg-sky-50 text-sky-700 ring-sky-200',         'bg-sky-500'],
-    'Akan Berakhir' => ['bg-orange-50 text-orange-700 ring-orange-200', 'bg-orange-500'],
+    'Ditunda'       => ['bg-slate-50 text-slate-700 ring-slate-200',       'bg-slate-400'],
+    'Aktif'         => ['bg-sky-50 text-sky-700 ring-sky-200',             'bg-sky-500'],
+    'Akan Berakhir' => ['bg-orange-50 text-orange-700 ring-orange-200',    'bg-orange-500'],
+    'Kedaluwarsa'   => ['bg-red-50 text-red-700 ring-red-200',             'bg-red-500'],
 ];
 
-// ---- DATA DUMMY: ganti dengan data dari controller/database ----
-$projects = [
-    ['nama' => 'Sistem ERP', 'mulai' => '15 Jan 2026', 'selesai' => '15 Okt 2026', 'status' => 'Berjalan'],
-    ['nama' => 'Sistem ERP', 'mulai' => '15 Jan 2026', 'selesai' => '15 Okt 2026', 'status' => 'Berjalan'],
-    ['nama' => 'Sistem ERP', 'mulai' => '15 Jan 2026', 'selesai' => '15 Okt 2026', 'status' => 'Selesai'],
-    ['nama' => 'Website Kampus', 'mulai' => '01 Mar 2025', 'selesai' => '30 Nov 2025', 'status' => 'Selesai'],
-];
-$dokumen = [
-    ['nama' => 'MOU Pengembangan ERP', 'project' => 'Sistem ERP', 'jenis' => 'MOU', 'berakhir' => '15 Okt 2027', 'status' => 'Aktif'],
-    ['nama' => 'MOU Pengembangan ERP', 'project' => 'Sistem ERP', 'jenis' => 'NDA', 'berakhir' => '15 Okt 2027', 'status' => 'Aktif'],
-    ['nama' => 'MOU Pengembangan ERP', 'project' => 'Sistem ERP', 'jenis' => 'MOU', 'berakhir' => '29 Okt 2026', 'status' => 'Akan Berakhir'],
-];
-// ----------------------------------------------------------------
+// ---- DATA ASLI dari controller (fallback [] kalau belum diset) ----
+$projects = isset($list_project) ? $list_project : [];
+$dokumen  = isset($list_dokumen) ? $list_dokumen : [];
+// -------------------------------------------------------------------
 
-$jmlProject   = count($projects);
-$jmlBerjalan  = count(array_filter($projects, function($p) { return $p['status'] === 'Berjalan'; }));
-$jmlDokumen   = count($dokumen);
-$jmlBerakhir  = count(array_filter($dokumen, function($d) { return $d['status'] === 'Akan Berakhir'; }));
+// Hitung status dokumen dari tanggal_berakhir
+// (tabel documents tidak punya kolom status)
+$statusDokumen = function ($d) {
+    if (empty($d->tanggal_berakhir)) return 'Aktif';
+    $today = strtotime(date('Y-m-d'));
+    $akhir = strtotime($d->tanggal_berakhir);
+    if (!$akhir) return 'Aktif';
+    $selisihHari = (int) floor(($akhir - $today) / 86400);
+    if ($selisihHari < 0)  return 'Kedaluwarsa';
+    if ($selisihHari <= 30) return 'Akan Berakhir';
+    return 'Aktif';
+};
+
+// Hitung ringkasan
+$jmlProject  = count($projects);
+$jmlBerjalan = count(array_filter($projects, function ($p) {
+    return isset($p->status) && $p->status === 'Berjalan';
+}));
+$jmlDokumen  = count($dokumen);
+$jmlBerakhir = count(array_filter($dokumen, function ($d) use ($statusDokumen) {
+    return $statusDokumen($d) === 'Akan Berakhir';
+}));
 
 // Komponen kecil: badge status
 $renderBadge = function ($status) use ($badge) {
@@ -51,7 +63,6 @@ $renderBadge = function ($status) use ($badge) {
 };
 
 // Komponen kecil: footer tabel + pagination
-// DIPERBAIKI: Menangani jika data kosong (0)
 $renderFooter = function ($total) {
     $teks = $total > 0 ? 'Menampilkan 1–' . $total . ' dari ' . $total . ' data' : 'Menampilkan 0 data';
     return '<div class="flex shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-2">'
@@ -89,8 +100,7 @@ $renderFooter = function ($total) {
             </div>
 
             <div class="flex items-center gap-2">
-                <!-- DIPERBAIKI: Ditambahkan efek hover translate-y -->
-                <a href="<?= site_url('klien/edit/' . $klien->id) ?>"   
+                <a href="<?= site_url('klien/edit/' . $klien->id) ?>"
                    class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                     Edit
@@ -155,7 +165,7 @@ $renderFooter = function ($total) {
                         </span>
                         <div class="min-w-0">
                             <dt class="text-xs text-slate-500">Email</dt>
-                            <dd class="mt-0.5 break-all text-sm font-semibold text-slate-900"><?php if ($klien->email): ?>
+                            <dd class="mt-0.5 break-all text-sm font-semibold text-slate-900"><?php if (!empty($klien->email)): ?>
                                 <a href="mailto:<?= $e($klien->email) ?>" class="text-indigo-600 hover:underline"><?= $e($klien->email) ?></a>
                             <?php else: ?>
                                 <span class="text-slate-400">-</span>
@@ -168,34 +178,63 @@ $renderFooter = function ($total) {
                         </span>
                         <div class="min-w-0">
                             <dt class="text-xs text-slate-500">Alamat</dt>
-                            <dd class="mt-0.5 text-sm font-semibold leading-snug text-slate-900"><?= $klien->alamat ? $e($klien->alamat) : '<span class="text-slate-400">-</span>' ?></dd>
+                            <dd class="mt-0.5 text-sm font-semibold leading-snug text-slate-900"><?= !empty($klien->alamat) ? $e($klien->alamat) : '<span class="text-slate-400">-</span>' ?></dd>
                         </div>
                     </div>
                 </dl>
             </div>
 
             <!-- Ringkasan -->
-            <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                <h2 class="mb-3 text-base font-semibold text-slate-900">Ringkasan</h2>
-                <dl class="divide-y divide-slate-100">
-                    <div class="flex items-center justify-between py-2.5">
-                        <dt class="text-sm text-slate-500">Jumlah Project</dt>
-                        <dd class="text-sm font-semibold text-slate-900"><?= $jmlProject ?></dd>
-                    </div>
-                    <div class="flex items-center justify-between py-2.5">
-                        <dt class="text-sm text-slate-500">Project Berjalan</dt>
-                        <dd class="text-sm font-semibold text-slate-900"><?= $jmlBerjalan ?></dd>
-                    </div>
-                    <div class="flex items-center justify-between py-2.5">
-                        <dt class="text-sm text-slate-500">Jumlah Dokumen</dt>
-                        <dd class="text-sm font-semibold text-slate-900"><?= $jmlDokumen ?></dd>
-                    </div>
-                    <div class="flex items-center justify-between py-2.5">
-                        <dt class="text-sm text-slate-500">Dokumen Akan Berakhir</dt>
-                        <dd class="text-sm font-semibold text-slate-900"><?= $jmlBerakhir ?></dd>
-                    </div>
-                </dl>
+<div class="rounded-2xl border border-slate-200 bg-white p-5">
+    <h2 class="mb-3 text-base font-semibold text-slate-900">Ringkasan</h2>
+    <div class="grid grid-cols-2 gap-2.5">
+
+        <!-- Total Project -->
+        <div class="group relative overflow-hidden rounded-xl bg-indigo-50/60 p-3 ring-1 ring-inset ring-indigo-100/70 transition-colors hover:bg-indigo-50">
+            <div class="flex items-start justify-between">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-indigo-600/80">Total Project</p>
+                <svg class="h-3.5 w-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                </svg>
             </div>
+            <p class="mt-1.5 text-2xl font-bold tabular-nums text-slate-900"><?= $jmlProject ?></p>
+        </div>
+
+        <!-- Project Berjalan -->
+        <div class="group relative overflow-hidden rounded-xl bg-sky-50/60 p-3 ring-1 ring-inset ring-sky-100/70 transition-colors hover:bg-sky-50">
+            <div class="flex items-start justify-between">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-sky-600/80">Berjalan</p>
+                <svg class="h-3.5 w-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <p class="mt-1.5 text-2xl font-bold tabular-nums text-slate-900"><?= $jmlBerjalan ?></p>
+        </div>
+
+        <!-- Total Dokumen -->
+        <div class="group relative overflow-hidden rounded-xl bg-emerald-50/60 p-3 ring-1 ring-inset ring-emerald-100/70 transition-colors hover:bg-emerald-50">
+            <div class="flex items-start justify-between">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-600/80">Total Dokumen</p>
+                <svg class="h-3.5 w-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+            <p class="mt-1.5 text-2xl font-bold tabular-nums text-slate-900"><?= $jmlDokumen ?></p>
+        </div>
+
+        <!-- Akan Berakhir -->
+        <div class="group relative overflow-hidden rounded-xl bg-amber-50/60 p-3 ring-1 ring-inset ring-amber-100/70 transition-colors hover:bg-amber-50">
+            <div class="flex items-start justify-between">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-amber-600/80">Akan Berakhir</p>
+                <svg class="h-3.5 w-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <p class="mt-1.5 text-2xl font-bold tabular-nums text-slate-900"><?= $jmlBerakhir ?></p>
+        </div>
+
+    </div>
+</div>
         </section>
 
         <!-- Project & dokumen -->
@@ -206,7 +245,8 @@ $renderFooter = function ($total) {
                 <h2 class="mb-2 shrink-0 text-base font-semibold text-slate-900">Project</h2>
                 <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200">
                     <div class="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
-                        <table class="h-full w-full text-left text-[13px]">
+                        <!-- FIX: h-full dihapus agar baris tidak vertikal di tengah saat data sedikit -->
+                        <table class="w-full text-left text-[13px]">
                             <thead class="sticky top-0 z-10 h-10 bg-slate-50">
                                 <tr class="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
                                     <th class="px-4 py-2">Nama Project</th>
@@ -216,7 +256,6 @@ $renderFooter = function ($total) {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                <!-- DIPERBAIKI: Empty state untuk Project -->
                                 <?php if (empty($projects)): ?>
                                     <tr>
                                         <td colspan="4" class="px-4 py-8 text-center text-slate-500">Belum ada data project.</td>
@@ -224,10 +263,11 @@ $renderFooter = function ($total) {
                                 <?php else: ?>
                                     <?php foreach ($projects as $p): ?>
                                     <tr class="transition-colors hover:bg-slate-50">
-                                        <td class="px-4 py-2 font-semibold text-slate-900"><?= $e($p['nama']) ?></td>
-                                        <td class="whitespace-nowrap px-4 py-2 text-slate-600"><?= $e($p['mulai']) ?></td>
-                                        <td class="whitespace-nowrap px-4 py-2 text-slate-600"><?= $e($p['selesai']) ?></td>
-                                        <td class="whitespace-nowrap px-4 py-2"><?= $renderBadge($p['status']) ?></td>
+                                        <!-- FIX: nama project jadi teks biasa, bukan link -->
+                                        <td class="px-4 py-2 font-semibold text-slate-900"><?= $e($p->nama_project) ?></td>
+                                        <td class="whitespace-nowrap px-4 py-2 text-slate-600"><?= $e($tgl($p->tanggal_mulai)) ?></td>
+                                        <td class="whitespace-nowrap px-4 py-2 text-slate-600"><?= $e($tgl($p->tanggal_selesai)) ?></td>
+                                        <td class="whitespace-nowrap px-4 py-2"><?= $renderBadge($p->status ?: '-') ?></td>
                                     </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
@@ -243,7 +283,8 @@ $renderFooter = function ($total) {
                 <h2 class="mb-2 shrink-0 text-base font-semibold text-slate-900">Dokumen Kerja Sama</h2>
                 <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200">
                     <div class="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
-                        <table class="h-full w-full text-left text-[13px]">
+                        <!-- FIX: h-full dihapus juga agar konsisten -->
+                        <table class="w-full text-left text-[13px]">
                             <thead class="sticky top-0 z-10 h-10 bg-slate-50">
                                 <tr class="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
                                     <th class="px-4 py-2">Nama Dokumen</th>
@@ -254,25 +295,26 @@ $renderFooter = function ($total) {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                <!-- DIPERBAIKI: Empty state untuk Dokumen -->
                                 <?php if (empty($dokumen)): ?>
                                     <tr>
                                         <td colspan="5" class="px-4 py-8 text-center text-slate-500">Belum ada data dokumen.</td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($dokumen as $d): ?>
-                                    <tr class="transition-colors hover:bg-slate-50">
-                                        <td class="px-4 py-2">
-                                            <!-- DIPERBAIKI: Ganti href="#" dengan javascript:void(0) -->
-                                            <a href="javascript:void(0)" class="font-medium text-indigo-600 hover:underline"><?= $e($d['nama']) ?></a>
-                                        </td>
-                                        <td class="px-4 py-2 font-semibold text-slate-900"><?= $e($d['project']) ?></td>
-                                        <td class="whitespace-nowrap px-4 py-2">
-                                            <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700"><?= $e($d['jenis']) ?></span>
-                                        </td>
-                                        <td class="whitespace-nowrap px-4 py-2 <?= $d['status'] === 'Akan Berakhir' ? 'font-medium text-orange-700' : 'text-slate-600' ?>"><?= $e($d['berakhir']) ?></td>
-                                        <td class="whitespace-nowrap px-4 py-2"><?= $renderBadge($d['status']) ?></td>
-                                    </tr>
+                                        <?php $statusDok = $statusDokumen($d); ?>
+                                        <tr class="transition-colors hover:bg-slate-50">
+                                            <td class="px-4 py-2">
+                                                <a href="<?= site_url('dokumen/detail/' . $d->id) ?>" class="font-medium text-indigo-600 hover:underline">
+                                                    <?= $e($d->nama_dokumen) ?>
+                                                </a>
+                                            </td>
+                                            <td class="px-4 py-2 font-semibold text-slate-900"><?= $e($d->nama_project ?: '-') ?></td>
+                                            <td class="whitespace-nowrap px-4 py-2">
+                                                <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700"><?= $e($d->jenis_dokumen) ?></span>
+                                            </td>
+                                            <td class="whitespace-nowrap px-4 py-2 <?= $statusDok === 'Akan Berakhir' ? 'font-medium text-orange-700' : 'text-slate-600' ?>"><?= $e($tgl($d->tanggal_berakhir)) ?></td>
+                                            <td class="whitespace-nowrap px-4 py-2"><?= $renderBadge($statusDok) ?></td>
+                                        </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </tbody>
@@ -308,7 +350,6 @@ $renderFooter = function ($total) {
     </div>
 
     <script>
-        // Logika modal hapus
         let hapusId = null;
         const modal = document.getElementById('modalHapus');
         const modalContent = document.getElementById('modalContent');
@@ -340,7 +381,6 @@ $renderFooter = function ($total) {
             }
         }
 
-        // Tutup modal dengan tombol Esc
         document.addEventListener('keydown', (ev) => {
             if (ev.key === 'Escape' && !modal.classList.contains('hidden')) tutupModalHapus();
         });

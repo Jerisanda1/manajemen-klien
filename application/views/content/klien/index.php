@@ -108,18 +108,34 @@
                                 </div>
                             </td>
                             
-                            <!-- Project -->
+                            <!-- Project (DINAMIS) -->
                             <td class="px-6 py-4 text-center">
-                                <span class="inline-flex items-center justify-center bg-purple-50 text-purple-600 text-xs font-semibold px-3 py-1 rounded-full border border-purple-100">
-                                    0 Project
-                                </span>
+                                <?php if ((int) $k->total_project > 0): ?>
+                                    <a href="<?= site_url('klien/detail/' . $k->id) ?>"
+                                       class="inline-flex items-center justify-center bg-purple-50 text-purple-600 hover:bg-purple-100 hover:border-purple-200 text-xs font-semibold px-3 py-1 rounded-full border border-purple-100 transition-colors"
+                                       title="Lihat detail klien">
+                                        <?= (int) $k->total_project ?> Project
+                                    </a>
+                                <?php else: ?>
+                                    <span class="inline-flex items-center justify-center bg-gray-50 text-gray-400 text-xs font-semibold px-3 py-1 rounded-full border border-gray-100">
+                                        0 Project
+                                    </span>
+                                <?php endif; ?>
                             </td>
                             
-                            <!-- Dokumen -->
+                            <!-- Dokumen (DINAMIS) -->
                             <td class="px-6 py-4 text-center">
-                                <span class="inline-flex items-center justify-center bg-orange-50 text-orange-600 text-xs font-semibold px-3 py-1 rounded-full border border-orange-100">
-                                    0 Dokumen
-                                </span>
+                                <?php if ((int) $k->total_dokumen > 0): ?>
+                                    <a href="<?= site_url('klien/detail/' . $k->id) ?>"
+                                       class="inline-flex items-center justify-center bg-orange-50 text-orange-600 hover:bg-orange-100 hover:border-orange-200 text-xs font-semibold px-3 py-1 rounded-full border border-orange-100 transition-colors"
+                                       title="Lihat detail klien">
+                                        <?= (int) $k->total_dokumen ?> Dokumen
+                                    </a>
+                                <?php else: ?>
+                                    <span class="inline-flex items-center justify-center bg-gray-50 text-gray-400 text-xs font-semibold px-3 py-1 rounded-full border border-gray-100">
+                                        0 Dokumen
+                                    </span>
+                                <?php endif; ?>
                             </td>
                             
                             <!-- Aksi -->
@@ -184,37 +200,31 @@
 <!-- JavaScript -->
 <script>
     // --- LOGIKA PAGINATION & LIVE SEARCH ---
-    const rowsPerPage = 5; // Ubah angka ini jika ingin menampilkan lebih banyak
+    const rowsPerPage = 5;
     let currentPage = 1;
     let allRows = [];
     let filteredRows = [];
 
     document.addEventListener('DOMContentLoaded', function() {
         const tableBody = document.getElementById('tableBody');
-        // Ambil semua baris data (abaikan baris "Belum ada data klien")
         allRows = Array.from(tableBody.querySelectorAll('.data-row'));
         filteredRows = [...allRows];
 
-        // Render awal
         updateTablePagination();
 
-        // Live Search
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             searchInput.addEventListener('keyup', function() {
                 const filter = this.value.toLowerCase();
-                
                 filteredRows = allRows.filter(row => {
                     const text = row.textContent.toLowerCase();
                     return text.includes(filter);
                 });
-
-                currentPage = 1; // Reset ke halaman 1 setiap mencari
+                currentPage = 1;
                 updateTablePagination();
             });
         }
 
-        // Auto-hide Notifikasi setelah 4 detik
         setTimeout(() => {
             const successAlert = document.getElementById('alert-success');
             const errorAlert = document.getElementById('alert-error');
@@ -228,11 +238,9 @@
         const totalPages = Math.ceil(totalRows / rowsPerPage);
         const tableBody = document.getElementById('tableBody');
 
-        // --- LOGIKA EMPTY STATE SAAT PENCARIAN TIDAK KETEMU ---
         const emptyRow = document.getElementById('search-empty-row');
         if (emptyRow) emptyRow.remove();
 
-        // Jika hasil filter kosong, tapi data asli di database sebenarnya ada
         if (totalRows === 0 && allRows.length > 0) {
             const tr = document.createElement('tr');
             tr.id = 'search-empty-row';
@@ -243,16 +251,12 @@
             </td>`;
             tableBody.appendChild(tr);
         }
-        // -----------------------------------------------------
 
-        // Pastikan currentPage tidak melebihi totalPages
         if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
         if (currentPage < 1) currentPage = 1;
 
-        // Sembunyikan semua baris terlebih dahulu
         allRows.forEach(row => row.style.display = 'none');
 
-        // Tampilkan baris yang sesuai halaman
         if (totalRows > 0) {
             const startIndex = (currentPage - 1) * rowsPerPage;
             const endIndex = Math.min(startIndex + rowsPerPage, totalRows);
@@ -273,21 +277,19 @@
         const container = document.getElementById('pagination-controls');
         container.innerHTML = '';
 
-        if (totalPages <= 1) return; // Sembunyikan jika hanya 1 halaman
+        if (totalPages <= 1) return;
 
-        // Tombol Prev
         const prevBtn = document.createElement('button');
-        prevBtn.type = 'button'; // Tambahkan type
+        prevBtn.type = 'button';
         prevBtn.className = `flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`;
         prevBtn.disabled = currentPage === 1;
         prevBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>`;
         prevBtn.onclick = () => { currentPage--; updateTablePagination(); };
         container.appendChild(prevBtn);
 
-        // Tombol Angka
         for (let i = 1; i <= totalPages; i++) {
             const btn = document.createElement('button');
-            btn.type = 'button'; // Tambahkan type
+            btn.type = 'button';
             if (i === currentPage) {
                 btn.className = `flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-[#9f2b2b] bg-[#9f2b2b] text-white text-sm font-medium shadow-sm`;
             } else {
@@ -298,9 +300,8 @@
             container.appendChild(btn);
         }
 
-        // Tombol Next
         const nextBtn = document.createElement('button');
-        nextBtn.type = 'button'; // Tambahkan type
+        nextBtn.type = 'button';
         nextBtn.className = `flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`;
         nextBtn.disabled = currentPage === totalPages;
         nextBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>`;

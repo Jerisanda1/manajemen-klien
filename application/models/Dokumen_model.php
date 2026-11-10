@@ -57,8 +57,9 @@ class Dokumen_model extends CI_Model {
     }
 
     // Mengambil list project berdasarkan Klien (Cascading Dropdown)
+    // FIX: kolom FK di tabel project adalah "klien_id", bukan "client_id"
     public function get_project_by_klien($client_id) {
-        return $this->db->where('client_id', (int) $client_id) 
+        return $this->db->where('klien_id', (int) $client_id)
                         ->order_by('nama_project', 'ASC')
                         ->get('project')->result();
     }
