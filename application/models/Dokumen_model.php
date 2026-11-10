@@ -73,4 +73,33 @@ class Dokumen_model extends CI_Model {
     public function delete_document($id) {
         return $this->db->delete('documents', ['id' => (int) $id]);
     }
+           // 1. Mengambil data email dan no telp admin dari company_settings
+    public function get_company_settings()
+    {
+        return $this->db->get_where('company_settings', ['id' => 1])->row();
+    }
+
+    // 2. Mengambil dokumen yang akan berakhir dalam X hari ke depan
+    public function get_dokumen_akan_berakhir($hari = 30)
+    {
+        $today    = date('Y-m-d');
+        $deadline = date('Y-m-d', strtotime("+{$hari} days"));
+        
+        return $this->db
+            ->select('d.*, c.nama_klien, c.email as email_klien, c.nama_pic')
+            ->from('documents d')
+            ->join('clients c', 'c.id = d.client_id', 'left')
+            ->where('d.tanggal_berakhir >=', $today)
+            ->where('d.tanggal_berakhir <=', $deadline)
+            ->where('d.last_reminder_sent_at IS NULL', null, false)
+            ->get()->result();
+    }
+
+    // 3. Menandai bahwa reminder untuk dokumen ini sudah terkirim
+    public function mark_reminder_sent($doc_id)
+    {
+        return $this->db
+            ->where('id', (int) $doc_id)
+            ->update('documents', ['last_reminder_sent_at' => date('Y-m-d H:i:s')]);
+    }
 }
