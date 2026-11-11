@@ -25,8 +25,7 @@ $badge = [
     'Disetujui'     => 'background:#bbf7d0;color:#15803d',
     'Ditolak'       => 'background:#fecaca;color:#dc2626',
     'Belum dibayar' => 'background:#fed7aa;color:#ea580c',
-    'Lunas'         => 'background:#bbf7d0;color:#15803d',
-    'Jatuh tempo'   => 'background:#fecaca;color:#dc2626',
+    'Dibayar'       => 'background:#bbf7d0;color:#15803d',
 ];
 
 $urlHalaman = function ($p) use ($tab, $q, $fKlien, $fSumber, $fStatus) {
@@ -192,7 +191,7 @@ $akhir = $total > 0 ? min($page * $perPage, $total) : 0;
                             <td><span class="pb-pill" style="<?= $badge[$r->status] ?? 'background:#f1f5f9;color:#475569' ?>"><?= $e($r->status) ?></span></td>
                             <td>
                                 <div class="pb-acts">
-                                    <a href="<?= site_url('pembayaran/unduh/' . $tab . '/' . (int) $r->id) ?>" class="pb-ico" aria-label="Unduh">
+                                   <a href="<?= site_url('pembayaran/unduh/' . $tab . '/' . (int) $r->id) ?>" class="pb-ico" aria-label="Unduh">
                                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m0 0l-6-6m6 6l6-6"/></svg>
                                     </a>
                                     <a href="<?= site_url('pembayaran/edit/' . $tab . '/' . (int) $r->id) ?>" class="pb-ico" aria-label="Edit">

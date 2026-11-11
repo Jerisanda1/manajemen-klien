@@ -136,16 +136,129 @@ public function get_project_nama($id)
     }
 
     /* ---------- HAPUS ---------- */
-    public function delete($tab, $id)
+public function hapus()
 {
-    if ($tab === 'penawaran') {
-        $r = $this->db->select('file_path')->get_where('penawaran', ['id' => (int) $id])->row();
-        if ($r && $r->file_path) {
-            $f = APPPATH . 'uploads/penawaran/' . basename($r->file_path);
-            if (is_file($f)) @unlink($f);
-        }
-        $this->db->delete('penawaran_riwayat', ['penawaran_id' => (int) $id]);
-    }
-    return $this->db->delete($this->cfg[$tab]['table'], ['id' => (int) $id]);
+    if ($this->input->method() !== 'post') redirect('pembayaran');
+
+    $tab = (string) $this->input->post('tab', TRUE);
+    if (!$this->Pembayaran_model->valid_tab($tab)) redirect('pembayaran');
+
+    // Proses hapus data
+    $this->Pembayaran_model->delete($tab, $this->input->post('id', TRUE));
+
+    // Kirim pesan sukses
+    $this->session->set_flashdata('success', ($tab === 'invoice' ? 'Invoice' : 'Penawaran') . ' berhasil dihapus.');
+
+    // Kembali ke halaman pembayaran (tanpa halaman putih)
+    redirect('pembayaran?tab=' . $tab);
 }
+
+public function get_penawaran_disetujui()
+{
+    return $this->db->select('d.id, d.no_penawaran, d.perihal, d.isi_surat, d.klien_id, d.project_id, d.dibuat_lewat, k.nama_klien, p.nama_project')
+                    ->from('penawaran d')
+                    ->join('clients k', 'k.id = d.klien_id', 'left')
+                    ->join('project p', 'p.id = d.project_id', 'left')
+                    ->where('d.status', 'Disetujui')
+                    ->order_by('d.id', 'DESC')
+                    ->get()->result();
+}
+
+public function next_nomor_invoice($tahun)
+{
+    $prefix = 'INV/' . (int) $tahun . '/';
+    $row = $this->db->select('no_invoice')
+                    ->like('no_invoice', $prefix, 'after')
+                    ->order_by('no_invoice', 'DESC')
+                    ->limit(1)->get('invoice')->row();
+    $n = $row ? ((int) substr($row->no_invoice, strlen($prefix)) + 1) : 1;
+    return $prefix . str_pad($n, 3, '0', STR_PAD_LEFT);
+}
+
+public function insert_invoice($data)
+{
+    return $this->db->insert('invoice', $data);
+}
+
+public function nomor_invoice_dipakai($no, $kecuali_id = 0)
+{
+    $this->db->where('no_invoice', $no);
+    if ($kecuali_id) $this->db->where('id !=', (int) $kecuali_id);
+    return $this->db->count_all_results('invoice') > 0;
+}
+
+
+public function get_invoice($id)
+{
+    return $this->db->select('
+        i.*,
+        pw.no_penawaran,
+        pw.perihal AS perihal_penawaran,
+        pw.status AS status_penawaran,
+        k.nama_klien,
+        k.nama_pic,
+        k.email AS email_pic,
+        k.no_hp AS hp_pic,
+        k.alamat,
+        p.nama_project
+    ')
+    ->from('invoice i')
+    ->join('penawaran pw', 'pw.id = i.penawaran_id', 'left')
+    ->join('clients k', 'k.id = i.klien_id', 'left')
+    ->join('project p', 'p.id = i.project_id', 'left')
+    ->where('i.id', (int) $id)
+    ->get()
+    ->row();
+}
+
+
+public function set_status_invoice($id, $status)
+{
+    return $this->db->where('id', (int) $id)->update('invoice', [
+        'status'        => $status,
+        'tanggal_bayar' => $status === 'Dibayar' ? date('Y-m-d') : NULL,
+    ]);
+}
+
+public function add_pengiriman($id, $saluran)
+{
+    return $this->db->insert('invoice_pengiriman', ['invoice_id' => (int) $id, 'saluran' => $saluran]);
+}
+
+public function get_pengiriman_terakhir($id)
+{
+    $rows = $this->db->select('saluran, MAX(created_at) AS waktu', FALSE)
+                     ->where('invoice_id', (int) $id)
+                     ->group_by('saluran')
+                     ->get('invoice_pengiriman')->result();
+    $out = [];
+    foreach ($rows as $r) $out[$r->saluran] = $r->waktu;
+    return $out;
+}
+
+public function update_invoice($id, $data)
+{
+    return $this->db->where('id', (int) $id)->update('invoice', $data);
+}
+
+public function delete($tab, $id)
+{
+    // Tentukan nama tabel berdasarkan tab (invoice atau penawaran)
+    // Sesuaikan nama tabel di bawah ini jika di database Anda berbeda
+    $table = ($tab === 'invoice') ? 'invoice' : 'penawaran'; 
+
+    $this->db->where('id', $id);
+    return $this->db->delete($table);
+}
+
+public function get_by_id($tab, $id)
+{
+    // Tentukan tabel berdasarkan tab (invoice atau penawaran)
+    $table = ($tab === 'invoice') ? 'invoice' : 'penawaran';
+
+    // Sesuaikan query di bawah ini jika tabel Anda menggunakan JOIN dengan klien/project
+    $this->db->where('id', $id);
+    return $this->db->get($table)->row();
+}
+
 }

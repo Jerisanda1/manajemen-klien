@@ -97,6 +97,8 @@ $route['pembayaran/unduh/(:any)/(:num)']   = 'content/pembayaran/unduh/$1/$2';
 $route['pembayaran/status/(:any)/(:num)'] = 'content/pembayaran/status/$1/$2';
 $route['pembayaran/pratinjau'] = 'content/pembayaran/pratinjau';
 $route['pembayaran/berkas/(:num)'] = 'content/pembayaran/berkas/$1';
+$route['pembayaran/kirim/(:any)/(:num)'] = 'content/pembayaran/kirim/$1/$2';
+$route['pembayaran/hapus'] = 'content/pembayaran/hapus';
 
 $route['pengaturan'] = 'content/pengaturan/index';
 
@@ -111,3 +113,4 @@ $route['pengaturan/hapus_jenis/(:num)'] = 'content/pengaturan/hapus_jenis/$1';
 
 
 
+$config['composer_autoload'] = FCPATH . 'vendor/autoload.php';
