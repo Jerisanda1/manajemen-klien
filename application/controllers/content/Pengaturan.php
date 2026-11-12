@@ -9,11 +9,15 @@ class Pengaturan extends MY_Controller {
     }
 
     public function index() {
+        // Asumsi session user id bernama 'admin_id'. Silakan sesuaikan dengan sistem Anda.
+        $user_id = $this->session->userdata('admin_id') ?: 1; 
+
         $data = [
             'title'    => 'Pengaturan - Tridatu',
             'content'  => 'content/pengaturan/index',
             'settings' => $this->pengaturan_model->get_settings(),
-            'types'    => $this->pengaturan_model->get_all_types()
+            'types'    => $this->pengaturan_model->get_all_types(),
+            'user'     => $this->pengaturan_model->get_user($user_id)
         ];
         $this->load->view('main', $data);
     }
@@ -52,6 +56,46 @@ class Pengaturan extends MY_Controller {
         redirect('pengaturan');
     }
 
+    // Proses Ubah Username & Password
+    public function update_account() {
+        // Sesuaikan dengan session user ID Anda
+        $user_id = $this->session->userdata('admin_id') ?: 1; 
+        
+        $username = $this->input->post('username', TRUE);
+        $password = $this->input->post('password');
+        $confirm  = $this->input->post('confirm_password');
+
+        if (empty($username)) {
+            $this->session->set_flashdata('error', 'Username tidak boleh kosong.');
+            redirect('pengaturan');
+        }
+
+        $update_data = ['username' => $username];
+
+        if (!empty($password)) {
+            if ($password !== $confirm) {
+                $this->session->set_flashdata('error', 'Konfirmasi password tidak cocok.');
+                redirect('pengaturan');
+            }
+            if (strlen($password) < 6) {
+                $this->session->set_flashdata('error', 'Password minimal 6 karakter.');
+                redirect('pengaturan');
+            }
+            
+            // Gunakan password_hash untuk keamanan modern.
+            // Jika sistem Anda masih memakai MD5/SHA1, ganti baris ini dengan: md5($password)
+            $update_data['password'] = password_hash($password, PASSWORD_DEFAULT);
+        }
+
+        $this->pengaturan_model->update_user($user_id, $update_data);
+        
+        // Update session username jika ada
+        $this->session->set_userdata('username', $username);
+
+        $this->session->set_flashdata('success', 'Pengaturan akun berhasil diperbarui!');
+        redirect('pengaturan');
+    }
+
     // Proses Simpan Kop Surat & Tanda Tangan
     public function update_assets() {
         $update_data = [];
@@ -61,8 +105,8 @@ class Pengaturan extends MY_Controller {
         foreach ($files as $file) {
             if (!empty($_FILES[$file]['name'])) {
                 $config['upload_path']   = FCPATH . 'uploads/settings/';
-                $config['allowed_types'] = 'jpg|jpeg|png'; // Sesuai instruksi gambar: PNG atau JPG
-                $config['max_size']      = 2048; // Maksimal 2MB
+                $config['allowed_types'] = 'jpg|jpeg|png';
+                $config['max_size']      = 2048;
                 $config['encrypt_name']  = TRUE;
                 
                 if (!is_dir($config['upload_path'])) mkdir($config['upload_path'], 0755, TRUE);
@@ -72,7 +116,6 @@ class Pengaturan extends MY_Controller {
                     $up = $this->upload->data();
                     $update_data[$file] = 'uploads/settings/' . $up['file_name'];
                     
-                    // Hapus file lama
                     if ($old_data->$file && file_exists(FCPATH . $old_data->$file)) {
                         @unlink(FCPATH . $old_data->$file);
                     }

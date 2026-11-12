@@ -11,7 +11,7 @@
                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                 <span class="font-bold text-gray-800"><?= count($data_klien) ?></span> <span class="text-gray-500 text-sm">Klien</span>
             </div>
-            <a href="<?= site_url('klien/tambah') ?>" class="bg-gradient-to-r from-[#9f2b2b] to-[#b83a3a] hover:from-[#8a2525] hover:to-[#a63333] text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5">
+            <a href="<?= site_url('klien/tambah') ?>" class="bg-[#9f2b2b] hover:bg-[#8a2525] text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-md shadow-[#9f2b2b]/20">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Tambah Klien
             </a>
@@ -46,13 +46,13 @@
     <!-- Card Tabel -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         
-        <!-- Search Bar -->
-        <div class="p-5 border-b border-gray-100 bg-white">
-            <div class="relative w-full max-w-md">
-                <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+        <!-- Toolbar & Search -->
+        <div class="p-4 sm:p-5 border-b border-gray-100 bg-white flex flex-col xl:flex-row gap-3 items-center justify-between">
+            <div class="relative w-full xl:w-72">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
                     <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </div>
-                <input type="text" id="searchInput" class="bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl block w-full pl-11 p-3 outline-none focus:bg-white focus:border-[#9f2b2b] focus:ring-4 focus:ring-[#9f2b2b]/10 transition-all" placeholder="Cari nama klien atau PIC...">
+                <input type="text" id="searchInput" class="bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl block w-full pl-10 p-2.5 outline-none focus:bg-white focus:border-[#9f2b2b] focus:ring-4 focus:ring-[#9f2b2b]/10 transition-all" placeholder="Cari nama klien atau PIC...">
             </div>
         </div>
 
@@ -60,13 +60,13 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse" id="klienTable">
                 <thead>
-                    <tr class="border-b border-gray-200 bg-gray-50">
-                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nama Klien</th>
-                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">PIC / Kontak</th>
-                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Mulai Kerja Sama</th>
-                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Project</th>
-                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Dokumen</th>
-                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Aksi</th>
+                    <tr class="border-b border-gray-200 bg-gray-50/50">
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nama Klien</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">PIC / Kontak</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Mulai Kerja Sama</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Project</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Dokumen</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -81,15 +81,15 @@
                         </tr>
                     <?php else: ?>
                         <?php foreach($data_klien as $k): ?>
-                        <tr class="data-row border-b border-gray-100 hover:bg-gray-50/80 transition-colors group">
+                        <tr class="data-row border-b border-gray-100 hover:bg-gray-50/60 transition-colors group">
                             
                             <!-- Nama Klien -->
-                            <td class="px-6 py-4">
+                            <td class="px-5 py-4">
                                 <div class="text-sm font-bold text-gray-900 group-hover:text-[#9f2b2b] transition-colors"><?= $k->nama_klien ?></div>
                             </td>
                             
                             <!-- PIC & Kontak -->
-                            <td class="px-6 py-4">
+                            <td class="px-5 py-4">
                                 <div class="text-sm text-gray-800 font-medium flex items-center gap-1.5 mb-1">
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                                     <?= $k->nama_pic ?>
@@ -101,7 +101,7 @@
                             </td>
                             
                             <!-- Tanggal Mulai -->
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-5 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-600 flex items-center gap-1.5">
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                     <?= date('d M Y', strtotime($k->tanggal_mulai)) ?>
@@ -109,7 +109,7 @@
                             </td>
                             
                             <!-- Project (DINAMIS) -->
-                            <td class="px-6 py-4 text-center">
+                            <td class="px-5 py-4 text-center">
                                 <?php if ((int) $k->total_project > 0): ?>
                                     <a href="<?= site_url('klien/detail/' . $k->id) ?>"
                                        class="inline-flex items-center justify-center bg-purple-50 text-purple-600 hover:bg-purple-100 hover:border-purple-200 text-xs font-semibold px-3 py-1 rounded-full border border-purple-100 transition-colors"
@@ -124,7 +124,7 @@
                             </td>
                             
                             <!-- Dokumen (DINAMIS) -->
-                            <td class="px-6 py-4 text-center">
+                            <td class="px-5 py-4 text-center">
                                 <?php if ((int) $k->total_dokumen > 0): ?>
                                     <a href="<?= site_url('klien/detail/' . $k->id) ?>"
                                        class="inline-flex items-center justify-center bg-orange-50 text-orange-600 hover:bg-orange-100 hover:border-orange-200 text-xs font-semibold px-3 py-1 rounded-full border border-orange-100 transition-colors"
@@ -139,7 +139,7 @@
                             </td>
                             
                             <!-- Aksi -->
-                            <td class="px-6 py-4 text-center">
+                            <td class="px-5 py-4 text-center">
                                 <div class="flex justify-center items-center gap-1.5">
                                     <a href="<?= site_url('klien/detail/' . $k->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Lihat Detail">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -160,12 +160,14 @@
         </div>
 
         <!-- PAGINATION FOOTER -->
-        <div class="flex flex-col sm:flex-row items-center justify-between border-t border-gray-200 bg-white px-6 py-4 gap-4">
-            <span id="pagination-info" class="text-sm text-gray-500">
-                Menampilkan 0-0 dari 0 Klien
-            </span>
-            <div id="pagination-controls" class="flex items-center gap-1.5">
-                <!-- Tombol akan digenerate via JavaScript -->
+        <div class="flex flex-col border-t border-gray-200 bg-gray-50/30 px-5 py-4 gap-4">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                <span id="pagination-info" class="text-sm text-gray-500">
+                    Menampilkan 0-0 dari 0 Klien
+                </span>
+                <div id="pagination-controls" class="flex items-center gap-1.5">
+                    <!-- Tombol digenerate via JavaScript -->
+                </div>
             </div>
         </div>
 
@@ -279,34 +281,33 @@
 
         if (totalPages <= 1) return;
 
-        const prevBtn = document.createElement('button');
-        prevBtn.type = 'button';
-        prevBtn.className = `flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`;
-        prevBtn.disabled = currentPage === 1;
-        prevBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>`;
-        prevBtn.onclick = () => { currentPage--; updateTablePagination(); };
-        container.appendChild(prevBtn);
+        const NAV = 'flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors';
+        const numCls = on => on
+            ? 'flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-[#9f2b2b] bg-[#9f2b2b] text-white text-sm font-medium shadow-sm'
+            : 'flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium transition-colors';
+
+        const mkNav = (d, disabled, fn) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = NAV;
+            b.disabled = disabled;
+            b.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${d}"/></svg>`;
+            b.onclick = fn;
+            return b;
+        };
+
+        container.appendChild(mkNav('M15 19l-7-7 7-7', currentPage === 1, () => { currentPage--; updateTablePagination(); }));
 
         for (let i = 1; i <= totalPages; i++) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            if (i === currentPage) {
-                btn.className = `flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-[#9f2b2b] bg-[#9f2b2b] text-white text-sm font-medium shadow-sm`;
-            } else {
-                btn.className = `flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium transition-colors`;
-            }
-            btn.innerText = i;
-            btn.onclick = () => { currentPage = i; updateTablePagination(); };
-            container.appendChild(btn);
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = numCls(i === currentPage);
+            b.innerText = i;
+            b.onclick = () => { currentPage = i; updateTablePagination(); };
+            container.appendChild(b);
         }
 
-        const nextBtn = document.createElement('button');
-        nextBtn.type = 'button';
-        nextBtn.className = `flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`;
-        nextBtn.disabled = currentPage === totalPages;
-        nextBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>`;
-        nextBtn.onclick = () => { currentPage++; updateTablePagination(); };
-        container.appendChild(nextBtn);
+        container.appendChild(mkNav('M9 5l7 7-7 7', currentPage === totalPages, () => { currentPage++; updateTablePagination(); }));
     }
 
     // --- LOGIKA MODAL HAPUS ---
@@ -337,7 +338,7 @@
 
     function eksekusiHapus() {
         if (hapusId) {
-            window.location.href = '<?= site_url('klien/') ?>hapus/' + hapusId;
+            window.location.href = '<?= site_url('klien/hapus/') ?>' + hapusId;
         }
     }
 </script>

@@ -6,14 +6,14 @@ class Project extends MY_Controller
     public function __construct()
     {
         parent::__construct();
-        // Autentikasi sudah otomatis ditangani oleh MY_Controller
         $this->load->model('Project_model');
-        $this->load->model('Dashboard_model'); // Untuk Log Aktivitas
+        $this->load->model('Dashboard_model');
         $this->load->library('form_validation');
         $this->form_validation->set_error_delimiters('', '');
     }
 
-    private function render($view, $data)
+    /** Hanya untuk halaman yang memakai layout main (sidebar/navbar) — yaitu index */
+    private function renderWithLayout($view, $data)
     {
         $data['content'] = 'content/project/' . $view;
         $this->load->view('main', $data);
@@ -31,7 +31,7 @@ class Project extends MY_Controller
         $totalPages = max(1, (int) ceil($total / $perPage));
         $page       = min($page, $totalPages);
 
-        $this->render('index', [
+        $this->renderWithLayout('index', [
             'title'       => 'Manajemen Project',
             'projects'    => $this->Project_model->get_list($q, $klien, $status, $perPage, ($page - 1) * $perPage),
             'klienList'   => $this->Project_model->get_klien_options(),
@@ -52,7 +52,8 @@ class Project extends MY_Controller
         $project = $this->Project_model->get($id);
         if (!$project) show_404();
 
-        $this->render('detail', [
+        // Halaman mandiri — tanpa layout main
+        $this->load->view('content/project/detail', [
             'title'   => 'Detail Project',
             'project' => $project,
         ]);
@@ -60,7 +61,8 @@ class Project extends MY_Controller
 
     public function tambah()
     {
-        $this->render('form', [
+        // Halaman mandiri — tanpa layout main
+        $this->load->view('content/project/form', [
             'title'     => 'Tambah Project',
             'project'   => null,
             'klienList' => $this->Project_model->get_klien_options(),
@@ -79,8 +81,7 @@ class Project extends MY_Controller
 
         $input = $this->ambil_input();
         $this->Project_model->insert($input);
-        
-        // Log Aktivitas ke Dashboard
+
         $this->Dashboard_model->log_activity('project', 'Project baru dibuat: ' . $input['nama_project']);
 
         $this->session->set_flashdata('success', 'Project berhasil ditambahkan.');
@@ -94,7 +95,8 @@ class Project extends MY_Controller
 
         $from = $this->input->get('from') === 'detail' ? 'detail' : 'list';
 
-        $this->render('form', [
+        // Halaman mandiri — tanpa layout main
+        $this->load->view('content/project/form', [
             'title'     => 'Edit Project',
             'project'   => $project,
             'klienList' => $this->Project_model->get_klien_options(),

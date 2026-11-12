@@ -28,4 +28,14 @@ class Pengaturan_model extends CI_Model {
     public function delete_type($id) {
         return $this->db->where('id', $id)->delete('document_types');
     }
+
+    // === User Account ===
+    // PENTING: Sesuaikan nama tabel 'users' dengan tabel akun admin di database Anda (misal: 'user', 'admin', 'pengguna')
+    public function get_user($id) {
+        return $this->db->get_where('users', ['id' => (int) $id])->row();
+    }
+
+    public function update_user($id, $data) {
+        return $this->db->where('id', (int) $id)->update('users', $data);
+    }
 }

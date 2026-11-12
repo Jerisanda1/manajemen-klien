@@ -9,11 +9,9 @@ class Project_model extends CI_Model
         $this->db->from('project p');
         $this->db->join('clients k', 'k.id = p.klien_id', 'left');
 
+        // Search HANYA di nama project — filter klien ditangani $klien (exact)
         if ($q !== '') {
-            $this->db->group_start()
-                     ->like('p.nama_project', $q)
-                     ->or_like('k.nama_klien', $q)
-                     ->group_end();
+            $this->db->like('p.nama_project', $q);
         }
         if ($klien !== '') $this->db->where('p.klien_id', (int) $klien);
         if ($status !== '') $this->db->where('p.status', $status);
@@ -45,7 +43,6 @@ class Project_model extends CI_Model
     // Menghitung project yang sedang berjalan (Untuk Dashboard)
     public function count_berjalan()
     {
-        // Memastikan menggunakan 'Berjalan' (B besar) sesuai dengan Controller
         return $this->db->where('status', 'Berjalan')->count_all_results('project');
     }
 
