@@ -114,9 +114,12 @@ $curStatusLabel = $curStatus !== '' ? $curStatus : 'Pilih Status';
                                 <div class="dropdown-menu absolute z-50 hidden mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden origin-top transform opacity-0 scale-95 transition-all duration-150">
                                     <ul class="dropdown-list py-1 text-sm text-gray-700 max-h-60 overflow-y-auto">
                                         <li class="px-3 py-2 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors font-medium <?= $curStatus === '' ? 'bg-red-50 text-[#9f2b2b]' : '' ?>" data-value="">Pilih Status</li>
-                                        <?php foreach (['Berjalan', 'Selesai', 'Ditunda'] as $s): ?>
+                                        
+                                        <!-- PERBAIKAN: Sesuaikan dengan ENUM Database -->
+                                        <?php foreach (['Draft', 'Berjalan', 'Selesai', 'Batal'] as $s): ?>
                                             <li class="px-3 py-2 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $curStatus === $s ? 'bg-red-50 text-[#9f2b2b] font-medium' : '' ?>" data-value="<?= $s ?>"><?= $s ?></li>
                                         <?php endforeach; ?>
+                                        
                                     </ul>
                                 </div>
                                 <input type="hidden" name="status" id="status" value="<?= $e($curStatus) ?>">

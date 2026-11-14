@@ -12,7 +12,6 @@ class Project extends MY_Controller
         $this->form_validation->set_error_delimiters('', '');
     }
 
-    /** Hanya untuk halaman yang memakai layout main (sidebar/navbar) — yaitu index */
     private function renderWithLayout($view, $data)
     {
         $data['content'] = 'content/project/' . $view;
@@ -24,7 +23,9 @@ class Project extends MY_Controller
         $q       = trim((string) $this->input->get('q', TRUE));
         $klien   = (string) $this->input->get('klien', TRUE);
         $status  = (string) $this->input->get('status', TRUE);
-        $perPage = 7;
+        
+        // Menampilkan 5 data per halaman
+        $perPage = 5;
         $page    = max(1, (int) $this->input->get('page'));
 
         $total      = $this->Project_model->count_filtered($q, $klien, $status);
@@ -52,7 +53,6 @@ class Project extends MY_Controller
         $project = $this->Project_model->get($id);
         if (!$project) show_404();
 
-        // Halaman mandiri — tanpa layout main
         $this->load->view('content/project/detail', [
             'title'   => 'Detail Project',
             'project' => $project,
@@ -61,7 +61,6 @@ class Project extends MY_Controller
 
     public function tambah()
     {
-        // Halaman mandiri — tanpa layout main
         $this->load->view('content/project/form', [
             'title'     => 'Tambah Project',
             'project'   => null,
@@ -83,7 +82,6 @@ class Project extends MY_Controller
         $this->Project_model->insert($input);
 
         $this->Dashboard_model->log_activity('project', 'Project baru dibuat: ' . $input['nama_project']);
-
         $this->session->set_flashdata('success', 'Project berhasil ditambahkan.');
         redirect('project');
     }
@@ -95,7 +93,6 @@ class Project extends MY_Controller
 
         $from = $this->input->get('from') === 'detail' ? 'detail' : 'list';
 
-        // Halaman mandiri — tanpa layout main
         $this->load->view('content/project/form', [
             'title'     => 'Edit Project',
             'project'   => $project,
@@ -135,7 +132,8 @@ class Project extends MY_Controller
     {
         $this->form_validation->set_rules('nama_project', 'Nama project', 'required|trim|max_length[150]');
         $this->form_validation->set_rules('klien_id', 'Klien', 'required|integer');
-        $this->form_validation->set_rules('status', 'Status', 'required|in_list[Berjalan,Selesai,Ditunda]');
+        // PERBAIKAN: Menggunakan ENUM Database
+        $this->form_validation->set_rules('status', 'Status', 'required|in_list[Draft,Berjalan,Selesai,Batal]');
         $this->form_validation->set_rules('tanggal_mulai', 'Tanggal mulai', 'trim|callback__cek_tanggal');
         $this->form_validation->set_rules('tanggal_selesai', 'Tanggal selesai', 'trim');
         return $this->form_validation->run();
@@ -172,7 +170,8 @@ class Project extends MY_Controller
         if (!$this->Project_model->get($id)) show_404();
 
         $status = (string) $this->input->post('status', TRUE);
-        if (in_array($status, ['Berjalan', 'Selesai', 'Ditunda'], TRUE)) {
+        // PERBAIKAN: Menggunakan ENUM Database
+        if (in_array($status, ['Draft', 'Berjalan', 'Selesai', 'Batal'], TRUE)) {
             $this->Project_model->update_status($id, $status);
             $this->session->set_flashdata('success', 'Status project berhasil diperbarui.');
         }

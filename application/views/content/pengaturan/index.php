@@ -6,32 +6,6 @@
         <p class="text-sm text-gray-500 mt-1">Kelola profil akun, identitas perusahaan, dan aset dokumen Anda di sini.</p>
     </div>
 
-    <!-- Notifikasi (Auto-fade) -->
-    <div class="max-w-[1000px] mx-auto">
-        <?php if($this->session->flashdata('success')): ?>
-            <div id="alert-success" class="flex items-center justify-between bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-4 rounded-xl mb-6 shadow-sm transition-all duration-300">
-                <div class="flex items-center gap-3">
-                    <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span class="font-medium text-sm"><?= $this->session->flashdata('success'); ?></span>
-                </div>
-                <button type="button" onclick="document.getElementById('alert-success').remove()" class="text-emerald-500 hover:text-emerald-700 focus:outline-none">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-        <?php endif; ?>
-        <?php if($this->session->flashdata('error')): ?>
-            <div id="alert-error" class="flex items-center justify-between bg-red-50 border border-red-200 text-red-800 px-5 py-4 rounded-xl mb-6 shadow-sm transition-all duration-300">
-                <div class="flex items-center gap-3">
-                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span class="font-medium text-sm"><?= $this->session->flashdata('error'); ?></span>
-                </div>
-                <button type="button" onclick="document.getElementById('alert-error').remove()" class="text-red-500 hover:text-red-700 focus:outline-none">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-        <?php endif; ?>
-    </div>
-
     <!-- Layout Pengaturan: Top Bar Tabs & Konten -->
     <div class="max-w-[1000px] mx-auto">
         
@@ -65,6 +39,11 @@
                     </div>
 
                     <form action="<?= site_url('pengaturan/update_account') ?>" method="POST" class="space-y-6">
+                        <!-- CSRF Token -->
+                        <?php if ($this->config->item('csrf_protection')): ?>
+                            <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                        <?php endif; ?>
+
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
                             <input type="text" name="username" value="<?= htmlspecialchars($user->username ?? '') ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b] transition-all" required>
@@ -102,7 +81,11 @@
                     </div>
 
                     <form action="<?= site_url('pengaturan/update_info') ?>" method="POST" enctype="multipart/form-data">
-                        
+                        <!-- CSRF Token -->
+                        <?php if ($this->config->item('csrf_protection')): ?>
+                            <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                        <?php endif; ?>
+
                         <!-- Logo Preview Section -->
                         <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                             <div class="w-24 h-24 shrink-0 bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shadow-sm relative group">
@@ -164,6 +147,11 @@
                     </div>
 
                     <form action="<?= site_url('pengaturan/update_assets') ?>" method="POST" enctype="multipart/form-data">
+                        <!-- CSRF Token -->
+                        <?php if ($this->config->item('csrf_protection')): ?>
+                            <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                        <?php endif; ?>
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                             
                             <!-- Kop Surat -->
@@ -277,6 +265,9 @@
 
         </div>
     </div>
+
+    <!-- Container untuk Toast -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-[60] flex flex-col gap-2 pointer-events-none"></div>
 </main>
 
 <!-- MODAL JENIS DOKUMEN -->
@@ -286,6 +277,11 @@
         <h3 class="text-xl font-bold text-gray-900 mb-4" id="modalJenisTitle">Tambah Jenis Dokumen</h3>
         
         <form id="formJenis" onsubmit="simpanJenis(event)">
+            <!-- CSRF Token disisipkan di sini -->
+            <?php if ($this->config->item('csrf_protection')): ?>
+                <input type="hidden" id="csrf_name" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+            <?php endif; ?>
+            
             <input type="hidden" id="jenisId" value="">
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Nama Jenis Dokumen</label>
@@ -300,7 +296,7 @@
     </div>
 </div>
 
-<!-- STYLE & SCRIPT TAMBAHAN -->
+<!-- STYLE TAMBAHAN -->
 <style>
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
@@ -308,33 +304,61 @@
     /* Sembunyikan scrollbar di tab nav jika kepanjangan di layar kecil */
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Animasi Toast */
+    @keyframes toastIn  { from { opacity:0; transform:translateX(100%); } to { opacity:1; transform:translateX(0); } }
+    @keyframes toastOut { from { opacity:1; transform:translateX(0); }    to { opacity:0; transform:translateX(100%); } }
+    .toast-item { animation: toastIn 0.3s ease-out; }
+    .toast-item.hide { animation: toastOut 0.3s ease-in forwards; }
 </style>
 
 <script>
-    // --- 1. TAB LOGIC & PERSISTENCE ---
+    // --- 1. TOAST CONFIG & LOGIC ---
+    const TOAST_CFG = {
+        success: { bg: 'bg-emerald-50 border-emerald-200 text-emerald-800', ic: 'text-emerald-500', d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+        error:   { bg: 'bg-red-50 border-red-200 text-red-800',             ic: 'text-red-500',     d: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+        info:    { bg: 'bg-blue-50 border-blue-200 text-blue-800',          ic: 'text-blue-500',    d: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+    };
+
+    function showToast(msg, type = 'success') {
+        const c = TOAST_CFG[type] || TOAST_CFG.info;
+        const el = document.createElement('div');
+        el.className = `toast-item pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg max-w-sm ${c.bg}`;
+        el.innerHTML = `<svg class="w-5 h-5 flex-shrink-0 ${c.ic}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${c.d}"/></svg><span class="text-sm font-medium flex-1">${msg}</span><button type="button" class="opacity-60 hover:opacity-100 flex-shrink-0" onclick="this.parentElement.remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
+        document.getElementById('toastContainer').appendChild(el);
+        setTimeout(() => { el.classList.add('hide'); setTimeout(() => el.remove(), 300); }, 3000);
+    }
+
+    // Tampilkan notifikasi PHP via Toast
+    document.addEventListener('DOMContentLoaded', () => {
+        <?php if($this->session->flashdata('success')): ?>
+            showToast('<?= addslashes($this->session->flashdata('success')) ?>', 'success');
+        <?php endif; ?>
+        
+        <?php if($this->session->flashdata('error')): ?>
+            showToast('<?= addslashes(strip_tags($this->session->flashdata('error'))) ?>', 'error');
+        <?php endif; ?>
+    });
+
+    // --- 2. TAB LOGIC & PERSISTENCE ---
     function switchTab(tabId) {
-        // Sembunyikan semua konten
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
         
-        // Matikan semua gaya aktif tombol tab (ubah ke warna abu-abu)
         document.querySelectorAll('.tab-btn').forEach(el => {
             el.classList.remove('border-[#9f2b2b]', 'text-[#9f2b2b]', 'font-semibold');
             el.classList.add('border-transparent', 'text-gray-500', 'font-medium', 'hover:text-gray-800');
         });
 
-        // Tampilkan konten yang dipilih
         document.getElementById('tab-' + tabId).classList.remove('hidden');
         
-        // Beri gaya aktif ke tombol yang dipilih (garis bawah marun, teks marun)
         const btn = document.getElementById('btn-tab-' + tabId);
         btn.classList.remove('border-transparent', 'text-gray-500', 'font-medium', 'hover:text-gray-800');
         btn.classList.add('border-[#9f2b2b]', 'text-[#9f2b2b]', 'font-semibold');
 
-        // Simpan tab aktif di localStorage agar tidak balik ke awal saat reload
         localStorage.setItem('active_settings_tab', tabId);
     }
 
-    // --- 2. LOGO PREVIEW LOGIC ---
+    // --- 3. LOGO PREVIEW LOGIC ---
     function previewLogo(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -350,13 +374,12 @@
         }
     }
 
-    // --- 3. ASET (KOP/TTD) PREVIEW LOGIC ---
+    // --- 4. ASET (KOP/TTD) PREVIEW LOGIC ---
     function previewAsset(input, imgId) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const img = document.getElementById(imgId);
-                // Sembunyikan gambar lama / placeholder
                 const oldImg = input.name === 'kop_surat' ? document.getElementById('kop-preview') : document.getElementById('ttd-preview');
                 const placeholder = input.name === 'kop_surat' ? document.getElementById('kop-placeholder') : document.getElementById('ttd-placeholder');
                 
@@ -370,7 +393,7 @@
         }
     }
 
-    // --- 4. MODAL JENIS DOKUMEN ---
+    // --- 5. MODAL JENIS DOKUMEN ---
     const modalJenis = document.getElementById('modalJenis');
     const modalJenisContent = document.getElementById('modalJenisContent');
     const jenisId = document.getElementById('jenisId');
@@ -416,6 +439,12 @@
         formData.append('id', jenisId.value);
         formData.append('name', jenisName.value);
 
+        // Tambahkan token CSRF ke FormData jika ada
+        const csrfInput = document.getElementById('csrf_name');
+        if (csrfInput) {
+            formData.append(csrfInput.name, csrfInput.value);
+        }
+
         try {
             const res = await fetch('<?= site_url('pengaturan/simpan_jenis') ?>', {
                 method: 'POST',
@@ -425,30 +454,21 @@
             const data = await res.json();
             
             if (data.status) {
-                window.location.reload();
+                showToast(data.msg || 'Jenis dokumen berhasil disimpan!', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
-                alert(data.msg);
+                showToast(data.msg || 'Terjadi kesalahan.', 'error');
             }
         } catch (err) {
-            alert('Terjadi kesalahan sistem.');
+            showToast('Terjadi kesalahan sistem.', 'error');
         }
     }
 
-    // --- 5. INISIALISASI SAAT HALAMAN DI-LOAD ---
+    // --- 6. INISIALISASI SAAT HALAMAN DI-LOAD ---
     document.addEventListener('DOMContentLoaded', () => {
-        // Kembalikan tab yang terakhir dibuka
         const activeTab = localStorage.getItem('active_settings_tab') || 'akun';
         switchTab(activeTab);
-
-        // Auto-hide alert notifikasi setelah 4 detik
-        setTimeout(() => {
-            ['alert-success', 'alert-error'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.style.opacity = '0';
-                    setTimeout(() => el.remove(), 300);
-                }
-            });
-        }, 4000);
     });
 </script>

@@ -1,9 +1,4 @@
 <?php
-/**
- * Manajemen Project — Konsisten dengan Dokumen & Klien
- * Variabel: $projects, $klienList, $jmlProject, $jmlBerjalan, $total,
- *           $page, $perPage, $totalPages, $q, $fKlien, $fStatus
- */
 $e = function ($v) {
     return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 };
@@ -14,13 +9,29 @@ $tgl = function ($tanggal) use ($bulan) {
     return $t ? date('d', $t) . ' ' . $bulan[(int) date('n', $t)] . ' ' . date('Y', $t) : '-';
 };
 
+// PERBAIKAN: Warna Badge disesuaikan dengan ENUM
 $badge = [
-    'Berjalan' => 'bg-blue-50 text-blue-600 border-blue-100',
-    'Selesai'  => 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    'Ditunda'  => 'bg-orange-50 text-orange-600 border-orange-100',
+    'Draft'         => ['bg-slate-100 text-slate-700 ring-slate-200',      'bg-slate-500'],   // Abu-abu
+    'Berjalan'      => ['bg-sky-50 text-sky-700 ring-sky-200',             'bg-sky-500'],     // Biru
+    'Selesai'       => ['bg-emerald-50 text-emerald-700 ring-emerald-200', 'bg-emerald-500'], // Hijau
+    'Batal'         => ['bg-rose-50 text-rose-700 ring-rose-200',          'bg-rose-500'],    // Merah
+    'Ditunda'       => ['bg-amber-50 text-amber-700 ring-amber-200',       'bg-amber-500'],   // Cadangan
 ];
 
-// Link pagination: pertahankan filter
+$renderBadge = function ($status) use ($badge) {
+    $status = trim((string)$status);
+    
+    if ($status === '') {
+        return '<span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset bg-slate-100 text-slate-500 ring-slate-200"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>-</span>';
+    }
+    
+    $key = ucwords(strtolower($status)); 
+    [$kelas, $dot] = $badge[$key] ?? ['bg-slate-200 text-slate-700 ring-slate-300', 'bg-slate-500'];
+    
+    return '<span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ' . $kelas . '">'
+         . '<span class="h-1.5 w-1.5 rounded-full ' . $dot . '"></span>' . htmlspecialchars($key) . '</span>';
+};
+
 $urlHalaman = function ($p) use ($q, $fKlien, $fStatus) {
     return site_url('project') . '?' . http_build_query(['q' => $q, 'klien' => $fKlien, 'status' => $fStatus, 'page' => $p]);
 };
@@ -28,7 +39,6 @@ $urlHalaman = function ($p) use ($q, $fKlien, $fStatus) {
 $awal  = $total > 0 ? (($page - 1) * $perPage) + 1 : 0;
 $akhir = $total > 0 ? min($page * $perPage, $total) : 0;
 
-// Label dropdown aktif (sama seperti custom-dropdown di dokumen)
 $labelKlien  = 'Semua Klien';
 $labelStatus = 'Semua Status';
 if ($fKlien !== '') {
@@ -64,35 +74,10 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
         </div>
     </div>
 
-    <!-- Notifikasi -->
-    <?php if ($this->session->flashdata('success')): ?>
-        <div id="alert-success" class="flex items-center justify-between bg-emerald-50 border border-emerald-200 text-emerald-800 px-5 py-4 rounded-xl mb-5 shadow-sm transition-all duration-300">
-            <div class="flex items-center gap-3">
-                <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span class="font-medium text-sm"><?= $e($this->session->flashdata('success')) ?></span>
-            </div>
-            <button type="button" onclick="document.getElementById('alert-success').remove()" class="text-emerald-500 hover:text-emerald-700 focus:outline-none">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-    <?php endif; ?>
-
-    <?php if ($this->session->flashdata('error')): ?>
-        <div id="alert-error" class="flex items-center justify-between bg-red-50 border border-red-200 text-red-800 px-5 py-4 rounded-xl mb-5 shadow-sm transition-all duration-300">
-            <div class="flex items-center gap-3">
-                <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span class="font-medium text-sm"><?= $e($this->session->flashdata('error')) ?></span>
-            </div>
-            <button type="button" onclick="document.getElementById('alert-error').remove()" class="text-red-500 hover:text-red-700 focus:outline-none">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-    <?php endif; ?>
-
     <!-- Card Tabel -->
     <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
 
-        <!-- Toolbar Filter (Custom Dropdown, konsisten dengan Dokumen) -->
+        <!-- Toolbar Filter -->
         <form method="get" action="<?= site_url('project') ?>" id="filterForm"
               class="p-4 sm:p-5 border-b border-gray-100 bg-white flex flex-col xl:flex-row gap-3 items-center justify-between">
 
@@ -134,7 +119,7 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
                     <div class="dropdown-menu absolute z-50 hidden mt-2 w-full sm:min-w-[130px] bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden transform opacity-0 scale-95 transition-all duration-200">
                         <ul class="dropdown-list py-1 text-sm text-gray-700 max-h-60 overflow-y-auto">
                             <li class="px-3 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $fStatus === '' ? 'bg-red-50 text-[#9f2b2b] font-bold' : 'font-medium' ?>" data-value="">Semua Status</li>
-                            <?php foreach (['Berjalan', 'Selesai', 'Ditunda'] as $s): ?>
+                            <?php foreach (['Draft', 'Berjalan', 'Selesai', 'Batal'] as $s): ?>
                                 <li class="px-3 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $fStatus === $s ? 'bg-red-50 text-[#9f2b2b] font-bold' : '' ?>"
                                     data-value="<?= $s ?>"><?= $s ?></li>
                             <?php endforeach; ?>
@@ -143,7 +128,7 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
                     <input type="hidden" name="status" id="filterStatus" value="<?= $e($fStatus) ?>">
                 </div>
 
-                <!-- Reset (muncul hanya saat ada filter aktif) -->
+                <!-- Reset -->
                 <button type="button" id="btnResetFilter"
                         class="<?= $adaFilter ? '' : 'hidden' ?> flex-shrink-0 px-3.5 py-2.5 bg-red-50 text-[#9f2b2b] hover:bg-red-100 border border-red-100 text-sm font-medium rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -185,17 +170,15 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
                     <?php else: ?>
                         <?php foreach ($projects as $p): ?>
                             <tr class="data-row border-b border-gray-100 hover:bg-gray-50/60 transition-colors group">
-                                <td class="px-5 py-4 text-sm font-bold text-gray-900 group-hover:text-[#9f2b2b] transition-colors"><?= $e($p->nama_project) ?></td>
-                                <td class="px-5 py-4 text-sm text-gray-700 font-medium"><?= $e($p->nama_klien ?: '-') ?></td>
+                                <td class="px-5 py-4 text-sm font-bold text-gray-900 group-hover:text-[#9f2b2b] transition-colors max-w-[200px] truncate" title="<?= $e($p->nama_project) ?>"><?= $e($p->nama_project) ?></td>
+                                <td class="px-5 py-4 text-sm text-gray-700 font-medium max-w-[150px] truncate" title="<?= $e($p->nama_klien ?: '-') ?>"><?= $e($p->nama_klien ?: '-') ?></td>
                                 <td class="max-w-[220px] px-5 py-4 text-sm text-gray-600">
                                     <p class="line-clamp-2" title="<?= $e($p->deskripsi) ?>"><?= $p->deskripsi ? $e($p->deskripsi) : '<span class="text-gray-400 italic">-</span>' ?></p>
                                 </td>
                                 <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-600 text-center"><?= $tgl($p->tanggal_mulai) ?></td>
                                 <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-600 text-center"><?= $tgl($p->tanggal_selesai) ?></td>
                                 <td class="whitespace-nowrap px-5 py-4 text-center">
-                                    <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold border <?= $badge[$p->status] ?? 'bg-slate-50 text-slate-600 border-slate-100' ?>">
-                                        <?= $e($p->status) ?>
-                                    </span>
+                                    <?= $renderBadge($p->status) ?>
                                 </td>
                                 <td class="px-5 py-4 text-center">
                                     <div class="flex justify-center items-center gap-1.5">
@@ -257,6 +240,9 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
             </div>
         </div>
     </div>
+
+    <!-- Container untuk Toast -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-[60] flex flex-col gap-2 pointer-events-none"></div>
 </main>
 
 <!-- MODAL KONFIRMASI HAPUS -->
@@ -289,8 +275,42 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
     </div>
 </div>
 
+<style>
+    @keyframes toastIn  { from { opacity:0; transform:translateX(100%); } to { opacity:1; transform:translateX(0); } }
+    @keyframes toastOut { from { opacity:1; transform:translateX(0); }    to { opacity:0; transform:translateX(100%); } }
+    .toast-item { animation: toastIn 0.3s ease-out; }
+    .toast-item.hide { animation: toastOut 0.3s ease-in forwards; }
+</style>
+
 <script>
-    /* ========== CUSTOM DROPDOWN (sama dengan dokumen) ========== */
+    // --- TOAST CONFIG ---
+    const TOAST_CFG = {
+        success: { bg: 'bg-emerald-50 border-emerald-200 text-emerald-800', ic: 'text-emerald-500', d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+        error:   { bg: 'bg-red-50 border-red-200 text-red-800',             ic: 'text-red-500',     d: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+        info:    { bg: 'bg-blue-50 border-blue-200 text-blue-800',          ic: 'text-blue-500',    d: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+    };
+
+    function showToast(msg, type = 'success') {
+        const c = TOAST_CFG[type] || TOAST_CFG.info;
+        const el = document.createElement('div');
+        el.className = `toast-item pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg max-w-sm ${c.bg}`;
+        el.innerHTML = `<svg class="w-5 h-5 flex-shrink-0 ${c.ic}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${c.d}"/></svg><span class="text-sm font-medium flex-1">${msg}</span><button type="button" class="opacity-60 hover:opacity-100 flex-shrink-0" onclick="this.parentElement.remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
+        document.getElementById('toastContainer').appendChild(el);
+        setTimeout(() => { el.classList.add('hide'); setTimeout(() => el.remove(), 300); }, 3000);
+    }
+
+    // --- MEMUNCULKAN NOTIFIKASI PHP VIA TOAST ---
+    document.addEventListener('DOMContentLoaded', () => {
+        <?php if($this->session->flashdata('success')): ?>
+            showToast('<?= addslashes($this->session->flashdata('success')) ?>', 'success');
+        <?php endif; ?>
+        
+        <?php if($this->session->flashdata('error')): ?>
+            showToast('<?= addslashes(strip_tags($this->session->flashdata('error'))) ?>', 'error');
+        <?php endif; ?>
+    });
+
+    /* ========== CUSTOM DROPDOWN ========== */
     const filterForm = document.getElementById('filterForm');
     const searchInput = document.getElementById('searchInput');
     const resetBtn = document.getElementById('btnResetFilter');
@@ -358,16 +378,6 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
         document.getElementById('filterKlien').value = '';
         document.getElementById('filterStatus').value = '';
         window.location.href = '<?= site_url('project') ?>';
-    });
-
-    /* ========== AUTO-FADE ALERT (konsisten dengan dokumen) ========== */
-    document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(() => {
-            ['alert-success', 'alert-error'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) { el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }
-            });
-        }, 4000);
     });
 
     /* ========== MODAL HAPUS ========== */

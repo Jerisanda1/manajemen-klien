@@ -9,8 +9,8 @@ class Pengaturan extends MY_Controller {
     }
 
     public function index() {
-        // Asumsi session user id bernama 'admin_id'. Silakan sesuaikan dengan sistem Anda.
-        $user_id = $this->session->userdata('admin_id') ?: 1; 
+        // PERBAIKAN: Menggunakan 'id_user' sesuai session dari Auth.php
+        $user_id = $this->session->userdata('id_user') ?: 1; 
 
         $data = [
             'title'    => 'Pengaturan - Tridatu',
@@ -33,7 +33,7 @@ class Pengaturan extends MY_Controller {
 
         // Handle upload logo di form informasi
         if (!empty($_FILES['logo']['name'])) {
-            $config['upload_path']   = FCPATH . 'uploads/settings/';
+            $config['upload_path']   = FCPATH . 'uploads/settings/logo/';
             $config['allowed_types'] = 'jpg|jpeg|png';
             $config['max_size']      = 2048; // 2MB
             $config['encrypt_name']  = TRUE;
@@ -43,11 +43,14 @@ class Pengaturan extends MY_Controller {
 
             if ($this->upload->do_upload('logo')) {
                 $up = $this->upload->data();
-                $update_data['logo'] = 'uploads/settings/' . $up['file_name'];
+                $update_data['logo'] = 'uploads/settings/logo/' . $up['file_name'];
                 
                 // Hapus logo lama
                 $old = $this->pengaturan_model->get_settings();
                 if ($old->logo && file_exists(FCPATH . $old->logo)) @unlink(FCPATH . $old->logo);
+            } else {
+                $this->session->set_flashdata('error', 'Gagal upload logo: ' . strip_tags($this->upload->display_errors()));
+                redirect('pengaturan');
             }
         }
 
@@ -58,8 +61,8 @@ class Pengaturan extends MY_Controller {
 
     // Proses Ubah Username & Password
     public function update_account() {
-        // Sesuaikan dengan session user ID Anda
-        $user_id = $this->session->userdata('admin_id') ?: 1; 
+        // PERBAIKAN: Menggunakan 'id_user' sesuai session dari Auth.php
+        $user_id = $this->session->userdata('id_user') ?: 1; 
         
         $username = $this->input->post('username', TRUE);
         $password = $this->input->post('password');
@@ -82,14 +85,13 @@ class Pengaturan extends MY_Controller {
                 redirect('pengaturan');
             }
             
-            // Gunakan password_hash untuk keamanan modern.
-            // Jika sistem Anda masih memakai MD5/SHA1, ganti baris ini dengan: md5($password)
+            // Menggunakan password_hash untuk keamanan modern (Bcrypt)
             $update_data['password'] = password_hash($password, PASSWORD_DEFAULT);
         }
 
         $this->pengaturan_model->update_user($user_id, $update_data);
         
-        // Update session username jika ada
+        // Update session username agar langsung berubah di UI tanpa logout
         $this->session->set_userdata('username', $username);
 
         $this->session->set_flashdata('success', 'Pengaturan akun berhasil diperbarui!');
@@ -104,7 +106,11 @@ class Pengaturan extends MY_Controller {
 
         foreach ($files as $file) {
             if (!empty($_FILES[$file]['name'])) {
-                $config['upload_path']   = FCPATH . 'uploads/settings/';
+                
+                // Jika file-nya 'ttd', simpan di folder 'tanda_tangan'
+                $folder_name = ($file === 'ttd') ? 'tanda_tangan' : $file;
+                
+                $config['upload_path']   = FCPATH . 'uploads/settings/' . $folder_name . '/';
                 $config['allowed_types'] = 'jpg|jpeg|png';
                 $config['max_size']      = 2048;
                 $config['encrypt_name']  = TRUE;
@@ -114,7 +120,7 @@ class Pengaturan extends MY_Controller {
 
                 if ($this->upload->do_upload($file)) {
                     $up = $this->upload->data();
-                    $update_data[$file] = 'uploads/settings/' . $up['file_name'];
+                    $update_data[$file] = 'uploads/settings/' . $folder_name . '/' . $up['file_name'];
                     
                     if ($old_data->$file && file_exists(FCPATH . $old_data->$file)) {
                         @unlink(FCPATH . $old_data->$file);
@@ -133,10 +139,11 @@ class Pengaturan extends MY_Controller {
         redirect('pengaturan');
     }
 
-    // Hapus Kop Surat / TTD
+    // Hapus Kop Surat / TTD / Logo
     public function hapus_asset($type) {
         if (in_array($type, ['kop_surat', 'ttd', 'logo'])) {
             $old_data = $this->pengaturan_model->get_settings();
+            
             if ($old_data->$type && file_exists(FCPATH . $old_data->$type)) {
                 @unlink(FCPATH . $old_data->$type);
             }

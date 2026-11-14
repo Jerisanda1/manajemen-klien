@@ -1,12 +1,19 @@
 <!-- Sidebar -->
 <?php 
-    // 1. BACA COOKIE (Agar PHP tahu status tanpa kedipan)
+    // 1. BACA COOKIE
     $is_collapsed = ($this->input->cookie('sidebar_collapsed') === 'true') ? 'true' : 'false';
     $active_menu = $this->uri->segment(1); 
     if(empty($active_menu)) { $active_menu = 'dashboard'; }
+
+    // 2. AMBIL DATA LOGO SAJA DARI DATABASE
+    $CI =& get_instance();
+    $CI->load->model('Pengaturan_model');
+    $s = $CI->Pengaturan_model->get_settings();
+    
+    // Cek apakah logo ada di database & file fisiknya ada
+    $hasLogo = !empty($s->logo) && file_exists(FCPATH . $s->logo);
 ?>
 
-<!-- 2. TAMBAHKAN ATRIBUT data-collapsed DAN CLASS group -->
 <aside id="sidebar" data-collapsed="<?= $is_collapsed ?>" class="group fixed inset-y-0 left-0 z-40 w-64 bg-[#4b4b4b] text-gray-300 transform -translate-x-full md:relative md:translate-x-0 transition-all duration-300 ease-in-out flex flex-col h-full shadow-xl flex-shrink-0 data-[collapsed=true]:w-20">
     
     <!-- Logo & Tombol Toggle -->
@@ -14,16 +21,23 @@
         
         <!-- Wadah Logo -->
         <div class="flex items-center gap-3 whitespace-nowrap transition-all duration-300 group-data-[collapsed=true]:justify-center group-data-[collapsed=true]:w-full group-data-[collapsed=true]:gap-0">
-            <img src="<?= base_url('assets/img/tridatu_logo.png') ?>" alt="Tridatu Logo" class="h-8 w-8 object-contain flex-shrink-0">
             
-            <!-- Teks Logo (Menggunakan 'hidden' agar benar-benar hilang dari ruang) -->
+            <?php if ($hasLogo): ?>
+                <!-- Tampilkan Logo dari Database -->
+                <img src="<?= base_url($s->logo) ?>" alt="Logo" class="h-8 w-8 object-contain flex-shrink-0">
+            <?php else: ?>
+                <!-- Fallback jika belum ada logo -->
+                <img src="<?= base_url('assets/img/tridatu_logo.png') ?>" alt="Tridatu Logo" class="h-8 w-8 object-contain flex-shrink-0">
+            <?php endif; ?>
+            
+            <!-- Teks Logo (Tetap Manual / Hardcode) -->
             <div class="flex items-baseline transition-all duration-300 opacity-100 max-w-[200px] group-data-[collapsed=true]:hidden">
                 <span class="text-lg font-bold text-white tracking-wide">Tridatu</span>
                 <span class="text-lg font-light text-gray-200 ml-1">Solution</span>
             </div>
         </div>
 
-        <!-- Tombol Toggle (Dibuat absolute agar tidak menggeser logo) -->
+        <!-- Tombol Toggle -->
         <button id="toggle-sidebar" class="absolute right-4 hidden md:flex text-gray-400 hover:text-white focus:outline-none transition-all duration-300 group-data-[collapsed=true]:right-1 group-data-[collapsed=true]:rotate-180">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                 <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
@@ -54,7 +68,7 @@
         <?php foreach($menus as $menu): ?>
             <a href="<?= site_url($menu['url']) ?>" class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-300 ease-in-out group/item <?= ($active_menu == $menu['url']) ? 'bg-[#9f5b5b] text-white shadow-md font-semibold' : 'text-gray-300 hover:bg-[#5a5a5a] hover:text-white' ?> group-data-[collapsed=true]:justify-center group-data-[collapsed=true]:px-0 group-data-[collapsed=true]:gap-0" title="<?= $menu['name'] ?>">
                 
-                <!-- Ikon: Membesar dan bergeser ke kanan saat hover -->
+                <!-- Ikon -->
                 <svg class="w-5 h-5 flex-shrink-0 <?= ($active_menu == $menu['url']) ? 'text-white' : 'text-gray-300 group-hover/item:text-white' ?> transform group-hover/item:scale-110 group-hover/item:translate-x-0.5 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="<?= $menu['icon'] ?>"></path>
                     <?php if($menu['url'] == 'pengaturan'): ?>
@@ -62,23 +76,79 @@
                     <?php endif; ?>
                 </svg>
                 
-                <!-- Teks: Ikut bergeser ke kanan saat hover -->
+                <!-- Teks Menu -->
                 <span class="text-sm whitespace-nowrap overflow-hidden transition-all duration-300 opacity-100 max-w-[200px] transform group-hover/item:translate-x-1 group-data-[collapsed=true]:opacity-0 group-data-[collapsed=true]:max-w-0 group-data-[collapsed=true]:ml-0"><?= $menu['name'] ?></span>
             </a>
         <?php endforeach; ?>
 
     </nav>
 
-           <!-- Logout Button -->
+    <!-- Logout Button (Diubah menjadi Button Pemanggil Modal) -->
     <div class="p-4 mt-auto flex-shrink-0 overflow-hidden group-data-[collapsed=true]:px-2">
-        <!-- HREF diubah mengarah ke auth/logout -->
-        <a href="<?= site_url('auth/logout') ?>" class="group/logout flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-[#9f5b5b] to-[#854848] hover:from-[#b06666] hover:to-[#9f5b5b] text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 text-sm font-semibold w-full group-data-[collapsed=true]:px-0 group-data-[collapsed=true]:gap-0" title="Keluar">
+        <button type="button" onclick="bukaModalLogout()" class="group/logout flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-[#9f5b5b] to-[#854848] hover:from-[#b06666] hover:to-[#9f5b5b] text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 text-sm font-semibold w-full group-data-[collapsed=true]:px-0 group-data-[collapsed=true]:gap-0" title="Keluar">
             
             <svg class="w-5 h-5 flex-shrink-0 transform group-hover/logout:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
             </svg>
             
             <span class="whitespace-nowrap overflow-hidden transition-all duration-300 opacity-100 max-w-[100px] group-data-[collapsed=true]:opacity-0 group-data-[collapsed=true]:max-w-0 group-data-[collapsed=true]:ml-0">Keluar</span>
-        </a>
+        </button>
     </div>
 </aside>
+
+<!-- MODAL KONFIRMASI LOGOUT -->
+<div id="modalLogout" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity" onclick="tutupModalLogout()"></div>
+    <div id="modalLogoutContent" class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-95 opacity-0 transition-all duration-300 z-10">
+        
+        <div class="flex items-center justify-center w-16 h-16 mx-auto bg-red-50 rounded-full mb-5">
+            <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+        </div>
+        
+        <h3 class="text-xl font-bold text-center text-gray-900 mb-2">Keluar Sistem?</h3>
+        <p class="text-center text-gray-500 mb-6 text-sm">
+            Apakah Anda yakin ingin keluar dari aplikasi? <br>
+            <span class="text-xs text-gray-400 mt-2 block">Anda harus memasukkan username dan password kembali untuk masuk.</span>
+        </p>
+        
+        <div class="flex justify-center gap-3">
+            <button type="button" onclick="tutupModalLogout()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors w-full text-sm">Batal</button>
+            <!-- Tombol ini akan mengarahkan ke URL Logout -->
+            <a href="<?= site_url('auth/logout') ?>" class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all shadow-md shadow-red-500/30 w-full text-sm text-center flex items-center justify-center">Ya, Keluar</a>
+        </div>
+        
+    </div>
+</div>
+
+<!-- SCRIPT UNTUK MODAL LOGOUT -->
+<script>
+    const modalLogout = document.getElementById('modalLogout');
+    const modalLogoutContent = document.getElementById('modalLogoutContent');
+
+    function bukaModalLogout() {
+        modalLogout.classList.remove('hidden');
+        modalLogout.classList.add('flex');
+        setTimeout(() => {
+            modalLogoutContent.classList.remove('scale-95', 'opacity-0');
+            modalLogoutContent.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function tutupModalLogout() {
+        modalLogoutContent.classList.remove('scale-100', 'opacity-100');
+        modalLogoutContent.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modalLogout.classList.add('hidden');
+            modalLogout.classList.remove('flex');
+        }, 300);
+    }
+
+    // Tutup modal jika tombol Escape ditekan
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modalLogout.classList.contains('hidden')) {
+            tutupModalLogout();
+        }
+    });
+</script>

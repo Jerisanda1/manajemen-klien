@@ -10,10 +10,25 @@ class Klien extends MY_Controller {
     }
 
     public function index() {
+        $q = trim((string) $this->input->get('q', TRUE));
+        
+        // Tampilkan 5 data per halaman
+        $perPage = 5;
+        $page    = max(1, (int) $this->input->get('page'));
+
+        $total      = $this->klien_model->count_filtered($q);
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page       = min($page, $totalPages);
+
         $data = [
             'title'      => 'Data Klien - Tridatu Solution',
             'content'    => 'content/klien/index',
-            'data_klien' => $this->klien_model->get_all_klien()
+            'data_klien' => $this->klien_model->get_list($q, $perPage, ($page - 1) * $perPage),
+            'total'      => $total,
+            'page'       => $page,
+            'perPage'    => $perPage,
+            'totalPages' => $totalPages,
+            'q'          => $q
         ];
         $this->load->view('main', $data);
     }

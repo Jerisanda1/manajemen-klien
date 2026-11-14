@@ -12,11 +12,28 @@ class Dokumen extends MY_Controller {
     }
 
     public function index() {
+        $q       = trim((string) $this->input->get('q', TRUE));
+        $jenis   = (string) $this->input->get('jenis', TRUE);
+        
+        // PERUBAHAN: Tampilkan 5 data per halaman
+        $perPage = 5; 
+        $page    = max(1, (int) $this->input->get('page'));
+
+        $total      = $this->dokumen_model->count_filtered($q, $jenis);
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page       = min($page, $totalPages);
+
         $data = [
             'title'         => 'Dokumen Kerja Sama - Tridatu',
             'content'       => 'content/dokumen/index',
-            'documents'     => $this->dokumen_model->get_all_documents(),
-            'jenis_dokumen' => $this->dokumen_model->get_jenis_dokumen()
+            'documents'     => $this->dokumen_model->get_list($q, $jenis, $perPage, ($page - 1) * $perPage),
+            'jenis_dokumen' => $this->dokumen_model->get_jenis_dokumen(),
+            'total'         => $total,
+            'page'          => $page,
+            'perPage'       => $perPage,
+            'totalPages'    => $totalPages,
+            'q'             => $q,
+            'fJenis'        => $jenis,
         ];
         $this->load->view('main', $data);
     }
@@ -75,8 +92,11 @@ class Dokumen extends MY_Controller {
         ];
 
         if ($storage_type === 'cloud') {
+            $folder_bulan = date('Y/m'); 
+            $upload_path  = FCPATH . 'uploads/dokumen/' . $folder_bulan . '/';
+
             $config = [
-                'upload_path'   => FCPATH . 'writable/uploads/documents/cloud/',
+                'upload_path'   => $upload_path,
                 'allowed_types' => 'pdf|doc|docx|xls|xlsx|jpg|jpeg|png',
                 'max_size'      => 10240,
                 'encrypt_name'  => TRUE,
@@ -93,7 +113,7 @@ class Dokumen extends MY_Controller {
             }
 
             $up = $this->upload->data();
-            $rel = 'writable/uploads/documents/cloud/' . $up['file_name'];
+            $rel = 'uploads/dokumen/' . $folder_bulan . '/' . $up['file_name'];
 
             $file_data['file_path'] = $rel;
             $file_data['file_name'] = $up['orig_name'];
@@ -123,8 +143,6 @@ class Dokumen extends MY_Controller {
         $id = $this->dokumen_model->insert_document($data);
 
         $this->Dashboard_model->log_activity('dokumen', 'Dokumen baru diunggah: ' . $data['nama_dokumen']);
-
-        // Set flashdata SEBELUM return JSON — agar tetap tersedia untuk request redirect berikutnya
         $this->session->set_flashdata('success', 'Dokumen berhasil ditambahkan!');
 
         if ($this->input->is_ajax_request()) {
@@ -141,10 +159,7 @@ class Dokumen extends MY_Controller {
 
     public function edit($id) {
         $doc = $this->dokumen_model->get_detail($id);
-
-        if (!$doc) {
-            show_404();
-        }
+        if (!$doc) show_404();
 
         $currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
         $isLocal = ($doc->storage_type === 'local');
@@ -198,7 +213,6 @@ class Dokumen extends MY_Controller {
         $is_new_cloud_file = ($storage_type === 'cloud' && !empty($_FILES['file_dokumen']['name']));
         $is_new_local_file = ($storage_type === 'local' && $this->input->post('file_name_local') && $this->input->post('file_name_local') !== $doc->file_name);
 
-        // Tolak perubahan storage_type jika tidak ada file baru — mencegah state inkonsisten
         $storage_changed = ($doc->storage_type !== $storage_type);
         $has_new_file    = ($is_new_cloud_file || $is_new_local_file);
 
@@ -210,8 +224,11 @@ class Dokumen extends MY_Controller {
         }
 
         if ($is_new_cloud_file) {
+            $folder_bulan = date('Y/m'); 
+            $upload_path  = FCPATH . 'uploads/dokumen/' . $folder_bulan . '/';
+
             $config = [
-                'upload_path'   => FCPATH . 'writable/uploads/documents/cloud/',
+                'upload_path'   => $upload_path,
                 'allowed_types' => 'pdf|doc|docx|xls|xlsx|jpg|jpeg|png',
                 'max_size'      => 10240,
                 'encrypt_name'  => TRUE,
@@ -228,7 +245,7 @@ class Dokumen extends MY_Controller {
             }
 
             $up = $this->upload->data();
-            $rel = 'writable/uploads/documents/cloud/' . $up['file_name'];
+            $rel = 'uploads/dokumen/' . $folder_bulan . '/' . $up['file_name'];
 
             if ($doc->storage_type === 'cloud' && $doc->file_path && is_file(FCPATH . $doc->file_path)) {
                 @unlink(FCPATH . $doc->file_path);
@@ -242,7 +259,6 @@ class Dokumen extends MY_Controller {
             $update_data['device_id'] = NULL;
 
         } elseif ($is_new_local_file) {
-            // Fallback device_id — cegah penyimpanan string kosong yang membuat dokumen terkunci total.
             $postedDeviceId = $this->input->post('device_id', TRUE);
             $device_id      = $postedDeviceId ?: $doc->device_id;
 
@@ -268,8 +284,6 @@ class Dokumen extends MY_Controller {
         $this->dokumen_model->update_document($id, $update_data);
 
         $this->Dashboard_model->log_activity('dokumen', 'Dokumen diperbarui: ' . $update_data['nama_dokumen']);
-
-        // Set flashdata SEBELUM return JSON
         $this->session->set_flashdata('success', 'Dokumen berhasil diperbarui!');
 
         if ($this->input->is_ajax_request()) {
@@ -292,24 +306,16 @@ class Dokumen extends MY_Controller {
         $file_hash = $this->input->post('file_hash', TRUE);
 
         $doc = $this->dokumen_model->get_by_id($id);
-        if (!$doc) {
-            return $this->_json(['status' => false, 'msg' => 'Dokumen tidak ditemukan']);
-        }
+        if (!$doc) return $this->_json(['status' => false, 'msg' => 'Dokumen tidak ditemukan']);
+        if ($doc->storage_type === 'cloud') return $this->_json(['status' => false, 'msg' => 'Dokumen sudah di server sistem']);
+        if ((string) $doc->device_id !== (string) $device_id) return $this->_json(['status' => false, 'msg' => 'Bukan perangkat asal dokumen ini']);
+        if (empty($_FILES['file']['name'])) return $this->_json(['status' => false, 'msg' => 'File tidak dikirim']);
 
-        if ($doc->storage_type === 'cloud') {
-            return $this->_json(['status' => false, 'msg' => 'Dokumen sudah di server sistem']);
-        }
-
-        if ((string) $doc->device_id !== (string) $device_id) {
-            return $this->_json(['status' => false, 'msg' => 'Bukan perangkat asal dokumen ini']);
-        }
-
-        if (empty($_FILES['file']['name'])) {
-            return $this->_json(['status' => false, 'msg' => 'File tidak dikirim']);
-        }
+        $folder_bulan = date('Y/m'); 
+        $upload_path  = FCPATH . 'uploads/dokumen/' . $folder_bulan . '/';
 
         $config = [
-            'upload_path'   => FCPATH . 'writable/uploads/documents/cloud/',
+            'upload_path'   => $upload_path,
             'allowed_types' => 'pdf|doc|docx|xls|xlsx|jpg|jpeg|png',
             'max_size'      => 10240,
             'encrypt_name'  => TRUE,
@@ -317,21 +323,18 @@ class Dokumen extends MY_Controller {
 
         if (!is_dir($config['upload_path'])) {
             if (!@mkdir($config['upload_path'], 0755, TRUE) && !is_dir($config['upload_path'])) {
-                return $this->_json(['status' => false, 'msg' => 'Gagal membuat folder upload. Periksa permission folder writable/']);
+                return $this->_json(['status' => false, 'msg' => 'Gagal membuat folder upload. Periksa permission folder uploads/']);
             }
         }
 
         $this->load->library('upload', $config);
 
         if (!$this->upload->do_upload('file')) {
-            return $this->_json([
-                'status' => false,
-                'msg'    => strip_tags($this->upload->display_errors()),
-            ]);
+            return $this->_json(['status' => false, 'msg' => strip_tags($this->upload->display_errors())]);
         }
 
         $up  = $this->upload->data();
-        $rel = 'writable/uploads/documents/cloud/' . $up['file_name'];
+        $rel = 'uploads/dokumen/' . $folder_bulan . '/' . $up['file_name'];
 
         $new_hash = hash_file('sha256', FCPATH . $rel);
         if ($file_hash && !hash_equals($file_hash, $new_hash)) {
@@ -370,16 +373,18 @@ class Dokumen extends MY_Controller {
         $path = FCPATH . $doc->file_path;
         if (!is_file($path)) show_404();
 
-        if (ob_get_level() > 0) {
-            ob_end_clean();
-        }
+        if (ob_get_level() > 0) ob_end_clean();
 
         $mime = $doc->mime_type;
         if (!$mime || $mime === 'application/octet-stream') {
             $mime = mime_content_type($path);
         }
-        if (!$mime) {
-            $mime = 'application/pdf';
+        if (!$mime) $mime = 'application/pdf';
+
+        // KEAMANAN: Cegah XSS (Hanya izinkan format gambar & PDF)
+        $allowed_inline = ['application/pdf', 'image/jpeg', 'image/png'];
+        if (!in_array($mime, $allowed_inline)) {
+            return $this->unduh($id);
         }
 
         header('Content-Type: ' . $mime);
@@ -394,14 +399,9 @@ class Dokumen extends MY_Controller {
     public function hapus($id) {
         $doc = $this->dokumen_model->get_by_id($id);
         if ($doc) {
-            // Hapus file fisik dari hosting (JIKA sebelumnya di Cloud)
             if ($doc->storage_type === 'cloud' && $doc->file_path && is_file(FCPATH . $doc->file_path)) {
                 @unlink(FCPATH . $doc->file_path);
             }
-            
-            // Catatan: File fisik lokal (di laptop admin) sudah dihapus oleh JS 
-            // via Local Service sebelum request PHP ini dieksekusi.
-            
             $this->dokumen_model->delete_document($id);
             $this->session->set_flashdata('success', 'Dokumen berhasil dihapus!');
         }
@@ -409,17 +409,12 @@ class Dokumen extends MY_Controller {
     }
 
     private function _json($arr) {
-        $this->output
-            ->set_content_type('application/json')
-            ->set_output(json_encode($arr));
+        $this->output->set_content_type('application/json')->set_output(json_encode($arr));
     }
 
     public function detail($id) {
         $doc = $this->dokumen_model->get_detail($id);
-
-        if (!$doc) {
-            show_404();
-        }
+        if (!$doc) show_404();
 
         $currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
         $isLocal = ($doc->storage_type === 'local');

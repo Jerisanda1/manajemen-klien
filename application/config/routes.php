@@ -110,6 +110,7 @@ $route['pengaturan/update_assets'] = 'content/pengaturan/update_assets';
 $route['pengaturan/hapus_asset/(:any)'] = 'content/pengaturan/hapus_asset/$1';
 $route['pengaturan/simpan_jenis'] = 'content/pengaturan/simpan_jenis';
 $route['pengaturan/hapus_jenis/(:num)'] = 'content/pengaturan/hapus_jenis/$1';
+$route['pengaturan/update_account'] = 'content/pengaturan/update_account';
 
 
 
