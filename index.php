@@ -1,4 +1,9 @@
 <?php
+// ==========================================
+// PENGATURAN ZONA WAKTU (WITA)
+// ==========================================
+date_default_timezone_set('Asia/Makassar');
+
 /**
  * CodeIgniter
  *
