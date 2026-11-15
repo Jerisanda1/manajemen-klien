@@ -282,6 +282,8 @@ private function status_invoice($id)
 /* ---------- INVOICE: KIRIM PENGINGAT ---------- */
 public function kirim($tab, $id)
 {
+    
+    
     if ($tab !== 'invoice' || $this->input->method() !== 'post') redirect('pembayaran?tab=invoice');
 
     $inv = $this->Pembayaran_model->get_invoice($id);
@@ -292,6 +294,8 @@ public function kirim($tab, $id)
         $this->session->set_flashdata('error', 'Invoice sudah dibayar, pengingat tidak diperlukan.');
         redirect($balik);
     }
+
+    $this->config->load('notifikasi', TRUE);
 
     $bulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
     $t = strtotime($inv->jatuh_tempo);
@@ -304,35 +308,94 @@ public function kirim($tab, $id)
     $saluran = $this->input->post('saluran') === 'whatsapp' ? 'whatsapp' : 'email';
 
     if ($saluran === 'whatsapp') {
-        $no = preg_replace('/\D/', '', (string) $inv->hp_pic);
-        if ($no === '') {
+        $tujuan = preg_replace('/\D/', '', (string) $inv->hp_pic);
+        if ($tujuan === '') {
             $this->session->set_flashdata('error', 'Nomor HP PIC klien belum diisi.');
             redirect($balik);
         }
-        if ($no[0] === '0') $no = '62' . substr($no, 1);
-        $url = 'https://wa.me/' . $no . '?text=' . rawurlencode($pesan);
+        list($ok, $ket) = $this->kirim_wa($tujuan, $pesan);
+        $label = 'WhatsApp';
     } else {
-        if (!filter_var($inv->email_pic, FILTER_VALIDATE_EMAIL)) {
+        $tujuan = (string) $inv->email_pic;
+        if (!filter_var($tujuan, FILTER_VALIDATE_EMAIL)) {
             $this->session->set_flashdata('error', 'Email PIC klien belum diisi atau tidak valid.');
             redirect($balik);
         }
-        $url = 'mailto:' . $inv->email_pic
-             . '?subject=' . rawurlencode('Pengingat jatuh tempo invoice ' . $inv->no_invoice)
-             . '&body=' . rawurlencode($pesan);
+       $this->load->library('notifikasi');
+list($ok, $ket) = $this->notifikasi->email($tujuan, 'Pengingat jatuh tempo invoice ' . $inv->no_invoice, $pesan);
+        $label = 'Email';
     }
 
-    $this->Pembayaran_model->add_pengiriman($id, $saluran);
+    $this->Pembayaran_model->add_pengiriman($id, $saluran, $tujuan, $ok, $ket);
 
-    // Halaman perantara (tab baru): membuka aplikasi email / WhatsApp lalu menutup diri
-    $h = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
-    $j = json_encode($url, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
-    echo '<!DOCTYPE html><meta charset="utf-8"><title>Membuka...</title>'
-       . '<body style="font-family:Arial;padding:32px">Membuka ' . ($saluran === 'whatsapp' ? 'WhatsApp' : 'aplikasi email') . '...'
-       . '<p><a href="' . $h . '">Jika tidak terbuka, klik di sini.</a></p>'
-       . '<script>location.href=' . $j . ';setTimeout(function(){window.close()},1500);</script></body>';
-    exit;
+    if ($ok) {
+        $this->session->set_flashdata('success', $label . ' pengingat berhasil dikirim ke ' . $tujuan . '.');
+    } else {
+        $this->session->set_flashdata('error', $label . ' gagal dikirim: ' . $ket);
+    }
+    redirect($balik);
 }
 
+// Mengembalikan [berhasil(bool), keterangan(string)]
+private function kirim_email($ke, $subjek, $isi)
+{
+    $c = function ($k) { return $this->config->item($k, 'notifikasi'); };
+
+    if (!$c('email_smtp_user') || !$c('email_smtp_pass')) {
+        return [FALSE, 'SMTP belum diisi di application/config/notifikasi.php.'];
+    }
+
+    $this->load->library('email');
+    $this->email->initialize([
+        'protocol'     => 'smtp',
+        'smtp_host'    => $c('email_smtp_host'),
+        'smtp_port'    => (int) $c('email_smtp_port'),
+        'smtp_user'    => $c('email_smtp_user'),
+        'smtp_pass'    => $c('email_smtp_pass'),
+        'smtp_crypto'  => $c('email_smtp_crypto'),
+        'smtp_timeout' => 15,
+        'mailtype'     => 'text',
+        'charset'      => 'utf-8',
+        'newline'      => "\r\n",
+        'crlf'         => "\r\n",
+    ]);
+    $this->email->from($c('email_from') ?: $c('email_smtp_user'), $c('email_from_name'));
+    $this->email->to($ke);
+    $this->email->subject($subjek);
+    $this->email->message($isi);
+
+    if ($this->email->send(FALSE)) return [TRUE, ''];
+
+    $err = trim(preg_replace('/\s+/', ' ', strip_tags($this->email->print_debugger([]))));
+    return [FALSE, $err !== '' ? $err : 'Server email menolak pengiriman.'];
+}
+
+private function kirim_wa($nomor, $pesan)
+{
+    $token = $this->config->item('fonnte_token', 'notifikasi');
+    if (!$token) return [FALSE, 'Token Fonnte belum diisi di application/config/notifikasi.php.'];
+    if (!function_exists('curl_init')) return [FALSE, 'Ekstensi cURL PHP belum aktif.'];
+
+    $ch = curl_init('https://api.fonnte.com/send');
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => TRUE,
+        CURLOPT_POSTFIELDS     => ['target' => $nomor, 'message' => $pesan, 'countryCode' => '62'],
+        CURLOPT_HTTPHEADER     => ['Authorization: ' . $token],
+        CURLOPT_RETURNTRANSFER => TRUE,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT        => 20,
+    ]);
+    $res = curl_exec($ch);
+    $err = curl_error($ch);
+    curl_close($ch);
+
+    if ($res === FALSE) return [FALSE, 'Tidak bisa terhubung ke Fonnte: ' . $err];
+
+    $j = json_decode($res, TRUE);
+    if (!empty($j['status'])) return [TRUE, ''];
+
+    return [FALSE, 'Fonnte: ' . (isset($j['reason']) ? $j['reason'] : 'respons tidak dikenal')];
+}
 /* ---------- EDIT ---------- */
 public function edit($tab, $id)
 {
@@ -412,6 +475,7 @@ public function edit($tab, $id)
  /* ---------- UNDUH ---------- */
 public function unduh($tab, $id)
 {
+     if ($tab === 'invoice') return $this->unduh_invoice($id);
     $this->cek_tab($tab);
 
     // Ambil data berdasarkan tab
@@ -442,7 +506,86 @@ public function unduh($tab, $id)
     $dompdf->render();
 
     $nama = preg_replace('/[^A-Za-z0-9_\-]/', '-', $no_dokumen) . '.pdf';
-    $dompdf->stream($nama, ['Attachment' => true]);
+    $inline = $this->input->get('inline') ? TRUE : FALSE;
+    $dompdf->stream($nama, ['Attachment' => !$inline]);
+    exit;
+}
+
+/* ---------- INVOICE: UNDUH / PRATINJAU ---------- */
+private function unduh_invoice($id)
+{
+    $inv = $this->Pembayaran_model->get_invoice($id);
+    if (!$inv) show_404();
+
+    // Invoice unggahan: unduh file aslinya
+    if ($inv->dibuat_lewat === 'Unggahan' && !empty($inv->file_path)) {
+        redirect('pembayaran/berkas-invoice/' . (int) $id . '?unduh=1');
+    }
+    $this->stream_pdf_invoice($inv, (bool) $this->input->get('inline'));
+}
+
+public function pratinjau_invoice()
+{
+    if ($this->input->method() !== 'post') redirect('pembayaran?tab=invoice');
+
+    $klien   = $this->Pembayaran_model->get_klien((int) $this->input->post('klien_id'));
+    $project = (int) $this->input->post('project_id');
+
+    $o = (object) [
+        'no_invoice'      => $this->input->post('pv_nomor', TRUE) ?: $this->Pembayaran_model->next_nomor_invoice(date('Y')),
+        'tanggal_invoice' => $this->input->post('pv_tanggal', TRUE) ?: date('Y-m-d'),
+        'jatuh_tempo'     => $this->input->post('jatuh_tempo', TRUE) ?: NULL,
+        'perihal'         => $this->input->post('perihal', TRUE),
+        'isi_surat'       => $this->input->post('isi_surat', TRUE),
+        'sertakan_kop'    => $this->input->post('sertakan_kop') ? 1 : 0,
+        'sertakan_ttd'    => $this->input->post('sertakan_ttd') ? 1 : 0,
+        'nama_klien'      => $klien ? $klien->nama_klien : NULL,
+        'nama_pic'        => $klien ? $klien->nama_pic : NULL,
+        'alamat'          => $klien ? $klien->alamat : NULL,
+        'nama_project'    => $project > 0 ? $this->Pembayaran_model->get_project_nama($project) : NULL,
+    ];
+    $this->stream_pdf_invoice($o, TRUE);
+}
+
+private function stream_pdf_invoice($o, $inline)
+{
+    require_once FCPATH . 'vendor/autoload.php';
+
+    $html = $this->load->view('content/pembayaran/pdf_invoice', ['invoice' => $o], TRUE);
+
+    $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => FALSE]);
+    $dompdf->loadHtml($html, 'UTF-8');
+    $dompdf->setPaper('A4', 'portrait');
+    $dompdf->render();
+
+    $nama = preg_replace('/[^A-Za-z0-9_\-]/', '-', $o->no_invoice) . '.pdf';
+    $dompdf->stream($nama, ['Attachment' => !$inline]);
+    exit;
+}
+
+public function berkas_invoice($id)
+{
+    $inv = $this->Pembayaran_model->get_invoice($id);
+    if (!$inv || empty($inv->file_path)) show_404();
+
+    $path = APPPATH . 'uploads/invoice/' . basename($inv->file_path);
+    if (!is_file($path)) show_404();
+
+    $ext   = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    $mimes = [
+        'pdf'  => 'application/pdf',
+        'doc'  => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    $mime = isset($mimes[$ext]) ? $mimes[$ext] : 'application/octet-stream';
+    $nama = str_replace(['"', "\r", "\n"], '', $inv->file_nama ?: basename($path));
+    $disp = ($ext === 'pdf' && !$this->input->get('unduh')) ? 'inline' : 'attachment';
+
+    header('Content-Type: ' . $mime);
+    header('Content-Disposition: ' . $disp . '; filename="' . $nama . '"');
+    header('Content-Length: ' . filesize($path));
+    header('X-Content-Type-Options: nosniff');
+    readfile($path);
     exit;
 }
 

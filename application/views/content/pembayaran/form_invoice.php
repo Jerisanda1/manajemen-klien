@@ -120,7 +120,9 @@ $urlKembali = ($isEdit && $from === 'detail')
     .bi-btn { display:block; width:100%; height:48px; border-radius:8px; font-size:16px; cursor:pointer; font-family:inherit; box-sizing:border-box; text-align:center; line-height:46px; }
     .bi-save { border:0; background:#a62626; color:#fff; font-weight:500; }
     .bi-save:hover { background:#8c1f1f; }
-    .bi-prev { margin-top:12px; border:1px solid #cbd5e1; background:#f4f4f5; color:#94a3b8; cursor:not-allowed; }
+   .bi-prev { margin-top:12px; border:1px solid #cbd5e1; background:#f4f4f5; color:#475569; }
+.bi-prev:hover { background:#e4e4e7; }
+
     .bi-cancel { margin-top:12px; color:#475569; line-height:40px; height:40px; }
     @media (max-width:1024px) { .bi-grid { grid-template-columns:minmax(0,1fr); } .bi { padding:16px; } }
     @media (max-width:640px) { .bi-modes, .bi-row { grid-template-columns:minmax(0,1fr); } .bi h1 { font-size:26px; } }
@@ -134,6 +136,8 @@ $urlKembali = ($isEdit && $from === 'detail')
     <h1><?= $e($title) ?></h1>
 
     <form id="biForm" method="post" action="<?= $e($action) ?>" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="pv_nomor" value="<?= $e($nomorTampil) ?>">
+<input type="hidden" name="pv_tanggal" value="<?= $e($isEdit ? $inv->tanggal_invoice : date('Y-m-d')) ?>">
         <?php if ($this->config->item('csrf_protection')): ?>
             <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
         <?php endif; ?>
@@ -302,7 +306,9 @@ $urlKembali = ($isEdit && $from === 'detail')
 
                 <div class="bi-card">
                     <button type="submit" class="bi-btn bi-save"><?= $isEdit ? 'Simpan Perubahan' : 'Simpan Invoice' ?></button>
-                    <button type="button" class="bi-btn bi-prev" data-cara="template" <?= $cara !== 'template' ? 'hidden' : '' ?> disabled title="Belum tersedia">Pratinjau PDF</button>
+                    <button type="submit" class="bi-btn bi-prev" data-cara="template" <?= $cara !== 'template' ? 'hidden' : '' ?>
+        formaction="<?= site_url('pembayaran/pratinjau-invoice') ?>" formtarget="_blank"
+        formenctype="application/x-www-form-urlencoded" formnovalidate>Pratinjau PDF</button>
                     <a href="<?= $urlKembali ?>" class="bi-btn bi-cancel">Batal</a>
                 </div>
             </div>

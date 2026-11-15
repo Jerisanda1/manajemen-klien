@@ -13,7 +13,11 @@ $tgl = function ($t) use ($bulan) {
 $id = (int) $inv->id;
 $dibayar = ($inv->status === 'Dibayar');
 $pillStatus = $dibayar ? 'background:#bbf7d0;color:#15803d' : 'background:#fde68a;color:#d97706';
-
+$unggahan = ($inv->dibuat_lewat === 'Unggahan' && !empty($inv->file_path));
+$ext = $unggahan ? strtolower(pathinfo($inv->file_path, PATHINFO_EXTENSION)) : '';
+if (!$unggahan)        $srcPratinjau = site_url('pembayaran/unduh/invoice/' . $id . '?inline=1');
+elseif ($ext === 'pdf') $srcPratinjau = site_url('pembayaran/berkas-invoice/' . $id);
+else                    $srcPratinjau = null;   // Word: tidak bisa dipratinjau
 // Hitung mundur jatuh tempo (hanya jika belum dibayar)
 $badgeTempo = null;
 if (!$dibayar && $inv->jatuh_tempo) {
@@ -55,8 +59,11 @@ $csrf = $this->config->item('csrf_protection')
     .iv-link { color:#1d8fe1; text-decoration:underline !important; }
     .iv-dot { color:#64748b; font-size:13px; font-weight:400; margin-left:6px; }
 
-    .iv-prev { height:330px; background:#f4f4f5; border:1px solid #cbd5e1; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#64748b; font-size:15px; }
-
+    .iv-prev { height:640px; background:#f4f4f5; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; color:#64748b; font-size:15px; text-align:center; }
+    .iv-prev iframe { width:100%; height:100%; border:0; background:#fff; }
+    .iv-prev a { color:#1d8fe1; text-decoration:underline; }
+    @media (max-width:640px) { .iv-prev { height:460px; } }
+    
     .iv-rw { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:15px; padding:6px 0; }
     .iv-rw span:first-child { color:#64748b; }
     .iv-pay { display:block; width:100%; height:48px; margin-top:14px; border:0; border-radius:8px; background:#15803d; color:#fff; font-size:17px; font-weight:500; cursor:pointer; font-family:inherit; }
@@ -162,7 +169,16 @@ $csrf = $this->config->item('csrf_protection')
 
             <div class="iv-card">
                 <h2>Pratinjau dokumen</h2>
-                <div class="iv-prev">[Pratinjau dokumen]</div>
+                <div class="iv-prev">
+    <?php if ($srcPratinjau): ?>
+        <iframe src="<?= $e($srcPratinjau) ?>" title="Pratinjau dokumen" loading="lazy"></iframe>
+    <?php else: ?>
+        <div>
+            Pratinjau hanya tersedia untuk file PDF.<br>
+            <a href="<?= site_url('pembayaran/berkas-invoice/' . $id . '?unduh=1') ?>">Unduh file <?= $e($inv->file_nama) ?></a>
+        </div>
+    <?php endif; ?>
+</div>
             </div>
         </div>
 
@@ -198,28 +214,30 @@ $csrf = $this->config->item('csrf_protection')
                 </div>
 
                 <?php foreach ([['email', 'Kirim lewat email', $adaEmail], ['whatsapp', 'Kirim lewat whatsApp', $adaHp]] as $s): ?>
-                    <form method="post" action="<?= site_url('pembayaran/kirim/invoice/' . $id) ?>" target="_blank"
-                          onsubmit="setTimeout(function(){location.reload()},1800)" style="margin:0">
-                        <?= $csrf ?>
-                        <input type="hidden" name="saluran" value="<?= $s[0] ?>">
-                        <button type="submit" class="iv-send" <?= ($dibayar || !$s[2]) ? 'disabled' : '' ?>
-                                title="<?= $dibayar ? 'Invoice sudah dibayar' : (!$s[2] ? 'Kontak PIC belum diisi' : '') ?>"><?= $s[1] ?></button>
-                    </form>
-                <?php endforeach; ?>
+    <form method="post" action="<?= site_url('pembayaran/kirim/invoice/' . $id) ?>"
+          onsubmit="if(!confirm('<?= $s[0] === 'email' ? 'Kirim pengingat lewat email?' : 'Kirim pengingat lewat WhatsApp?' ?>')) return false; this.querySelector('button').textContent='Mengirim...'; this.querySelector('button').disabled=true;"
+          style="margin:0">
+        <?= $csrf ?>
+        <input type="hidden" name="saluran" value="<?= $s[0] ?>">
+        <button type="submit" class="iv-send" <?= ($dibayar || !$s[2]) ? 'disabled' : '' ?>
+                title="<?= $dibayar ? 'Invoice sudah dibayar' : (!$s[2] ? 'Kontak PIC belum diisi' : '') ?>"><?= $s[1] ?></button>
+    </form>
+<?php endforeach; ?>
                 <?php if ($dibayar): ?><p class="iv-note">Invoice sudah dibayar, pengingat tidak diperlukan.</p><?php endif; ?>
 
-                <div class="iv-log">
-                    <div class="iv-lbl" style="font-size:15px;margin-bottom:6px">Riwayat pengiriman</div>
-                    <div class="iv-rw">
-                        <span style="color:#0f172a">Email<?= isset($pengiriman['email']) ? ' - Terkirim' : '' ?></span>
-                        <span><?= isset($pengiriman['email']) ? $tgl($pengiriman['email']) : 'Belum dikirim' ?></span>
-                    </div>
-                    <div class="iv-rw">
-                        <span style="color:#0f172a">WhatsApp<?= isset($pengiriman['whatsapp']) ? ' - Terkirim' : '' ?></span>
-                        <span><?= isset($pengiriman['whatsapp']) ? $tgl($pengiriman['whatsapp']) : 'Belum dikirim' ?></span>
-                    </div>
-                </div>
-            </div>
+               <div class="iv-log">
+    <div class="iv-lbl" style="font-size:15px;margin-bottom:6px">Riwayat pengiriman</div>
+    <?php foreach (['email' => 'Email', 'whatsapp' => 'WhatsApp'] as $k => $nama): ?>
+        <?php $r = isset($pengiriman[$k]) ? $pengiriman[$k] : null; ?>
+        <div class="iv-rw">
+            <span style="color:#0f172a"><?= $nama ?><?= $r ? ($r->berhasil ? ' - Terkirim' : ' - Gagal') : '' ?></span>
+            <span><?= $r ? $tgl($r->created_at) : 'Belum dikirim' ?></span>
+        </div>
+        <?php if ($r && !$r->berhasil && $r->keterangan): ?>
+            <p class="iv-note" style="color:#b91c1c;margin:0 0 6px"><?= $e($r->keterangan) ?></p>
+        <?php endif; ?>
+    <?php endforeach; ?>
+</div>
         </div>
     </div>
 </div>

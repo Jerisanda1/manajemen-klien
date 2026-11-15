@@ -21,9 +21,10 @@ $ttd = !isset($invoice->sertakan_ttd) || $invoice->sertakan_ttd;
         .kop h1 { margin: 0; font-size: 20px; }
         .kop small { color: #64748b; }
         .right { text-align: right; color: #475569; }
-        .meta { margin: 22px 0; }
+        h2 { font-size: 20px; margin: 22px 0 0; letter-spacing: 1px; }
+        .meta { margin: 16px 0 22px; }
         .meta td { padding: 2px 0; vertical-align: top; }
-        .meta td.l { width: 120px; color: #64748b; }
+        .meta td.l { width: 110px; color: #64748b; }
         .isi { margin-top: 14px; }
         .ttd { margin-top: 70px; text-align: right; }
     </style>
@@ -40,16 +41,17 @@ $ttd = !isset($invoice->sertakan_ttd) || $invoice->sertakan_ttd;
         <div class="right">No. <?= $e($invoice->no_invoice) ?><br><?= $tgl($invoice->tanggal_invoice) ?></div>
     <?php endif; ?>
 
+    <h2>INVOICE</h2>
+
     <table class="meta">
         <tr><td class="l">Kepada</td><td><strong><?= $e($invoice->nama_klien ?: '-') ?></strong></td></tr>
         <tr><td class="l">PIC</td><td><?= $e($invoice->nama_pic ?: '-') ?></td></tr>
         <tr><td class="l">Alamat</td><td><?= $e($invoice->alamat ?: '-') ?></td></tr>
         <tr><td class="l">Project</td><td><?= $e($invoice->nama_project ?: 'Mandiri') ?></td></tr>
-        <tr><td class="l">Jatuh Tempo</td><td><?= $tgl($invoice->jatuh_tempo) ?></td></tr>
-        <tr><td class="l">Status</td><td><strong><?= $e($invoice->status ?: 'Belum dibayar') ?></strong></td></tr>
+        <tr><td class="l">Jatuh tempo</td><td><?= $tgl($invoice->jatuh_tempo) ?></td></tr>
     </table>
 
-    <div><strong>Perihal:</strong> Penagihan <?= $e($invoice->perihal ?: '-') ?></div>
+    <div><strong>Perihal:</strong> <?= $e($invoice->perihal ?: '-') ?></div>
     <div class="isi"><?= nl2br($e($invoice->isi_surat)) ?></div>
 
     <?php if ($ttd): ?>

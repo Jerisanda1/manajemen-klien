@@ -53,6 +53,7 @@ $route['default_controller'] = 'auth';
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
+
 $route['dashboard'] = 'content/dashboard';
 
 $route['klien'] = 'content/klien/index';
@@ -99,6 +100,10 @@ $route['pembayaran/pratinjau'] = 'content/pembayaran/pratinjau';
 $route['pembayaran/berkas/(:num)'] = 'content/pembayaran/berkas/$1';
 $route['pembayaran/kirim/(:any)/(:num)'] = 'content/pembayaran/kirim/$1/$2';
 $route['pembayaran/hapus'] = 'content/pembayaran/hapus';
+$route['pembayaran/berkas-invoice/(:num)'] = 'content/pembayaran/berkas_invoice/$1';
+$route['pembayaran/pratinjau-invoice']     = 'content/pembayaran/pratinjau_invoice';
+
+
 
 $route['pengaturan'] = 'content/pengaturan/index';
 

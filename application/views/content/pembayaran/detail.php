@@ -25,6 +25,19 @@ if (empty($riwayat)) {
     $r->created_at = isset($penawaran->created_at) ? $penawaran->created_at : $penawaran->tanggal_penawaran;
     $riwayat = [$r];
 }
+
+$unggahan = ($penawaran->dibuat_lewat === 'Unggahan' && !empty($penawaran->file_path));
+$ext = $unggahan ? strtolower(pathinfo($penawaran->file_nama ?: $penawaran->file_path, PATHINFO_EXTENSION)) : '';
+if ($unggahan && $ext !== 'pdf') {
+    $ext = strtolower(pathinfo($penawaran->file_path, PATHINFO_EXTENSION));
+}
+if (!$unggahan) {
+    $srcPratinjau = site_url('pembayaran/unduh/penawaran/' . $id . '?inline=1');
+} elseif ($ext === 'pdf') {
+    $srcPratinjau = site_url('pembayaran/berkas/' . $id);
+} else {
+    $srcPratinjau = null;   // Word: tidak bisa dipratinjau di browser
+}
 ?>
 <style>
     .pn { padding: 20px 32px 40px; color:#0f172a; }
@@ -50,7 +63,10 @@ if (empty($riwayat)) {
     .pn-val { font-size:14px; font-weight:500; word-break:break-word; }
     .pn-link { color:#9333ea; text-decoration:underline !important; }
 
-    .pn-prev { height:330px; background:#f4f4f5; border:1px solid #cbd5e1; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#64748b; font-size:15px; }
+   .pn-prev { height:640px; background:#f4f4f5; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; color:#64748b; font-size:15px; text-align:center; }
+.pn-prev iframe { width:100%; height:100%; border:0; background:#fff; }
+.pn-prev a { color:#1d8fe1; text-decoration:underline; }
+@media (max-width:640px) { .pn-prev { height:460px; } }
 
     .pn-select { width:100%; height:48px; border:1px solid #94a3b8; border-radius:8px; padding:0 12px; font-size:15px; background:#fff; font-family:inherit; box-sizing:border-box; }
     .pn-save { width:100%; height:48px; margin-top:14px; border:0; border-radius:8px; background:#a62626; color:#fff; font-size:16px; font-weight:500; cursor:pointer; font-family:inherit; }
@@ -84,9 +100,9 @@ if (empty($riwayat)) {
                 <h1><?= $e($penawaran->no_penawaran) ?></h1>
                 <span class="pn-pill" style="<?= $badge[$penawaran->status] ?? 'background:#f1f5f9;color:#475569' ?>"><?= $e($penawaran->status) ?></span>
             </div>
-            <?php if (!empty($penawaran->perihal)): ?>
+          <!--  <?php if (!empty($penawaran->perihal)): ?>
                 <p class="pn-sub"><?= $e($penawaran->perihal) ?></p>
-            <?php endif; ?>
+            <?php endif; ?>-->
         </div>
 
         <div class="pn-btns">
@@ -156,7 +172,16 @@ if (empty($riwayat)) {
 
             <div class="pn-card">
                 <h2>Pratinjau dokumen</h2>
-                <div class="pn-prev">[Pratinjau dokumen]</div>
+               <div class="pn-prev">
+    <?php if ($srcPratinjau): ?>
+        <iframe src="<?= $e($srcPratinjau) ?>" title="Pratinjau dokumen" loading="lazy"></iframe>
+    <?php else: ?>
+        <div>
+            Pratinjau hanya tersedia untuk file PDF.<br>
+            <a href="<?= site_url('pembayaran/berkas/' . $id . '?unduh=1') ?>">Unduh file <?= $e($penawaran->file_nama) ?></a>
+        </div>
+    <?php endif; ?>
+</div>
             </div>
         </div>
 

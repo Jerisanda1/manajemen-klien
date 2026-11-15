@@ -220,19 +220,24 @@ public function set_status_invoice($id, $status)
     ]);
 }
 
-public function add_pengiriman($id, $saluran)
+public function add_pengiriman($id, $saluran, $tujuan, $berhasil, $keterangan = '')
 {
-    return $this->db->insert('invoice_pengiriman', ['invoice_id' => (int) $id, 'saluran' => $saluran]);
+    return $this->db->insert('invoice_pengiriman', [
+        'invoice_id'  => (int) $id,
+        'saluran'     => $saluran,
+        'tujuan'      => $tujuan,
+        'berhasil'    => $berhasil ? 1 : 0,
+        'keterangan'  => $keterangan !== '' ? mb_substr($keterangan, 0, 250) : NULL,
+    ]);
 }
 
+// Percobaan terakhir per saluran: ['email' => row, 'whatsapp' => row]
 public function get_pengiriman_terakhir($id)
 {
-    $rows = $this->db->select('saluran, MAX(created_at) AS waktu', FALSE)
-                     ->where('invoice_id', (int) $id)
-                     ->group_by('saluran')
+    $rows = $this->db->where('invoice_id', (int) $id)->order_by('id', 'ASC')
                      ->get('invoice_pengiriman')->result();
     $out = [];
-    foreach ($rows as $r) $out[$r->saluran] = $r->waktu;
+    foreach ($rows as $r) $out[$r->saluran] = $r;
     return $out;
 }
 

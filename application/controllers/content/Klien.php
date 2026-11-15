@@ -40,7 +40,7 @@ class Klien extends MY_Controller {
         $this->load->view('content/klien/tambah', $data);
     }
 
-    public function simpan() {
+   /* public function simpan() {
         $this->form_validation->set_rules('nama_klien', 'Nama Klien', 'required');
         $this->form_validation->set_rules('tanggal_mulai', 'Tanggal Mulai', 'required');
         $this->form_validation->set_rules('nama_pic', 'Nama PIC', 'required');
@@ -67,7 +67,72 @@ class Klien extends MY_Controller {
             $this->session->set_flashdata('success', 'Data klien berhasil ditambahkan!');
             redirect('klien');
         }
+    }*/
+        public function simpan() {
+    $this->form_validation->set_rules('nama_klien', 'Nama Klien', 'required');
+    $this->form_validation->set_rules('tanggal_mulai', 'Tanggal Mulai', 'required');
+    $this->form_validation->set_rules('nama_pic', 'Nama PIC', 'required');
+    $this->form_validation->set_rules('no_hp', 'Nomor HP', 'required');
+
+    if ($this->form_validation->run() == FALSE) {
+        $this->session->set_flashdata('error', validation_errors());
+        redirect('klien/tambah');
+    } else {
+        $data = [
+            'nama_klien'    => $this->input->post('nama_klien', true),
+            'tanggal_mulai' => $this->input->post('tanggal_mulai', true),
+            'nama_pic'      => $this->input->post('nama_pic', true),
+            'no_hp'         => $this->input->post('no_hp', true),
+            'email'         => $this->input->post('email', true),
+            'alamat'        => $this->input->post('alamat', true)
+        ];
+
+        // 1. Simpan data klien ke database
+        $this->klien_model->insert_klien($data);
+
+        // 2. Catat log aktivitas
+        $this->load->model('Dashboard_model');
+        $this->Dashboard_model->log_activity('klien', 'Klien baru ditambahkan: ' . $data['nama_klien']);
+
+        // ==========================================
+        // 3. KIRIM EMAIL NOTIFIKASI MENGGUNAKAN SMTP GMAIL
+        // ==========================================
+        $this->load->library('email');
+
+        // Konfigurasi SMTP Gmail
+        $config['protocol']    = 'smtp';
+        $config['smtp_host']   = 'smtp.googlemail.com';
+        $config['smtp_user']   = 'manajemenklien26@gmail.com';
+        $config['smtp_pass']   = 'yabz fxzn rvbq myng'; // Ganti dengan App Password Google Anda
+        $config['smtp_port']   = 465;
+        $config['smtp_crypto'] = 'ssl';
+        $config['mailtype']    = 'html';
+        $config['charset']     = 'utf-8';
+        $config['newline']     = "\r\n";
+
+        // Inisialisasi konfigurasi ke library email
+        $this->email->initialize($config);
+
+        // Atur pengirim dan penerima
+        $this->email->from('manajemenklien26@gmail.com', 'Tridatu Solution');
+        $this->email->to($data['email']); // Mengirim ke email klien yang diinput, atau ubah ke email Anda sendiri untuk uji coba
+        
+        $this->email->subject('Konfirmasi Pendaftaran Klien Baru');
+        $this->email->message('<p>Halo <b>' . $data['nama_klien'] . '</b>,</p><p>Data Anda telah berhasil didaftarkan ke dalam sistem Tridatu Solution.</p>');
+
+        // Eksekusi pengiriman email
+        if (!$this->email->send()) {
+            // Jika gagal terkirim, Anda bisa melihat pesan errornya di sini (opsional)
+            // echo $this->email->print_debugger(); die();
+        }
+        // ==========================================
+
+        $this->session->set_flashdata('success', 'Data klien berhasil ditambahkan dan email berhasil dikirim!');
+        redirect('klien');
     }
+}
+
+    
 
     public function detail($id) {
         $data['klien'] = $this->klien_model->get_klien_by_id($id);
