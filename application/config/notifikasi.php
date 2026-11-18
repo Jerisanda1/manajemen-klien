@@ -13,6 +13,6 @@ $config['email_from_name']   = 'Tridatu Solution';
 // ---- WhatsApp (Fonnte) ----
 //$config['fonnte_token']      = '';             // token device dari dashboard Fonnte
 
-// ---- Email: pilih 'brevo' atau 'smtp' ----
-//$config['email_driver']  = 'brevo';
-//$config['brevo_api_key'] = '';   // isi sendiri di sini, jangan dibagikan
+
+
+$config['pengingat_offset'] = [3, 1, 0];   // H-3, H-1, hari H

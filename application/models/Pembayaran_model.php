@@ -220,7 +220,7 @@ public function set_status_invoice($id, $status)
     ]);
 }
 
-public function add_pengiriman($id, $saluran, $tujuan, $berhasil, $keterangan = '')
+public function add_pengiriman($id, $saluran, $tujuan, $berhasil, $keterangan = '', $otomatis = 0, $offset = NULL)
 {
     return $this->db->insert('invoice_pengiriman', [
         'invoice_id'  => (int) $id,
@@ -228,6 +228,8 @@ public function add_pengiriman($id, $saluran, $tujuan, $berhasil, $keterangan = 
         'tujuan'      => $tujuan,
         'berhasil'    => $berhasil ? 1 : 0,
         'keterangan'  => $keterangan !== '' ? mb_substr($keterangan, 0, 250) : NULL,
+        'otomatis'    => $otomatis ? 1 : 0,
+        'offset_hari' => $offset,
     ]);
 }
 
@@ -266,4 +268,26 @@ public function get_by_id($tab, $id)
     return $this->db->get($table)->row();
 }
 
+
+/* ---------- PENGINGAT OTOMATIS ---------- */
+public function get_invoice_belum_bayar()
+{
+    return $this->db->select('i.id, i.no_invoice, i.perihal, i.jatuh_tempo, k.nama_pic, k.email AS email_pic')
+                    ->from('invoice i')
+                    ->join('clients k', 'k.id = i.klien_id', 'left')
+                    ->where('i.status', 'Belum dibayar')
+                    ->where('i.jatuh_tempo IS NOT NULL', NULL, FALSE)
+                    ->get()->result();
+}
+
+public function sudah_dikirim_otomatis($id, $saluran, $offset)
+{
+    return $this->db->where([
+        'invoice_id'  => (int) $id,
+        'saluran'     => $saluran,
+        'otomatis'    => 1,
+        'offset_hari' => (int) $offset,
+        'berhasil'    => 1,
+    ])->count_all_results('invoice_pengiriman') > 0;
+}
 }

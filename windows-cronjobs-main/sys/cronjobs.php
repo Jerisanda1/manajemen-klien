@@ -5,7 +5,7 @@ require_once __DIR__ . '/../cronjobs_list.php';
 
 $SYSTEM = get_system_config();
 
-$timezone = $CONFIG['timezone'] ?: 'WITA';
+$timezone = $CONFIG['timezone'] ?? 'WITA';
 $logs_path = __DIR__ . '/../logs/' . get_current_time($timezone, 'Y-m-d_His');
 
 if (empty($SYSTEM['logs_path'])) {
@@ -25,12 +25,17 @@ if (empty($SYSTEM['logs_path'])) {
     $logs_path = $SYSTEM['logs_path'];
 }
 
+// Tangkap semua error dan simpan ke file log otomatis
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+$log_file = __DIR__ . '/../cron-error-log.txt';
+
 $current_time = get_current_time($timezone, '[d-m-Y H:i:s T] ');
 $log_message = $current_time . 'windows-cronjobs:';
 log_data($logs_path . '/windows-cronjobs.log', $log_message);
 
 foreach ($cronjobs_list as $index => $cronjobs_string) {
-    $cronjobs = preg_split('/\s+/', $cronjobs_string);
+    $cronjobs = preg_split('/\s+/', trim($cronjobs_string));
 
     if (count($cronjobs) < 6) {
         throw new Exception("Invalid cronjobs length: \"$cronjobs_list[0]\"");

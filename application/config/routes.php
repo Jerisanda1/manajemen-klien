@@ -104,10 +104,7 @@ $route['pembayaran/berkas-invoice/(:num)'] = 'content/pembayaran/berkas_invoice/
 $route['pembayaran/pratinjau-invoice']     = 'content/pembayaran/pratinjau_invoice';
 
 
-
 $route['pengaturan'] = 'content/pengaturan/index';
-
-
 
 $route['pengaturan'] = 'content/pengaturan/index';
 $route['pengaturan/update_info'] = 'content/pengaturan/update_info';
@@ -117,6 +114,3 @@ $route['pengaturan/simpan_jenis'] = 'content/pengaturan/simpan_jenis';
 $route['pengaturan/hapus_jenis/(:num)'] = 'content/pengaturan/hapus_jenis/$1';
 $route['pengaturan/update_account'] = 'content/pengaturan/update_account';
 
-
-
-$config['composer_autoload'] = FCPATH . 'vendor/autoload.php';

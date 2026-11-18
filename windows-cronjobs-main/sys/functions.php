@@ -2,16 +2,23 @@
 
 function get_user_config()
 {
-    $configFile = __DIR__ . '/../windows-cronjobs.config';
+    $configFile = 'C:\\laragon\\www\\manajemen_klien\\windows-cronjobs-main\\windows-cronjobs.config';
     $configLines = file($configFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
     $CONFIG = [];
     foreach ($configLines as $line) {
-        if (strpos(trim($line), '#') === 0 || strpos(trim($line), ';') === 0) {
+        $line = trim($line);
+        if ($line === '' || strpos($line, '#') === 0 || strpos($line, ';') === 0) {
             continue;
         }
-        list($key, $value) = explode('=', $line, 2);
-        $CONFIG[trim($key)] = trim($value);
+        $parts = explode('=', $line, 2);
+        if (count($parts) === 2) {
+            $key = trim($parts[0]);
+            $value = trim($parts[1]);
+            // Bersihkan tanda kutip jika tak sengaja ikut tersimpan
+            $value = trim($value, "\"'");
+            $CONFIG[$key] = $value;
+        }
     }
 
     return $CONFIG;
@@ -74,6 +81,7 @@ function log_data($path, $message = '')
 }
 
 
+
 function run_command($command, $index, $logs_path)
 {
     $number = $index + 1;
@@ -85,13 +93,32 @@ function run_command($command, $index, $logs_path)
         2 => ['file', $output, 'a'],
     ];
 
-    chdir(__DIR__ . '/..');
-    $process = proc_open("START /B $command", $descriptorspec, $pipes);
+    // Jalankan dari folder utama project
+    $project_path = dirname(__DIR__, 2);
 
-    fclose($pipes[0]);
-    fclose($pipes[1]);
-    fclose($pipes[2]);
-    proc_close($process);
+    $process = proc_open(
+        $command,
+        $descriptorspec,
+        $pipes,
+        $project_path
+    );
 
-    log_data($logs_path . '/windows-cronjobs.log', "- run command: $command");
+    if (!is_resource($process)) {
+        throw new Exception('Gagal menjalankan perintah cronjobs.');
+    }
+
+    // Hanya pipes[0] yang merupakan resource pipe
+    if (isset($pipes[0]) && is_resource($pipes[0])) {
+        fclose($pipes[0]);
+    }
+
+    $exit_code = proc_close($process);
+
+    log_data(
+        $logs_path . '/windows-cronjobs.log',
+        "- run command: $command | exit code: $exit_code"
+    );
+
+    return $exit_code;
 }
+
