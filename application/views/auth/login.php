@@ -82,12 +82,30 @@
 
                 <!-- Input Password -->
                 <div class="relative mb-6 group">
+                    <!-- Ikon Kunci (kiri) -->
                     <div class="absolute inset-y-0 left-0 flex items-center pl-5 pointer-events-none text-[#d9534f] transition-transform duration-300 group-focus-within:scale-110">
                         <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                     </div>
+
                     <input type="password" name="password" id="password" 
-                           class="w-full pl-12 pr-5 py-3 bg-white border border-[#f3d4d4] rounded-full shadow-[0_2px_10px_rgba(217,83,79,0.06)] text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#d9534f] focus:ring-2 focus:ring-[#d9534f]/20 transition-all duration-300 hover:shadow-[0_4px_15px_rgba(217,83,79,0.12)]" 
+                           class="w-full pl-12 pr-12 py-3 bg-white border border-[#f3d4d4] rounded-full shadow-[0_2px_10px_rgba(217,83,79,0.06)] text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#d9534f] focus:ring-2 focus:ring-[#d9534f]/20 transition-all duration-300 hover:shadow-[0_4px_15px_rgba(217,83,79,0.12)]" 
                            placeholder="Password" required>
+
+                    <!-- Tombol Toggle Password (kanan) -->
+                    <button type="button" id="togglePassword" 
+                            class="absolute inset-y-0 right-0 w-12 flex items-center justify-center text-gray-400 hover:text-[#d9534f] rounded-r-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d9534f]/40"
+                            aria-label="Tampilkan atau sembunyikan password"
+                            aria-pressed="false">
+                        <!-- Icon Mata (Show) -->
+                        <svg id="eyeOpen" class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        <!-- Icon Mata Tertutup (Hide) -->
+                        <svg id="eyeClosed" class="w-[18px] h-[18px] hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.05 10.05 0 012.223-3.592m3.11-2.222A10.05 10.05 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.05 10.05 0 01-4.293 5.412M3 3l18 18"/>
+                        </svg>
+                    </button>
                 </div>
 
                 <!-- Widget Cloudflare Turnstile -->
@@ -132,5 +150,30 @@
             animation: float 6s ease-in-out infinite;
         }
     </style>
+
+    <!-- Script Toggle Password -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const passwordInput = document.getElementById('password');
+            const toggleBtn = document.getElementById('togglePassword');
+            const eyeOpen = document.getElementById('eyeOpen');
+            const eyeClosed = document.getElementById('eyeClosed');
+
+            toggleBtn.addEventListener('click', function () {
+                const isPassword = passwordInput.getAttribute('type') === 'password';
+                passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+                toggleBtn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+
+                // Toggle ikon
+                if (isPassword) {
+                    eyeOpen.classList.add('hidden');
+                    eyeClosed.classList.remove('hidden');
+                } else {
+                    eyeOpen.classList.remove('hidden');
+                    eyeClosed.classList.add('hidden');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

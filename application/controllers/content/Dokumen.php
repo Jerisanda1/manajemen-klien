@@ -2,6 +2,8 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Dokumen extends MY_Controller {
+    private $documentCsrfToken;
+    private $currentDeviceId;
 
     public function __construct() {
         parent::__construct();
@@ -9,13 +11,14 @@ class Dokumen extends MY_Controller {
         $this->load->model('Dashboard_model');
         $this->load->library('form_validation');
         $this->load->helper(['form', 'url', 'string']);
+        $this->documentCsrfToken = $this->_get_document_csrf_token();
+        $this->currentDeviceId = $this->_get_current_device_id();
     }
 
     public function index() {
         $q       = trim((string) $this->input->get('q', TRUE));
         $jenis   = (string) $this->input->get('jenis', TRUE);
         
-        // PERUBAHAN: Tampilkan 5 data per halaman
         $perPage = 5; 
         $page    = max(1, (int) $this->input->get('page'));
 
@@ -34,6 +37,8 @@ class Dokumen extends MY_Controller {
             'totalPages'    => $totalPages,
             'q'             => $q,
             'fJenis'        => $jenis,
+            'documentCsrfToken' => $this->documentCsrfToken,
+            'currentDeviceId' => $this->currentDeviceId,
         ];
         $this->load->view('main', $data);
     }
@@ -42,7 +47,9 @@ class Dokumen extends MY_Controller {
         $data = [
             'title'         => 'Tambah Dokumen - Tridatu',
             'klien'         => $this->dokumen_model->get_klien(),
-            'jenis_dokumen' => $this->dokumen_model->get_jenis_dokumen()
+            'jenis_dokumen' => $this->dokumen_model->get_jenis_dokumen(),
+            'documentCsrfToken' => $this->documentCsrfToken,
+            'currentDeviceId' => $this->currentDeviceId,
         ];
         $this->load->view('content/dokumen/tambah', $data);
     }
@@ -57,6 +64,9 @@ class Dokumen extends MY_Controller {
     }
 
     public function simpan() {
+        if ($this->input->method(TRUE) !== 'POST') show_404();
+        if (!$this->_verify_document_csrf()) return $this->_csrf_error();
+
         $this->form_validation->set_rules('nama_dokumen', 'Nama Dokumen', 'required|max_length[200]');
         $this->form_validation->set_rules('client_id', 'Klien', 'required|integer');
         $this->form_validation->set_rules('project_id', 'Project', 'required|integer');
@@ -74,6 +84,17 @@ class Dokumen extends MY_Controller {
         }
 
         $storage_type = $this->input->post('storage_type');
+        $validationError = $this->_validate_project_and_dates(
+            (int) $this->input->post('client_id'),
+            (int) $this->input->post('project_id'),
+            $this->input->post('tanggal_mulai'),
+            $this->input->post('tanggal_berakhir')
+        );
+        if ($validationError !== '') {
+            if ($this->input->is_ajax_request()) return $this->_json(['status' => false, 'msg' => $validationError]);
+            $this->session->set_flashdata('error', $validationError);
+            redirect('dokumen/tambah');
+        }
 
         if ($storage_type === 'cloud' && empty($_FILES['file_dokumen']['name'])) {
             $msg = 'File wajib diunggah untuk penyimpanan Server Sistem.';
@@ -123,11 +144,18 @@ class Dokumen extends MY_Controller {
         }
 
         if ($storage_type === 'local') {
+            $postedDeviceId = strtolower((string) $this->input->post('device_id', TRUE));
+            if ($this->currentDeviceId === '') {
+                $this->currentDeviceId = $this->_is_valid_device_id($postedDeviceId)
+                    ? $postedDeviceId
+                    : $this->_generate_device_id();
+                $this->session->set_userdata('dokumen_device_id', $this->currentDeviceId);
+            }
             $file_data['file_name'] = $this->input->post('file_name_local', TRUE);
             $file_data['file_hash'] = $this->input->post('file_hash_local', TRUE);
             $file_data['file_size'] = (int) $this->input->post('file_size_local');
             $file_data['mime_type'] = $this->input->post('file_type_local', TRUE);
-            $file_data['device_id'] = $this->input->post('device_id', TRUE);
+            $file_data['device_id'] = $this->currentDeviceId;
         }
 
         $data = array_merge($file_data, [
@@ -161,9 +189,8 @@ class Dokumen extends MY_Controller {
         $doc = $this->dokumen_model->get_detail($id);
         if (!$doc) show_404();
 
-        $currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
         $isLocal = ($doc->storage_type === 'local');
-        $isOtherLocal = ($isLocal && $doc->device_id !== $currentDeviceId);
+        $isOtherLocal = ($isLocal && $doc->device_id !== $this->currentDeviceId);
 
         if ($isOtherLocal) {
             $this->session->set_flashdata('error', 'Dokumen ini tersimpan di Perangkat Lain dan tidak dapat diedit.');
@@ -174,15 +201,23 @@ class Dokumen extends MY_Controller {
             'title'         => 'Edit Dokumen - Tridatu',
             'doc'           => $doc,
             'klien'         => $this->dokumen_model->get_klien(),
-            'jenis_dokumen' => $this->dokumen_model->get_jenis_dokumen()
+            'jenis_dokumen' => $this->dokumen_model->get_jenis_dokumen(),
+            'documentCsrfToken' => $this->documentCsrfToken,
+            'currentDeviceId' => $this->currentDeviceId
         ];
         $this->load->view('content/dokumen/edit', $data);
     }
 
     public function update() {
+        if ($this->input->method(TRUE) !== 'POST') show_404();
+        if (!$this->_verify_document_csrf()) return $this->_csrf_error();
+
         $id = (int) $this->input->post('id');
         $doc = $this->dokumen_model->get_by_id($id);
         if (!$doc) show_404();
+        if ($doc->storage_type === 'local' && $doc->device_id !== $this->currentDeviceId) {
+            return $this->_document_access_denied('Dokumen ini tersimpan di Perangkat Lain dan tidak dapat diedit.');
+        }
 
         $this->form_validation->set_rules('nama_dokumen', 'Nama Dokumen', 'required|max_length[200]');
         $this->form_validation->set_rules('client_id', 'Klien', 'required|integer');
@@ -199,6 +234,17 @@ class Dokumen extends MY_Controller {
         }
 
         $storage_type = $this->input->post('storage_type');
+        $validationError = $this->_validate_project_and_dates(
+            (int) $this->input->post('client_id'),
+            (int) $this->input->post('project_id'),
+            $this->input->post('tanggal_mulai'),
+            $this->input->post('tanggal_berakhir')
+        );
+        if ($validationError !== '') {
+            if ($this->input->is_ajax_request()) return $this->_json(['status' => false, 'msg' => $validationError]);
+            $this->session->set_flashdata('error', $validationError);
+            redirect('dokumen/edit/'.$id);
+        }
 
         $update_data = [
             'client_id'        => (int) $this->input->post('client_id'),
@@ -209,6 +255,17 @@ class Dokumen extends MY_Controller {
             'tanggal_mulai'    => $this->input->post('tanggal_mulai'),
             'tanggal_berakhir' => $this->input->post('tanggal_berakhir'),
         ];
+
+        // ============================================================
+        // BUG FIX: Reset flag reminder kalau tanggal berakhir berubah.
+        // Supaya dokumen yang diperpanjang akan di-reminder ulang.
+        // ============================================================
+        if ($doc->tanggal_berakhir !== $this->input->post('tanggal_berakhir')) {
+            $update_data['last_reminder_sent_at'] = NULL;
+            $update_data['expired_notified_at']   = NULL;
+            $update_data['wa_reminder_sent_at']   = NULL;
+            $update_data['wa_expired_notified_at'] = NULL;
+        }
 
         $is_new_cloud_file = ($storage_type === 'cloud' && !empty($_FILES['file_dokumen']['name']));
         $is_new_local_file = ($storage_type === 'local' && $this->input->post('file_name_local') && $this->input->post('file_name_local') !== $doc->file_name);
@@ -259,11 +316,8 @@ class Dokumen extends MY_Controller {
             $update_data['device_id'] = NULL;
 
         } elseif ($is_new_local_file) {
-            $postedDeviceId = $this->input->post('device_id', TRUE);
-            $device_id      = $postedDeviceId ?: $doc->device_id;
-
-            if (!$device_id) {
-                $msg = 'Device ID tidak tersedia. Coba refresh halaman lalu ulangi.';
+            if ((string) $this->input->post('device_id', TRUE) !== $this->currentDeviceId) {
+                $msg = 'Identitas perangkat tidak valid. Muat ulang halaman lalu coba kembali.';
                 if ($this->input->is_ajax_request()) return $this->_json(['status' => false, 'msg' => $msg]);
                 $this->session->set_flashdata('error', $msg);
                 redirect('dokumen/edit/'.$id);
@@ -274,7 +328,7 @@ class Dokumen extends MY_Controller {
             $update_data['file_hash'] = $this->input->post('file_hash_local', TRUE);
             $update_data['file_size'] = (int) $this->input->post('file_size_local');
             $update_data['mime_type'] = $this->input->post('file_type_local', TRUE);
-            $update_data['device_id'] = $device_id;
+            $update_data['device_id'] = $this->currentDeviceId;
 
             if ($doc->storage_type === 'cloud' && $doc->file_path && is_file(FCPATH . $doc->file_path)) {
                 @unlink(FCPATH . $doc->file_path);
@@ -300,15 +354,20 @@ class Dokumen extends MY_Controller {
 
     public function sync_to_cloud() {
         if ($this->input->method() !== 'post') show_404();
+        if (!$this->_verify_document_csrf()) return $this->_csrf_error();
 
         $id        = (int) $this->input->post('id');
         $device_id = $this->input->post('device_id', TRUE);
-        $file_hash = $this->input->post('file_hash', TRUE);
 
         $doc = $this->dokumen_model->get_by_id($id);
         if (!$doc) return $this->_json(['status' => false, 'msg' => 'Dokumen tidak ditemukan']);
         if ($doc->storage_type === 'cloud') return $this->_json(['status' => false, 'msg' => 'Dokumen sudah di server sistem']);
-        if ((string) $doc->device_id !== (string) $device_id) return $this->_json(['status' => false, 'msg' => 'Bukan perangkat asal dokumen ini']);
+        if ((string) $doc->device_id !== $this->currentDeviceId || (string) $device_id !== $this->currentDeviceId) {
+            return $this->_json(['status' => false, 'msg' => 'Bukan perangkat asal dokumen ini']);
+        }
+        if (!preg_match('/\A[a-f0-9]{64}\z/i', (string) $doc->file_hash)) {
+            return $this->_json(['status' => false, 'msg' => 'Hash file lokal tidak valid; sinkronisasi dibatalkan.']);
+        }
         if (empty($_FILES['file']['name'])) return $this->_json(['status' => false, 'msg' => 'File tidak dikirim']);
 
         $folder_bulan = date('Y/m'); 
@@ -337,7 +396,7 @@ class Dokumen extends MY_Controller {
         $rel = 'uploads/dokumen/' . $folder_bulan . '/' . $up['file_name'];
 
         $new_hash = hash_file('sha256', FCPATH . $rel);
-        if ($file_hash && !hash_equals($file_hash, $new_hash)) {
+        if (!hash_equals(strtolower($doc->file_hash), $new_hash)) {
             @unlink(FCPATH . $rel);
             return $this->_json(['status' => false, 'msg' => 'File berbeda dari yang tersimpan di lokal!']);
         }
@@ -381,7 +440,6 @@ class Dokumen extends MY_Controller {
         }
         if (!$mime) $mime = 'application/pdf';
 
-        // KEAMANAN: Cegah XSS (Hanya izinkan format gambar & PDF)
         $allowed_inline = ['application/pdf', 'image/jpeg', 'image/png'];
         if (!in_array($mime, $allowed_inline)) {
             return $this->unduh($id);
@@ -397,13 +455,37 @@ class Dokumen extends MY_Controller {
     }
 
     public function hapus($id) {
+        if ($this->input->method(TRUE) !== 'POST') show_404();
+        if (!$this->_verify_document_csrf()) return $this->_csrf_error();
+
         $doc = $this->dokumen_model->get_by_id($id);
         if ($doc) {
+            $localFileName = null;
+            if (
+                $doc->storage_type === 'local'
+                && $this->currentDeviceId !== ''
+                && (string) $doc->device_id === $this->currentDeviceId
+            ) {
+                $localFileName = $doc->file_name;
+            }
             if ($doc->storage_type === 'cloud' && $doc->file_path && is_file(FCPATH . $doc->file_path)) {
                 @unlink(FCPATH . $doc->file_path);
             }
-            $this->dokumen_model->delete_document($id);
+            if (!$this->dokumen_model->delete_document($id)) {
+                if ($this->input->is_ajax_request()) {
+                    return $this->_json(['status' => false, 'msg' => 'Dokumen gagal dihapus.']);
+                }
+                $this->session->set_flashdata('error', 'Dokumen gagal dihapus.');
+                redirect('dokumen');
+            }
             $this->session->set_flashdata('success', 'Dokumen berhasil dihapus!');
+            if ($this->input->is_ajax_request()) {
+                return $this->_json([
+                    'status' => true,
+                    'redirect' => site_url('dokumen'),
+                    'local_file_name' => $localFileName,
+                ]);
+            }
         }
         redirect('dokumen');
     }
@@ -416,11 +498,10 @@ class Dokumen extends MY_Controller {
         $doc = $this->dokumen_model->get_detail($id);
         if (!$doc) show_404();
 
-        $currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
         $isLocal = ($doc->storage_type === 'local');
-        $isOtherLocal = ($isLocal && $doc->device_id !== $currentDeviceId);
+        $isOtherLocal = ($isLocal && $doc->device_id !== $this->currentDeviceId);
 
-        if ($isOtherLocal) {
+        if ($isOtherLocal && $this->currentDeviceId !== '') {
             $this->session->set_flashdata('error', 'Dokumen ini tersimpan di Perangkat Lain dan tidak dapat diakses dari sini.');
             redirect('dokumen');
         }
@@ -428,8 +509,82 @@ class Dokumen extends MY_Controller {
         $data = [
             'title'           => 'Detail Dokumen - Tridatu',
             'doc'             => $doc,
-            'currentDeviceId' => $currentDeviceId
+            'currentDeviceId' => $this->currentDeviceId,
+            'documentCsrfToken' => $this->documentCsrfToken
         ];
         $this->load->view('content/dokumen/detail', $data);
+    }
+
+    private function _get_document_csrf_token() {
+        $token = $this->session->userdata('dokumen_csrf_token');
+        if (!$token) {
+            $token = bin2hex(random_bytes(32));
+            $this->session->set_userdata('dokumen_csrf_token', $token);
+        }
+        return $token;
+    }
+
+    private function _get_current_device_id() {
+        $deviceId = $this->session->userdata('dokumen_device_id');
+        if (!$deviceId) {
+            $cookieDeviceId = (string) $this->input->cookie('tridatu_device_id', TRUE);
+            if ($this->_is_valid_device_id($cookieDeviceId)) {
+                $deviceId = strtolower($cookieDeviceId);
+            } else {
+                return '';
+            }
+            $this->session->set_userdata('dokumen_device_id', $deviceId);
+        }
+        return $deviceId;
+    }
+
+    private function _is_valid_device_id($deviceId) {
+        return preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/i', (string) $deviceId) === 1;
+    }
+
+    private function _generate_device_id() {
+        $bytes = random_bytes(16);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+        $hex = bin2hex($bytes);
+        return substr($hex, 0, 8) . '-' . substr($hex, 8, 4) . '-' . substr($hex, 12, 4) . '-' . substr($hex, 16, 4) . '-' . substr($hex, 20);
+    }
+
+    private function _verify_document_csrf() {
+        $submittedToken = (string) $this->input->post('dokumen_csrf_token', FALSE);
+        return $submittedToken !== '' && hash_equals($this->documentCsrfToken, $submittedToken);
+    }
+
+    private function _csrf_error() {
+        if ($this->input->is_ajax_request()) {
+            $this->output->set_status_header(403);
+            return $this->_json(['status' => false, 'msg' => 'Sesi keamanan kedaluwarsa. Muat ulang halaman lalu coba kembali.']);
+        }
+        show_error('Permintaan tidak valid atau sesi keamanan telah kedaluwarsa.', 403);
+    }
+
+    private function _document_access_denied($message) {
+        if ($this->input->is_ajax_request()) {
+            $this->output->set_status_header(403);
+            return $this->_json(['status' => false, 'msg' => $message]);
+        }
+        $this->session->set_flashdata('error', $message);
+        redirect('dokumen');
+    }
+
+    private function _validate_project_and_dates($clientId, $projectId, $startDate, $endDate) {
+        if (!$this->dokumen_model->project_belongs_to_client($projectId, $clientId)) {
+            return 'Project yang dipilih tidak sesuai dengan klien.';
+        }
+
+        $start = DateTime::createFromFormat('!Y-m-d', (string) $startDate);
+        $end = DateTime::createFromFormat('!Y-m-d', (string) $endDate);
+        if (!$start || $start->format('Y-m-d') !== $startDate || !$end || $end->format('Y-m-d') !== $endDate) {
+            return 'Tanggal dokumen harus menggunakan format yang valid (YYYY-MM-DD).';
+        }
+        if ($end < $start) {
+            return 'Tanggal Berakhir tidak boleh lebih awal dari Tanggal Mulai.';
+        }
+        return '';
     }
 }

@@ -10,3 +10,4 @@ $config['mailtype']   = 'html';
 $config['charset']    = 'utf-8';
 $config['newline']    = "\r\n";
 $config['crlf']       = "\r\n";
+$config['cron_key'] = 'wfrkjwnfnrkedkwwkrkdkwwefrfghtrwscgr';

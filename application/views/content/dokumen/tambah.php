@@ -27,7 +27,8 @@
         <?php endif; ?>
 
         <form action="<?= site_url('dokumen/simpan') ?>" method="POST" enctype="multipart/form-data" id="formDokumen">
-            <input type="hidden" name="device_id" id="device_id" value="">
+            <input type="hidden" name="dokumen_csrf_token" value="<?= htmlspecialchars($documentCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="device_id" id="device_id" value="<?= htmlspecialchars($currentDeviceId, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="file_name_local" id="fileNameLocal" value="">
             <input type="hidden" name="file_hash_local" id="file_hash_local" value="">
             <input type="hidden" name="file_size_local" id="file_size_local" value="">
@@ -191,11 +192,19 @@
     <script>
     // --- UTILITY ---
     const DEVICE_ID = (() => {
-        let id = localStorage.getItem('tridatu_device_id');
+        const serverId = <?= json_encode($currentDeviceId) ?>;
+        let id = serverId || localStorage.getItem('tridatu_device_id');
         if (!id) {
             id = crypto.randomUUID();
-            localStorage.setItem('tridatu_device_id', id);
+        }
+        localStorage.setItem('tridatu_device_id', id);
+        const cookieId = document.cookie.split('; ').find(row => row.startsWith('tridatu_device_id='))?.split('=')[1];
+        if (cookieId !== id) {
             document.cookie = `tridatu_device_id=${id}; path=/; max-age=31536000; SameSite=Lax`;
+            if (!serverId && !sessionStorage.getItem('tridatu_device_bootstrap')) {
+                sessionStorage.setItem('tridatu_device_bootstrap', '1');
+                window.location.reload();
+            }
         }
         return id;
     })();

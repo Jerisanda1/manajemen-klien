@@ -1,5 +1,4 @@
 <?php
-$currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
 $isLocal = ($doc->storage_type === 'local');
 $isOwnLocal = ($isLocal && $doc->device_id === $currentDeviceId);
 $isCloud = ($doc->storage_type === 'cloud');
@@ -50,10 +49,12 @@ elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) { $iconColor = 'text-purple-500'
                 </div>
 
                 <div class="flex gap-3 shrink-0">
+                    <?php if (!$isLocal || $isOwnLocal): ?>
                     <a href="<?= site_url('dokumen/edit/'.$doc->id) ?>" class="px-5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                         Edit
                     </a>
+                    <?php endif; ?>
                     
                     <!-- PERBAIKAN 3: Tombol Hapus dengan Modal Kustom -->
                     <button type="button" onclick="bukaModalHapus()" class="px-5 py-2 bg-white border border-red-200 hover:bg-red-50 text-red-600 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
@@ -203,6 +204,21 @@ elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) { $iconColor = 'text-purple-500'
 
     <!-- SCRIPT PRATINJAU & MODAL HAPUS -->
     <script>
+        const DOCUMENT_CSRF_TOKEN = <?= json_encode($documentCsrfToken) ?>;
+        const SERVER_DEVICE_ID = <?= json_encode($currentDeviceId) ?>;
+        if (SERVER_DEVICE_ID || localStorage.getItem('tridatu_device_id')) {
+            const deviceId = SERVER_DEVICE_ID || localStorage.getItem('tridatu_device_id');
+            localStorage.setItem('tridatu_device_id', deviceId);
+            const cookieId = document.cookie.split('; ').find(row => row.startsWith('tridatu_device_id='))?.split('=')[1];
+            if (cookieId !== deviceId) {
+                document.cookie = `tridatu_device_id=${deviceId}; path=/; max-age=31536000; SameSite=Lax`;
+                if (!SERVER_DEVICE_ID && !sessionStorage.getItem('tridatu_device_bootstrap')) {
+                    sessionStorage.setItem('tridatu_device_bootstrap', '1');
+                    window.location.reload();
+                }
+            }
+        }
+
         const modal = document.getElementById('modalHapus');
         const modalContent = document.getElementById('modalContent');
 
@@ -222,15 +238,28 @@ elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) { $iconColor = 'text-purple-500'
         }
 
         async function eksekusiHapus() {
-            // Tembak API Local Agent untuk hapus fisik (jika local)
-            <?php if($isOwnLocal): ?>
             try {
-                await fetch(`http://localhost:8080/delete?filename=<?= urlencode($doc->file_name) ?>`, { method: 'DELETE' });
-            } catch (err) { console.warn('Agent mati atau file tidak ada.'); }
-            <?php endif; ?>
-            
-            // Lanjut ke Controller CI
-            window.location.href = '<?= site_url('dokumen/hapus/'.$doc->id) ?>';
+                const formData = new FormData();
+                formData.append('dokumen_csrf_token', DOCUMENT_CSRF_TOKEN);
+                const response = await fetch('<?= site_url('dokumen/hapus/'.$doc->id) ?>', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const result = await response.json();
+                if (!response.ok || !result.status) throw new Error(result.msg || 'Dokumen gagal dihapus.');
+
+                <?php if($isOwnLocal): ?>
+                try {
+                    await fetch(`http://localhost:8080/delete?filename=<?= urlencode($doc->file_name) ?>`, { method: 'DELETE' });
+                } catch (agentError) {
+                    console.warn('Agent mati atau file tidak ada.');
+                }
+                <?php endif; ?>
+                window.location.href = result.redirect || '<?= site_url('dokumen') ?>';
+            } catch (err) {
+                alert(err.message || 'Dokumen gagal dihapus.');
+            }
         }
 
         <?php if($isOwnLocal): ?>

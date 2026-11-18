@@ -1,5 +1,4 @@
 <?php
-$currentDeviceId = $_COOKIE['tridatu_device_id'] ?? '';
 $awal  = $total > 0 ? (($page - 1) * $perPage) + 1 : 0;
 $akhir = $total > 0 ? min($page * $perPage, $total) : 0;
 
@@ -131,8 +130,12 @@ $urlHalaman = function ($p) use ($q, $fJenis) {
                                     <?php else: ?>
                                         <span class="p-1.5 bg-white border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed" title="Terkunci di Perangkat Lain"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
                                     <?php endif; ?>
-                                    <a href="<?= site_url('dokumen/edit/' . (int)$d->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></a>
-                                    <button type="button" class="btn-hapus p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm" data-id="<?= (int)$d->id ?>" data-nama="<?= htmlspecialchars($d->nama_dokumen, ENT_QUOTES) ?>" data-file-name="<?= htmlspecialchars($d->file_name, ENT_QUOTES) ?>" data-storage="<?= $d->storage_type ?>" title="Hapus"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                                    <?php if (!$isOtherLocal): ?>
+                                        <a href="<?= site_url('dokumen/edit/' . (int)$d->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></a>
+                                    <?php else: ?>
+                                        <span class="p-1.5 bg-white border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed" title="Tidak dapat diedit dari perangkat ini"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
+                                    <?php endif; ?>
+                                    <button type="button" class="btn-hapus p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm" data-id="<?= (int)$d->id ?>" data-nama="<?= htmlspecialchars($d->nama_dokumen, ENT_QUOTES) ?>" title="Hapus"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                                 </div>
                             </td>
                         </tr>
@@ -148,6 +151,12 @@ $urlHalaman = function ($p) use ($q, $fJenis) {
                 <div class="flex items-center gap-1.5"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>Server Sistem</div>
                 <div class="flex items-center gap-1.5"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>Perangkat Ini</div>
                 <div class="flex items-center gap-1.5"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>Perangkat Lain</div>
+
+                <!-- Catatan pengingat otomatis -->
+                <div class="flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    Dokumen yang akan berakhir diingatkan otomatis melalui WhatsApp atau email.
+                </div>
             </div>
 
             <div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-200/60 pt-3">
@@ -243,15 +252,23 @@ $urlHalaman = function ($p) use ($q, $fJenis) {
     });
 
     // --- UTILITY ---
+    const DOCUMENT_CSRF_TOKEN = <?= json_encode($documentCsrfToken) ?>;
     function getDeviceId() {
-        let id = localStorage.getItem('tridatu_device_id');
-        if (!id) {
-            id = crypto.randomUUID();
-            localStorage.setItem('tridatu_device_id', id);
+        const serverId = <?= json_encode($currentDeviceId) ?>;
+        let id = serverId || localStorage.getItem('tridatu_device_id');
+        if (!id) id = crypto.randomUUID();
+        localStorage.setItem('tridatu_device_id', id);
+        const cookieId = document.cookie.split('; ').find(row => row.startsWith('tridatu_device_id='))?.split('=')[1];
+        if (cookieId !== id) {
             document.cookie = `tridatu_device_id=${id}; path=/; max-age=31536000; SameSite=Lax`;
+            if (!serverId && !sessionStorage.getItem('tridatu_device_bootstrap')) {
+                sessionStorage.setItem('tridatu_device_bootstrap', '1');
+                window.location.reload();
+            }
         }
         return id;
     }
+    const DEVICE_ID = getDeviceId();
 
     async function hitungHash(blob) {
         const buf = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
@@ -287,8 +304,9 @@ $urlHalaman = function ($p) use ($q, $fJenis) {
 
                 const formData = new FormData();
                 formData.append('id', id);
-                formData.append('device_id', getDeviceId());
+                formData.append('device_id', DEVICE_ID);
                 formData.append('file_hash', await hitungHash(blob));
+                formData.append('dokumen_csrf_token', DOCUMENT_CSRF_TOKEN);
                 formData.append('file', blob, fileName);
 
                 const response = await fetch('<?= site_url('dokumen/sync_to_cloud') ?>', { method: 'POST', body: formData });
@@ -310,16 +328,12 @@ $urlHalaman = function ($p) use ($q, $fJenis) {
 
     // --- HAPUS ---
     let hapusId = null;
-    let hapusFile = null;
-    let hapusStorage = null;
     const modal = document.getElementById('modalHapus');
     const modalContent = document.getElementById('modalContent');
 
     document.querySelectorAll('.btn-hapus').forEach(btn => {
         btn.addEventListener('click', function() {
             hapusId = this.dataset.id;
-            hapusFile = this.dataset.fileName;
-            hapusStorage = this.dataset.storage;
             document.getElementById('namaDokumenHapus').innerText = this.dataset.nama;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -332,8 +346,6 @@ $urlHalaman = function ($p) use ($q, $fJenis) {
 
     function tutupModalHapus() {
         hapusId = null;
-        hapusFile = null;
-        hapusStorage = null;
         modalContent.classList.remove('scale-100', 'opacity-100');
         modalContent.classList.add('scale-95', 'opacity-0');
         setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
@@ -341,10 +353,23 @@ $urlHalaman = function ($p) use ($q, $fJenis) {
 
     async function eksekusiHapus() {
         if (!hapusId) return;
-        if (hapusStorage === 'local' && hapusFile) {
-            try { await fetch(`http://localhost:8080/delete?filename=${encodeURIComponent(hapusFile)}`, { method: 'DELETE' }); } 
-            catch (err) { console.warn('Agent mati. Lanjut hapus DB.'); }
+        try {
+            const formData = new FormData();
+            formData.append('dokumen_csrf_token', DOCUMENT_CSRF_TOKEN);
+            const response = await fetch('<?= site_url('dokumen/hapus/') ?>' + hapusId, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const result = await response.json();
+            if (!response.ok || !result.status) throw new Error(result.msg || 'Dokumen gagal dihapus.');
+            if (result.local_file_name) {
+                try { await fetch(`http://localhost:8080/delete?filename=${encodeURIComponent(result.local_file_name)}`, { method: 'DELETE' }); }
+                catch (err) { console.warn('Agent mati. Lanjut hapus data dokumen.'); }
+            }
+            window.location.href = result.redirect || '<?= site_url('dokumen') ?>';
+        } catch (err) {
+            showToast(err.message || 'Dokumen gagal dihapus.', 'error');
         }
-        window.location.href = '<?= site_url('dokumen/hapus/') ?>' + hapusId;
     }
 </script>
