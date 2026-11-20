@@ -84,18 +84,49 @@ class Pembayaran extends CI_Controller
     private function form_data($title, $penawaran, $action, $from)
     {
         $mode = $penawaran ? (($penawaran->dibuat_lewat === 'Unggahan') ? 'unggah' : 'template') : $this->mode;
+        $projectList = $this->Pembayaran_model->get_project_options();
+        $projectContext = $this->project_context($projectList);
 
         return [
             'title'       => $title,
             'penawaran'   => $penawaran,
             'klienList'   => $this->Pembayaran_model->get_klien_options(),
-            'projectList' => $this->Pembayaran_model->get_project_options(),
+            'projectList' => $projectList,
+            'preKlien'    => $projectContext['klien_id'],
+            'preProject'  => $projectContext['project_id'],
             'nomorBaru'   => $this->Pembayaran_model->next_nomor(date('Y')),
             'from'        => $from,
-            'action'      => $action,
+            'action'      => $this->project_context_action($action),
             'mode'        => $mode,
             'uploadErr'   => $this->upload_err,
         ];
+    }
+
+    private function project_context($projectList)
+    {
+        $projectId = (int) $this->input->get('project_id');
+        foreach ($projectList as $project) {
+            if ((int) $project->id === $projectId && $projectId > 0) {
+                return ['project_id' => $projectId, 'klien_id' => (int) $project->klien_id];
+            }
+        }
+
+        return ['project_id' => 0, 'klien_id' => 0];
+    }
+
+    private function project_context_action($action)
+    {
+        $projectId = (int) $this->input->get('project_id');
+        if ($projectId <= 0) {
+            return $action;
+        }
+
+        $query = ['project_id' => $projectId];
+        if ($this->input->get('from') === 'project_detail') {
+            $query['from'] = 'project_detail';
+        }
+
+        return $action . '?' . http_build_query($query);
     }
 
     /* ---------- TAMBAH ---------- */
@@ -127,8 +158,12 @@ class Pembayaran extends CI_Controller
         $data = $this->ambil_input(TRUE);
         if (is_array($file)) $data = array_merge($data, $file);
 
+        $projectId = (int) $data['project_id'];
         $this->Pembayaran_model->insert_penawaran($data);
         $this->session->set_flashdata('success', 'Penawaran berhasil dibuat.');
+        if ($this->input->get('from') === 'project_detail' && $projectId > 0) {
+            redirect('project/detail/' . $projectId);
+        }
         redirect('pembayaran?tab=penawaran');
     }
 
@@ -633,15 +668,20 @@ class Pembayaran extends CI_Controller
     /* ---------- INVOICE: TAMBAH ---------- */
     private function data_invoice($title, $inv, $action)
     {
+        $projectList = $this->Pembayaran_model->get_project_options();
+        $projectContext = $this->project_context($projectList);
+
         return [
             'title'         => $title,
             'inv'           => $inv,
             'klienList'     => $this->Pembayaran_model->get_klien_options(),
-            'projectList'   => $this->Pembayaran_model->get_project_options(),
+            'projectList'   => $projectList,
+            'preKlien'      => $projectContext['klien_id'],
+            'preProject'    => $projectContext['project_id'],
             'penawaranList' => $inv ? [] : $this->Pembayaran_model->get_penawaran_disetujui(),
             'nomorBaru'     => $this->Pembayaran_model->next_nomor_invoice(date('Y')),
             'pre'           => $inv ? 0 : (int) $this->input->get('penawaran_id'),
-            'action'        => $action,
+            'action'        => $this->project_context_action($action),
             'formErr'       => $this->form_err,
             'uploadErr'     => $this->upload_err,
         ];
@@ -727,6 +767,9 @@ class Pembayaran extends CI_Controller
 
         $this->Pembayaran_model->insert_invoice($data);
         $this->session->set_flashdata('success', 'Invoice berhasil dibuat.');
+        if ($this->input->get('from') === 'project_detail' && $project > 0) {
+            redirect('project/detail/' . $project);
+        }
         redirect('pembayaran?tab=invoice');
     }
 

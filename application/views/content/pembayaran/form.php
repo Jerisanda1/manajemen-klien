@@ -8,8 +8,12 @@
 $e = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
 $isEdit = !empty($penawaran);
 
-$val = function ($f, $default = '') use ($penawaran) {
-    return set_value($f, isset($penawaran->$f) ? $penawaran->$f : $default);
+$preKlien = isset($preKlien) ? $preKlien : 0;
+$preProject = isset($preProject) ? $preProject : 0;
+$val = function ($f, $default = '') use ($penawaran, $preKlien, $preProject) {
+    $context = ['klien_id' => $preKlien, 'project_id' => $preProject];
+    $fallback = isset($penawaran->$f) ? $penawaran->$f : (isset($context[$f]) ? $context[$f] : $default);
+    return set_value($f, $fallback);
 };
 $err = function ($f) {
     $m = form_error($f);
