@@ -98,7 +98,6 @@ $route['pembayaran/unduh/(:any)/(:num)']   = 'content/pembayaran/unduh/$1/$2';
 $route['pembayaran/status/(:any)/(:num)'] = 'content/pembayaran/status/$1/$2';
 $route['pembayaran/pratinjau'] = 'content/pembayaran/pratinjau';
 $route['pembayaran/berkas/(:num)'] = 'content/pembayaran/berkas/$1';
-$route['pembayaran/kirim/(:any)/(:num)'] = 'content/pembayaran/kirim/$1/$2';
 $route['pembayaran/hapus'] = 'content/pembayaran/hapus';
 $route['pembayaran/berkas-invoice/(:num)'] = 'content/pembayaran/berkas_invoice/$1';
 $route['pembayaran/pratinjau-invoice']     = 'content/pembayaran/pratinjau_invoice';

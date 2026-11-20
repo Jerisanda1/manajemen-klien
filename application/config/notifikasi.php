@@ -15,4 +15,4 @@ $config['email_from_name']   = 'Tridatu Solution';
 
 
 
-$config['pengingat_offset'] = [3, 1, 0];   // H-3, H-1, hari H
+$config['pengingat_offset'] = [30, 0];   // H-30 dan hari jatuh tempo

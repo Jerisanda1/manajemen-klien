@@ -1,3 +1,4 @@
+
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
@@ -5,6 +6,7 @@ class Cron extends CI_Controller {
 
     public function __construct() {
         parent::__construct();
+
         $this->load->model('Dokumen_model', 'dokumen_model');
 
         // Load konfigurasi
@@ -23,29 +25,33 @@ class Cron extends CI_Controller {
             'newline'   => $this->config->item('newline'),
             'crlf'      => $this->config->item('crlf')
         );
+
         $this->load->library('email', $email_config);
 
-        // Load helper
+        // Load helper Fonnte
         $this->load->helper('fonnte');
     }
 
-    // Validasi key akses via browser (key dibaca dari config, bukan hardcode)
+    // Validasi key akses via browser
     private function _key_valid() {
         $expected = (string) $this->config->item('cron_key');
         $given    = (string) $this->input->get('key');
+
         return $expected !== '' && hash_equals($expected, $given);
     }
 
     public function kirim_reminder() {
-        // CLI (Task Scheduler/cron) diizinkan; browser wajib pakai key yang valid.
-        if ( ! is_cli() && ! $this->_key_valid()) {
+
+        // CLI diizinkan; browser wajib menggunakan key valid
+        if (!is_cli() && !$this->_key_valid()) {
             show_404();
         }
 
         $br = is_cli() ? PHP_EOL : '<br>';
 
-        // Ambil email & no_hp admin dari database
+        // Ambil email dan nomor WA admin dari database
         $admin = $this->dokumen_model->get_company_settings();
+
         if (!$admin) {
             echo "Error: Data company_settings tidak ditemukan.";
             return;
@@ -58,18 +64,47 @@ class Cron extends CI_Controller {
         // FASE 1: Reminder dokumen yang AKAN BERAKHIR (H-30)
         // ================================================================
         echo "[FASE 1] Reminder Dokumen Akan Berakhir" . $br;
-        $docs_akan = $this->dokumen_model->get_dokumen_akan_berakhir(30, $admin_email !== '', $admin_wa !== '');
-        $r1 = $this->_proses_reminder($docs_akan, $admin_email, $admin_wa, 'akan_berakhir');
-        $error_summary = empty($r1['errors']) ? '' : ' | Detail: ' . implode('; ', array_slice($r1['errors'], 0, 3));
+
+        $docs_akan = $this->dokumen_model->get_dokumen_akan_berakhir(
+            30,
+            $admin_email !== '',
+            $admin_wa !== ''
+        );
+
+        $r1 = $this->_proses_reminder(
+            $docs_akan,
+            $admin_email,
+            $admin_wa,
+            'akan_berakhir'
+        );
+
+        $error_summary = empty($r1['errors'])
+            ? ''
+            : ' | Detail: ' . implode('; ', array_slice($r1['errors'], 0, 3));
+
         echo "Total: {$r1['total']}, Email OK: {$r1['email']}, WA OK: {$r1['wa']}, Gagal: {$r1['gagal']}{$error_summary}" . $br . $br;
 
         // ================================================================
         // FASE 2: Notifikasi dokumen yang SUDAH EXPIRED
         // ================================================================
         echo "[FASE 2] Notifikasi Dokumen Sudah Expired" . $br;
-        $docs_expired = $this->dokumen_model->get_dokumen_sudah_expired($admin_email !== '', $admin_wa !== '');
-        $r2 = $this->_proses_reminder($docs_expired, $admin_email, $admin_wa, 'expired');
-        $error_summary = empty($r2['errors']) ? '' : ' | Detail: ' . implode('; ', array_slice($r2['errors'], 0, 3));
+
+        $docs_expired = $this->dokumen_model->get_dokumen_sudah_expired(
+            $admin_email !== '',
+            $admin_wa !== ''
+        );
+
+        $r2 = $this->_proses_reminder(
+            $docs_expired,
+            $admin_email,
+            $admin_wa,
+            'expired'
+        );
+
+        $error_summary = empty($r2['errors'])
+            ? ''
+            : ' | Detail: ' . implode('; ', array_slice($r2['errors'], 0, 3));
+
         echo "Total: {$r2['total']}, Email OK: {$r2['email']}, WA OK: {$r2['wa']}, Gagal: {$r2['gagal']}{$error_summary}" . $br . $br;
 
         echo "Selesai.";
@@ -77,27 +112,45 @@ class Cron extends CI_Controller {
 
     /**
      * Helper generik untuk proses kirim email + WA ke daftar dokumen.
-     * @param  array  $docs
-     * @param  string $admin_email
-     * @param  string $admin_wa
-     * @param  string $tipe  'akan_berakhir' | 'expired'
-     * @return array  ['total','email','wa','gagal','errors']
+     *
+     * @param array  $docs
+     * @param string $admin_email
+     * @param string $admin_wa
+     * @param string $tipe 'akan_berakhir' | 'expired'
+     * @return array ['total','email','wa','gagal','errors']
      */
     private function _proses_reminder($docs, $admin_email, $admin_wa, $tipe) {
-        $result = ['total' => 0, 'email' => 0, 'wa' => 0, 'gagal' => 0, 'errors' => []];
 
-        if (empty($docs)) return $result;
+        $result = [
+            'total'  => 0,
+            'email'  => 0,
+            'wa'     => 0,
+            'gagal'  => 0,
+            'errors' => []
+        ];
+
+        if (empty($docs)) {
+            return $result;
+        }
+
         if ($admin_wa === '') {
             $result['errors'][] = 'Nomor WhatsApp admin kosong di company_settings.no_telp.';
         }
 
         foreach ($docs as $doc) {
-            $result['total']++;
-            $email_column = $tipe === 'expired' ? 'expired_notified_at' : 'last_reminder_sent_at';
-            $wa_column = $tipe === 'expired' ? 'wa_expired_notified_at' : 'wa_reminder_sent_at';
 
-            // Sisa hari: positif kalau belum expired, negatif kalau sudah lewat
-            $sisa_hari = (int)(new DateTime(date('Y-m-d')))
+            $result['total']++;
+
+            $email_column = $tipe === 'expired'
+                ? 'expired_notified_at'
+                : 'last_reminder_sent_at';
+
+            $wa_column = $tipe === 'expired'
+                ? 'wa_expired_notified_at'
+                : 'wa_reminder_sent_at';
+
+            // Sisa hari: positif jika belum expired, negatif jika sudah lewat
+            $sisa_hari = (int) (new DateTime(date('Y-m-d')))
                 ->diff(new DateTime($doc->tanggal_berakhir))
                 ->format('%r%a');
 
@@ -106,37 +159,81 @@ class Cron extends CI_Controller {
 
             // ---------- A. EMAIL ----------
             if ($admin_email !== '' && empty($doc->{$email_column})) {
+
                 $this->email->clear();
-                $this->email->from($this->config->item('smtp_user'), 'Sistem Tridatu');
+
+                $this->email->from(
+                    $this->config->item('smtp_user'),
+                    'Sistem Tridatu'
+                );
+
                 $this->email->to($admin_email);
 
                 if ($tipe === 'expired') {
-                    $this->email->subject('[EXPIRED] Dokumen "' . $doc->nama_dokumen . '" Sudah Berakhir');
-                    $this->email->message($this->_template_email_expired($doc, $sisa_hari));
+
+                    $this->email->subject(
+                        '[EXPIRED] Dokumen "' . $doc->nama_dokumen . '" Sudah Berakhir'
+                    );
+
+                    $this->email->message(
+                        $this->_template_email_expired($doc, $sisa_hari)
+                    );
+
                 } else {
-                    $this->email->subject('[PENGINGAT] Dokumen "' . $doc->nama_dokumen . '" Berakhir dalam ' . $sisa_hari . ' Hari');
-                    $this->email->message($this->_template_email_akan_berakhir($doc, $sisa_hari));
+
+                    $this->email->subject(
+                        '[PENGINGAT] Dokumen "' . $doc->nama_dokumen . '" Berakhir dalam ' . $sisa_hari . ' Hari'
+                    );
+
+                    $this->email->message(
+                        $this->_template_email_akan_berakhir($doc, $sisa_hari)
+                    );
                 }
 
                 if ($this->email->send()) {
+
                     $result['email']++;
+
                     $email_ok = $tipe === 'expired'
                         ? $this->dokumen_model->mark_expired_notified($doc->id)
                         : $this->dokumen_model->mark_reminder_sent($doc->id);
+
                     if (!$email_ok) {
-                        $result['errors'][] = 'Dokumen ID ' . $doc->id . ': email terkirim tetapi statusnya gagal disimpan.';
+                        $result['errors'][] =
+                            'Dokumen ID ' . $doc->id .
+                            ': email terkirim tetapi statusnya gagal disimpan.';
                     }
+
                 } else {
-                    $email_error = trim(preg_replace('/\s+/', ' ', strip_tags($this->email->print_debugger())));
-                    $email_error = $email_error !== '' ? $email_error : 'server email menolak pengiriman.';
-                    $result['errors'][] = 'Dokumen ID ' . $doc->id . ' email: ' . $email_error;
-                    log_message('error', 'Cron reminder: gagal email dokumen ID ' . $doc->id . ' - ' . $email_error);
+
+                    $email_error = trim(
+                        preg_replace(
+                            '/\s+/',
+                            ' ',
+                            strip_tags($this->email->print_debugger())
+                        )
+                    );
+
+                    $email_error = $email_error !== ''
+                        ? $email_error
+                        : 'server email menolak pengiriman.';
+
+                    $result['errors'][] =
+                        'Dokumen ID ' . $doc->id . ' email: ' . $email_error;
+
+                    log_message(
+                        'error',
+                        'Cron reminder: gagal email dokumen ID ' .
+                        $doc->id . ' - ' . $email_error
+                    );
                 }
             }
 
-            // ---------- B. WHATSAPP ----------
+            // ---------- B. WHATSAPP FONNTE ----------
             if ($admin_wa !== '' && empty($doc->{$wa_column})) {
+
                 if ($tipe === 'expired') {
+
                     $pesan_wa = "🔴 *DOKUMEN SUDAH BERAKHIR* 🔴\n\n" .
                                 "Halo Admin,\n" .
                                 "Dokumen berikut telah melewati tanggal berakhir:\n\n" .
@@ -147,7 +244,9 @@ class Cron extends CI_Controller {
                                 "⏳ *Lewat*: " . abs($sisa_hari) . " hari\n\n" .
                                 "Segera tindak lanjuti perpanjangan dokumen.\n\n" .
                                 "🔗 Detail: " . site_url('dokumen/detail/' . $doc->id);
+
                 } else {
+
                     $pesan_wa = "⚠️ *PENGINGAT DOKUMEN* ⚠️\n\n" .
                                 "Halo Admin,\n" .
                                 "Dokumen berikut akan segera berakhir:\n\n" .
@@ -160,23 +259,45 @@ class Cron extends CI_Controller {
                                 "🔗 Detail: " . site_url('dokumen/detail/' . $doc->id);
                 }
 
+                // Kirim melalui Fonnte
                 $res_wa = kirim_wa_fonnte($admin_wa, $pesan_wa);
+
                 if (isset($res_wa['status']) && $res_wa['status'] === true) {
+
                     $result['wa']++;
+
                     $wa_ok = $tipe === 'expired'
                         ? $this->dokumen_model->mark_expired_wa_notified($doc->id)
                         : $this->dokumen_model->mark_reminder_wa_sent($doc->id);
+
                     if (!$wa_ok) {
-                        $result['errors'][] = 'Dokumen ID ' . $doc->id . ': WhatsApp terkirim tetapi statusnya gagal disimpan.';
+                        $result['errors'][] =
+                            'Dokumen ID ' . $doc->id .
+                            ': WhatsApp terkirim tetapi statusnya gagal disimpan.';
                     }
+
                 } else {
-                    $reason = isset($res_wa['reason']) ? (string) $res_wa['reason'] : 'alasan tidak tersedia';
-                    $result['errors'][] = 'Dokumen ID ' . $doc->id . ' WhatsApp: ' . $reason;
-                    log_message('error', 'Cron reminder: gagal kirim WA dokumen ID ' . $doc->id . ' - ' . $reason);
+
+                    $reason = isset($res_wa['reason'])
+                        ? (string) $res_wa['reason']
+                        : 'alasan tidak tersedia';
+
+                    $result['errors'][] =
+                        'Dokumen ID ' . $doc->id . ' WhatsApp: ' . $reason;
+
+                    log_message(
+                        'error',
+                        'Cron reminder: gagal kirim WA dokumen ID ' .
+                        $doc->id . ' - ' . $reason
+                    );
                 }
             }
 
-            if (($admin_email !== '' && !$email_ok) || ($admin_wa !== '' && !$wa_ok)) {
+            // ---------- C. PENGHITUNGAN KEGAGALAN ----------
+            if (
+                ($admin_email !== '' && !$email_ok) ||
+                ($admin_wa !== '' && !$wa_ok)
+            ) {
                 $result['gagal']++;
             }
         }
@@ -184,8 +305,9 @@ class Cron extends CI_Controller {
         return $result;
     }
 
-    // ---------- TEMPLATE EMAIL: AKAN BERAKHIR (warna kuning/orange) ----------
+    // ---------- TEMPLATE EMAIL: AKAN BERAKHIR ----------
     private function _template_email_akan_berakhir($doc, $sisa_hari) {
+
         $nama_dok   = htmlspecialchars((string) $doc->nama_dokumen);
         $nama_klien = htmlspecialchars((string) $doc->nama_klien);
         $nama_pic   = htmlspecialchars((string) $doc->nama_pic);
@@ -230,8 +352,9 @@ class Cron extends CI_Controller {
         ';
     }
 
-    // ---------- TEMPLATE EMAIL: EXPIRED (warna merah) ----------
+    // ---------- TEMPLATE EMAIL: EXPIRED ----------
     private function _template_email_expired($doc, $sisa_hari) {
+
         $nama_dok   = htmlspecialchars((string) $doc->nama_dokumen);
         $nama_klien = htmlspecialchars((string) $doc->nama_klien);
         $nama_pic   = htmlspecialchars((string) $doc->nama_pic);

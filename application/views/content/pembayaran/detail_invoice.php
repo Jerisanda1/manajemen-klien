@@ -2,242 +2,364 @@
 /**
  * @var CI_Controller $this
  * @var object $inv
- * @var array  $pengiriman  (saluran => waktu terakhir)
+ * @var array $pengiriman (saluran => waktu terakhir)
  */
-$e = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
-$bulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-$tgl = function ($t) use ($bulan) {
-    $x = $t ? strtotime((string) $t) : false;
-    return $x ? date('j', $x) . ' ' . $bulan[(int) date('n', $x)] . ' ' . date('Y', $x) : '-';
+
+$e = function ($value) {
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 };
+
+$bulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+$tgl = function ($tanggal) use ($bulan) {
+    $timestamp = $tanggal ? strtotime((string) $tanggal) : false;
+    return $timestamp
+        ? date('j', $timestamp) . ' ' . $bulan[(int) date('n', $timestamp)] . ' ' . date('Y', $timestamp)
+        : '-';
+};
+
 $id = (int) $inv->id;
 $dibayar = ($inv->status === 'Dibayar');
-$pillStatus = $dibayar ? 'background:#bbf7d0;color:#15803d' : 'background:#fde68a;color:#d97706';
+
+$statusBadgeClass = $dibayar
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+    : 'bg-amber-50 text-amber-700 border-amber-100';
+
 $unggahan = ($inv->dibuat_lewat === 'Unggahan' && !empty($inv->file_path));
 $ext = $unggahan ? strtolower(pathinfo($inv->file_path, PATHINFO_EXTENSION)) : '';
-if (!$unggahan)        $srcPratinjau = site_url('pembayaran/unduh/invoice/' . $id . '?inline=1');
-elseif ($ext === 'pdf') $srcPratinjau = site_url('pembayaran/berkas-invoice/' . $id);
-else                    $srcPratinjau = null;   // Word: tidak bisa dipratinjau
-// Hitung mundur jatuh tempo (hanya jika belum dibayar)
-$badgeTempo = null;
-if (!$dibayar && $inv->jatuh_tempo) {
-    $hari = (int) round((strtotime($inv->jatuh_tempo) - strtotime(date('Y-m-d'))) / 86400);
-    if ($hari > 0)      $teks = 'Jatuh tempo ' . $hari . ' hari lagi';
-    elseif ($hari === 0) $teks = 'Jatuh tempo hari ini';
-    else                 $teks = 'Terlambat ' . abs($hari) . ' hari';
-    $badgeTempo = [$teks, $hari <= 7 ? 'background:#fecaca;color:#dc2626' : 'background:#e2e8f0;color:#475569'];
+
+$urlUnduh = site_url('pembayaran/unduh/invoice/' . $id);
+
+if (!$unggahan) {
+    $srcPratinjau = site_url('pembayaran/unduh/invoice/' . $id . '?inline=1');
+} elseif ($ext === 'pdf') {
+    $srcPratinjau = site_url('pembayaran/berkas-invoice/' . $id);
+} else {
+    // File selain PDF tetap tidak dipratinjau di browser, seperti perilaku sebelumnya.
+    $srcPratinjau = null;
 }
 
-$adaEmail = filter_var($inv->email_pic, FILTER_VALIDATE_EMAIL);
-$adaHp    = preg_replace('/\D/', '', (string) $inv->hp_pic) !== '';
+// Hitung mundur jatuh tempo hanya untuk invoice yang belum dibayar.
+$badgeTempo = null;
+if (!$dibayar && !empty($inv->jatuh_tempo)) {
+    $hari = (int) round((strtotime($inv->jatuh_tempo) - strtotime(date('Y-m-d'))) / 86400);
+
+    if ($hari > 0) {
+        $teksTempo = 'Jatuh tempo ' . $hari . ' hari lagi';
+    } elseif ($hari === 0) {
+        $teksTempo = 'Jatuh tempo hari ini';
+    } else {
+        $teksTempo = 'Terlambat ' . abs($hari) . ' hari';
+    }
+
+    $kelasTempo = ($hari <= 7)
+        ? 'bg-red-50 text-red-600 border-red-100'
+        : 'bg-gray-100 text-gray-600 border-gray-200';
+
+    $badgeTempo = [$teksTempo, $kelasTempo];
+}
+
 $csrf = $this->config->item('csrf_protection')
-    ? '<input type="hidden" name="' . $this->security->get_csrf_token_name() . '" value="' . $this->security->get_csrf_hash() . '">'
+    ? '<input type="hidden" name="' . $e($this->security->get_csrf_token_name()) . '" value="' . $e($this->security->get_csrf_hash()) . '">'
     : '';
+
+$successMessage = $this->session->flashdata('success');
+$errorMessage = $this->session->flashdata('error');
+$pengiriman = (isset($pengiriman) && is_array($pengiriman)) ? $pengiriman : [];
 ?>
-<style>
-    .iv { padding:20px 32px 40px; color:#0f172a; }
-    .iv a { text-decoration:none; }
-    .iv-back { display:inline-flex; align-items:center; gap:8px; color:#64748b; font-size:18px; margin-bottom:6px; }
-    .iv-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
-    .iv-title { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-    .iv-title h1 { font-size:32px; font-weight:700; margin:0; }
-    .iv-pill { border-radius:999px; padding:4px 14px; font-size:12px; font-weight:600; white-space:nowrap; }
-    .iv-sub { margin:6px 0 0; font-size:14px; color:#64748b; }
-    .iv-btns { display:flex; gap:10px; flex-wrap:wrap; }
-    .iv-btn { display:inline-flex; align-items:center; gap:8px; height:46px; padding:0 20px; border-radius:8px; font-size:15px; background:#fff; cursor:pointer; font-family:inherit; box-sizing:border-box; }
-    .iv-btn.dark { background:#524d4c; color:#fff; border:0; }
-    .iv-btn.dark:hover { background:#3f3a3a; }
-    .iv-btn.n { border:1px solid #cbd5e1; color:#475569; }
-    .iv-btn.d { border:1px solid #f87171; color:#dc2626; }
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= isset($title) ? $e($title) : 'Detail Invoice' ?></title>
+    <link rel="stylesheet" href="<?= base_url('assets/css/tailwind.css'); ?>">
+</head>
+<body class="bg-[#f4f6f9] font-sans text-gray-800 antialiased min-h-screen p-4 md:p-6 lg:p-8">
 
-    .iv-grid { display:grid; grid-template-columns:minmax(0,1fr) 400px; gap:16px; align-items:start; }
-    .iv-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:24px; margin-bottom:16px; }
-    .iv-card h2 { font-size:20px; font-weight:700; margin:0 0 18px; }
-    .iv-info { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:22px 20px; }
-    .iv-lbl { font-size:14px; color:#64748b; margin-bottom:2px; }
-    .iv-val { font-size:15px; font-weight:500; word-break:break-word; }
-    .iv-link { color:#1d8fe1; text-decoration:underline !important; }
-    .iv-dot { color:#64748b; font-size:13px; font-weight:400; margin-left:6px; }
+    <div class="w-full flex flex-col gap-4">
 
-    .iv-prev { height:640px; background:#f4f4f5; border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; color:#64748b; font-size:15px; text-align:center; }
-    .iv-prev iframe { width:100%; height:100%; border:0; background:#fff; }
-    .iv-prev a { color:#1d8fe1; text-decoration:underline; }
-    @media (max-width:640px) { .iv-prev { height:460px; } }
-    
-    .iv-rw { display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:15px; padding:6px 0; }
-    .iv-rw span:first-child { color:#64748b; }
-    .iv-pay { display:block; width:100%; height:48px; margin-top:14px; border:0; border-radius:8px; background:#15803d; color:#fff; font-size:17px; font-weight:500; cursor:pointer; font-family:inherit; }
-    .iv-pay:hover { background:#166534; }
-    .iv-note { margin:8px 0 0; font-size:13px; color:#64748b; line-height:1.5; }
-    .iv-undo { margin-top:10px; background:none; border:0; padding:0; color:#64748b; font-size:13px; text-decoration:underline; cursor:pointer; font-family:inherit; }
-
-    .iv-pic { font-size:15px; font-weight:500; line-height:1.6; margin-bottom:16px; }
-    .iv-send { display:block; width:100%; height:48px; margin-bottom:12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#475569; font-size:15px; cursor:pointer; font-family:inherit; }
-    .iv-send:hover:not(:disabled) { background:#f8fafc; }
-    .iv-send:disabled { opacity:.5; cursor:not-allowed; }
-    .iv-log { margin-top:18px; }
-    .iv-flash { margin-bottom:16px; border-radius:8px; padding:10px 16px; font-size:14px; }
-    .iv-flash.ok { border:1px solid #a7f3d0; background:#ecfdf5; color:#047857; }
-    .iv-flash.er { border:1px solid #fecaca; background:#fef2f2; color:#b91c1c; }
-
-    @media (max-width:1024px) { .iv-grid { grid-template-columns:minmax(0,1fr); } .iv { padding:16px; } }
-    @media (max-width:640px) { .iv-info { grid-template-columns:repeat(2, minmax(0,1fr)); } .iv-title h1 { font-size:26px; } }
-</style>
-
-<div class="iv">
-    <a href="<?= site_url('pembayaran?tab=invoice') ?>" class="iv-back">
-        <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-        Kembali
-    </a>
-
-    <?php if ($this->session->flashdata('success')): ?>
-        <div class="iv-flash ok"><?= $e($this->session->flashdata('success')) ?></div>
-    <?php endif; ?>
-    <?php if ($this->session->flashdata('error')): ?>
-        <div class="iv-flash er"><?= $e($this->session->flashdata('error')) ?></div>
-    <?php endif; ?>
-
-    <div class="iv-head">
-        <div>
-            <div class="iv-title">
-                <h1><?= $e($inv->no_invoice) ?></h1>
-                <span class="iv-pill" style="<?= $pillStatus ?>"><?= $e($inv->status) ?></span>
-                <?php if ($badgeTempo): ?>
-                    <span class="iv-pill" style="<?= $badgeTempo[1] ?>"><?= $e($badgeTempo[0]) ?></span>
-                <?php endif; ?>
-            </div>
-            <?php if (!empty($inv->perihal)): ?><p class="iv-sub"><?= $e($inv->perihal) ?></p><?php endif; ?>
-        </div>
-
-        <div class="iv-btns">
-            <a href="<?= site_url('pembayaran/unduh/invoice/' . $id) ?>" class="iv-btn dark">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4"/></svg>
-                Unduh PDF
+        <!-- Header: susunan tetap seperti halaman Detail Invoice sebelumnya -->
+        <div class="shrink-0">
+            <a href="<?= site_url('pembayaran?tab=invoice') ?>"
+               class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-3 transition-colors">
+                <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Kembali
             </a>
-            <a href="<?= site_url('pembayaran/edit/invoice/' . $id . '?from=detail') ?>" class="iv-btn n">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                Edit
-            </a>
-            <form method="post" action="<?= site_url('pembayaran/hapus') ?>" onsubmit="return confirm('Hapus invoice ini secara permanen?');" style="margin:0">
-                <?= $csrf ?>
-                <input type="hidden" name="tab" value="invoice">
-                <input type="hidden" name="id" value="<?= $id ?>">
-                <button type="submit" class="iv-btn d">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    Hapus
-                </button>
-            </form>
-        </div>
-    </div>
 
-    <div class="iv-grid">
+            <?php if ($successMessage): ?>
+                <div class="mb-4 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    <?= $e($successMessage) ?>
+                </div>
+            <?php endif; ?>
 
-        <!-- KIRI -->
-        <div>
-            <div class="iv-card">
-                <h2>Informasi Invoice</h2>
-                <div class="iv-info">
-                    <div><div class="iv-lbl">Klien</div><div class="iv-val"><?= $e($inv->nama_klien ?: '-') ?></div></div>
-                    <div>
-                        <div class="iv-lbl">Project</div>
-                        <div class="iv-val">
-                            <?php if ($inv->nama_project): ?>
-                                <a class="iv-link" href="<?= site_url('project/detail/' . (int) $inv->project_id) ?>"><?= $e($inv->nama_project) ?></a>
-                            <?php else: ?>Mandiri<?php endif; ?>
-                        </div>
+            <?php if ($errorMessage): ?>
+                <div class="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <?= $e($errorMessage) ?>
+                </div>
+            <?php endif; ?>
+
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-3 min-w-0 flex-wrap">
+                        <h2 class="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight break-words">
+                            <?= $e($inv->no_invoice) ?>
+                        </h2>
+                        <span class="shrink-0 inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold border <?= $statusBadgeClass ?>">
+                            <?= $e($inv->status) ?>
+                        </span>
+                        <?php if ($badgeTempo): ?>
+                            <span class="shrink-0 inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-semibold border <?= $badgeTempo[1] ?>">
+                                <?= $e($badgeTempo[0]) ?>
+                            </span>
+                        <?php endif; ?>
                     </div>
-                    <div><div class="iv-lbl">Perihal</div><div class="iv-val"><?= $e($inv->perihal ?: '-') ?></div></div>
-
-                    <div>
-                        <div class="iv-lbl">Penawaran</div>
-                        <div class="iv-val">
-                            <?php if ($inv->penawaran_id): ?>
-                                <a class="iv-link" href="<?= site_url('pembayaran/detail/penawaran/' . (int) $inv->penawaran_id) ?>"><?= $e($inv->no_penawaran) ?></a>
-                                <span class="iv-dot">&bull; <?= $e($inv->status_penawaran) ?></span>
-                            <?php else: ?>-<?php endif; ?>
-                        </div>
-                    </div>
-                    <div><div class="iv-lbl">Tanggal invoice</div><div class="iv-val"><?= $tgl($inv->tanggal_invoice) ?></div></div>
-                    <div><div class="iv-lbl">Jatuh tempo</div><div class="iv-val"><?= $tgl($inv->jatuh_tempo) ?></div></div>
-
-                    <div><div class="iv-lbl">Dibuat lewat</div><div class="iv-val"><?= $e($inv->dibuat_lewat ?: '-') ?></div></div>
-                    <?php if ($dibayar): ?>
-                        <div><div class="iv-lbl">Tanggal pembayaran</div><div class="iv-val"><?= $tgl($inv->tanggal_bayar) ?></div></div>
+                    <?php if (!empty($inv->perihal)): ?>
+                        <p class="text-sm text-gray-500 mt-2"><?= $e($inv->perihal) ?></p>
                     <?php endif; ?>
                 </div>
-            </div>
 
-            <div class="iv-card">
-                <h2>Pratinjau dokumen</h2>
-                <div class="iv-prev">
-    <?php if ($srcPratinjau): ?>
-        <iframe src="<?= $e($srcPratinjau) ?>" title="Pratinjau dokumen" loading="lazy"></iframe>
-    <?php else: ?>
-        <div>
-            Pratinjau hanya tersedia untuk file PDF.<br>
-            <a href="<?= site_url('pembayaran/berkas-invoice/' . $id . '?unduh=1') ?>">Unduh file <?= $e($inv->file_nama) ?></a>
-        </div>
-    <?php endif; ?>
-</div>
-            </div>
-        </div>
+                <div class="flex flex-wrap gap-2 sm:gap-3 shrink-0">
+                    <a href="<?= $urlUnduh ?>"
+                       class="px-5 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Unduh PDF
+                    </a>
 
-        <!-- KANAN -->
-        <div>
-            <div class="iv-card">
-                <h2>Status Pembayaran</h2>
-                <div class="iv-rw"><span>Status</span><span class="iv-pill" style="<?= $pillStatus ?>"><?= $e($inv->status) ?></span></div>
+                    <a href="<?= site_url('pembayaran/edit/invoice/' . $id . '?from=detail') ?>"
+                       class="px-5 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                        </svg>
+                        Edit
+                    </a>
 
-                <?php if (!$dibayar): ?>
-                    <form method="post" action="<?= site_url('pembayaran/status/invoice/' . $id) ?>" onsubmit="return confirm('Tandai invoice ini sudah dibayar?');" style="margin:0">
+                    <form method="post" action="<?= site_url('pembayaran/hapus') ?>"
+                          onsubmit="return confirm('Hapus invoice ini secara permanen?');" class="m-0">
                         <?= $csrf ?>
-                        <input type="hidden" name="status" value="Dibayar">
-                        <button type="submit" class="iv-pay">Tandai Sudah Bayar</button>
+                        <input type="hidden" name="tab" value="invoice">
+                        <input type="hidden" name="id" value="<?= $id ?>">
+                        <button type="submit"
+                                class="px-5 py-2.5 bg-white border border-red-200 hover:bg-red-50 text-red-600 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                            Hapus
+                        </button>
                     </form>
-                    <p class="iv-note">Tanggal pembayaran dicatat saat status diubah.</p>
-                <?php else: ?>
-                    <div class="iv-rw"><span>Dibayar pada</span><span style="font-weight:500"><?= $tgl($inv->tanggal_bayar) ?></span></div>
-                    <form method="post" action="<?= site_url('pembayaran/status/invoice/' . $id) ?>" onsubmit="return confirm('Kembalikan status menjadi Belum dibayar?');" style="margin:0">
-                        <?= $csrf ?>
-                        <input type="hidden" name="status" value="Belum dibayar">
-                        <button type="submit" class="iv-undo">Kembalikan ke Belum dibayar</button>
-                    </form>
-                <?php endif; ?>
+                </div>
             </div>
 
-            <div class="iv-card">
-                <h2>Pengingat jatuh tempo</h2>
-                <div class="iv-lbl" style="margin-bottom:4px">Kontak PIC klien</div>
-                <div class="iv-pic">
-                    <?= $e($inv->nama_pic ?: '-') ?><br>
-                    <?= $e($inv->email_pic ?: '-') ?> &nbsp; <?= $e($inv->hp_pic ?: '-') ?>
+        </div>
+
+        <!-- Layout asli dipertahankan: kolom kiri lebih lebar, kolom kanan 400px -->
+        <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
+
+            <!-- KOLOM KIRI: Informasi Invoice dan Pratinjau Dokumen -->
+            <div class="flex flex-col gap-4">
+
+                <!-- Informasi Invoice -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Informasi Invoice</h3>
+
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-y-5 gap-x-4">
+                        <div class="col-span-2 md:col-span-1">
+                            <p class="text-xs text-gray-500 mb-0.5">Klien</p>
+                            <p class="text-sm font-semibold text-gray-900 break-words"><?= $e($inv->nama_klien ?: '-') ?></p>
+                        </div>
+
+                        <div class="col-span-2 md:col-span-1">
+                            <p class="text-xs text-gray-500 mb-0.5">Project</p>
+                            <p class="text-sm font-semibold text-gray-900 break-words">
+                                <?php if (!empty($inv->nama_project)): ?>
+                                    <a href="<?= site_url('project/detail/' . (int) $inv->project_id) ?>"
+                                       class="text-[#9f2b2b] hover:underline">
+                                        <?= $e($inv->nama_project) ?>
+                                    </a>
+                                <?php else: ?>
+                                    Mandiri
+                                <?php endif; ?>
+                            </p>
+                        </div>
+
+                        <div class="col-span-2 md:col-span-1">
+                            <p class="text-xs text-gray-500 mb-0.5">Perihal</p>
+                            <p class="text-sm font-semibold text-gray-900 break-words"><?= $e($inv->perihal ?: '-') ?></p>
+                        </div>
+
+                        <div class="col-span-2 md:col-span-1">
+                            <p class="text-xs text-gray-500 mb-0.5">Penawaran</p>
+                            <p class="text-sm font-semibold text-gray-900 break-words">
+                                <?php if (!empty($inv->penawaran_id)): ?>
+                                    <a href="<?= site_url('pembayaran/detail/penawaran/' . (int) $inv->penawaran_id) ?>"
+                                       class="text-[#9f2b2b] hover:underline">
+                                        <?= $e($inv->no_penawaran) ?>
+                                    </a>
+                                    <span class="text-xs font-normal text-gray-500 ml-1">&bull; <?= $e($inv->status_penawaran) ?></span>
+                                <?php else: ?>
+                                    -
+                                <?php endif; ?>
+                            </p>
+                        </div>
+
+                        <div class="col-span-2 md:col-span-1">
+                            <p class="text-xs text-gray-500 mb-0.5">Tanggal invoice</p>
+                            <p class="text-sm font-semibold text-gray-900"><?= $tgl($inv->tanggal_invoice) ?></p>
+                        </div>
+
+                        <div class="col-span-2 md:col-span-1">
+                            <p class="text-xs text-gray-500 mb-0.5">Jatuh tempo</p>
+                            <p class="text-sm font-semibold text-gray-900"><?= $tgl($inv->jatuh_tempo) ?></p>
+                        </div>
+
+                        <div class="col-span-2 md:col-span-1">
+                            <p class="text-xs text-gray-500 mb-0.5">Dibuat lewat</p>
+                            <p class="text-sm font-semibold text-gray-900"><?= $e($inv->dibuat_lewat ?: '-') ?></p>
+                        </div>
+
+                        <?php if ($dibayar): ?>
+                            <div class="col-span-2 md:col-span-1">
+                                <p class="text-xs text-gray-500 mb-0.5">Tanggal pembayaran</p>
+                                <p class="text-sm font-semibold text-gray-900"><?= $tgl($inv->tanggal_bayar) ?></p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
-                <?php foreach ([['email', 'Kirim lewat email', $adaEmail], ['whatsapp', 'Kirim lewat whatsApp', $adaHp]] as $s): ?>
-    <form method="post" action="<?= site_url('pembayaran/kirim/invoice/' . $id) ?>"
-          onsubmit="if(!confirm('<?= $s[0] === 'email' ? 'Kirim pengingat lewat email?' : 'Kirim pengingat lewat WhatsApp?' ?>')) return false; this.querySelector('button').textContent='Mengirim...'; this.querySelector('button').disabled=true;"
-          style="margin:0">
-        <?= $csrf ?>
-        <input type="hidden" name="saluran" value="<?= $s[0] ?>">
-        <button type="submit" class="iv-send" <?= ($dibayar || !$s[2]) ? 'disabled' : '' ?>
-                title="<?= $dibayar ? 'Invoice sudah dibayar' : (!$s[2] ? 'Kontak PIC belum diisi' : '') ?>"><?= $s[1] ?></button>
-    </form>
-<?php endforeach; ?>
-                <?php if ($dibayar): ?><p class="iv-note">Invoice sudah dibayar, pengingat tidak diperlukan.</p><?php endif; ?>
+                <!-- Pratinjau Dokumen: gaya area pratinjau disamakan dengan halaman Detail Dokumen -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 shrink-0">Pratinjau Dokumen</h3>
 
-               <div class="iv-log">
-    <div class="iv-lbl" style="font-size:15px;margin-bottom:6px">Riwayat pengiriman</div>
-    <?php foreach (['email' => 'Email', 'whatsapp' => 'WhatsApp'] as $k => $nama): ?>
-        <?php $r = isset($pengiriman[$k]) ? $pengiriman[$k] : null; ?>
-        <div class="iv-rw">
-            <span style="color:#0f172a"><?= $nama ?><?= $r ? ($r->berhasil ? ' - Terkirim' : ' - Gagal') : '' ?></span>
-            <span><?= $r ? $tgl($r->created_at) : 'Belum dikirim' ?></span>
-        </div>
-        <?php if ($r && !$r->berhasil && $r->keterangan): ?>
-            <p class="iv-note" style="color:#b91c1c;margin:0 0 6px"><?= $e($r->keterangan) ?></p>
-        <?php endif; ?>
-    <?php endforeach; ?>
-</div>
+                    <div class="h-[460px] min-[641px]:h-[640px] bg-gray-400 rounded-lg flex items-center justify-center p-3 sm:p-4 overflow-hidden min-h-[400px]">
+                        <?php if ($srcPratinjau): ?>
+                            <div class="w-full h-full max-w-3xl mx-auto bg-white shadow-2xl rounded overflow-hidden">
+                                <iframe
+                                    src="<?= $e($srcPratinjau) ?>#toolbar=0&navpanes=0&scrollbar=0&view=Fit"
+                                    title="Pratinjau Invoice"
+                                    loading="lazy"
+                                    class="w-full h-full border-none bg-white"></iframe>
+                            </div>
+                        <?php else: ?>
+                            <div class="bg-white w-full max-w-sm aspect-[1/1.4] shadow-2xl rounded p-8 flex flex-col items-center justify-center text-center">
+                                <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <p class="text-gray-500 font-medium">Pratinjau tidak tersedia untuk format <?= $e($ext ?: 'file') ?>.</p>
+                                <p class="text-xs text-gray-500 mt-2 mb-4 break-words">
+                                    <?= $e(!empty($inv->file_nama) ? $inv->file_nama : 'File invoice') ?>
+                                </p>
+                                <a href="<?= $urlUnduh ?>"
+                                   class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                    </svg>
+                                    Unduh File
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KOLOM KANAN: Status Pembayaran dan Pengingat Jatuh Tempo -->
+            <div class="flex flex-col gap-4">
+
+                <!-- Status Pembayaran -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Status Pembayaran</h3>
+
+                    <div class="flex items-center justify-between gap-3 py-2">
+                        <span class="text-sm text-gray-500">Status</span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border <?= $statusBadgeClass ?>">
+                            <?= $e($inv->status) ?>
+                        </span>
+                    </div>
+
+                    <?php if (!$dibayar): ?>
+                        <form method="post" action="<?= site_url('pembayaran/status/invoice/' . $id) ?>"
+                              onsubmit="return confirm('Tandai invoice ini sudah dibayar?');" class="m-0">
+                            <?= $csrf ?>
+                            <input type="hidden" name="status" value="Dibayar">
+                            <button type="submit"
+                                    class="w-full mt-3 h-12 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm">
+                                Tandai Sudah Bayar
+                            </button>
+                        </form>
+                        <p class="text-xs text-gray-500 leading-relaxed mt-2">Tanggal pembayaran dicatat saat status diubah.</p>
+                    <?php else: ?>
+                        <div class="flex items-center justify-between gap-3 py-2 mt-1 border-t border-gray-100">
+                            <span class="text-sm text-gray-500">Dibayar pada</span>
+                            <span class="text-sm font-medium text-gray-800"><?= $tgl($inv->tanggal_bayar) ?></span>
+                        </div>
+                        <form method="post" action="<?= site_url('pembayaran/status/invoice/' . $id) ?>"
+                              onsubmit="return confirm('Kembalikan status menjadi Belum dibayar?');" class="m-0">
+                            <?= $csrf ?>
+                            <input type="hidden" name="status" value="Belum dibayar">
+                            <button type="submit" class="mt-3 text-sm text-gray-500 hover:text-gray-800 underline underline-offset-2">
+                                Kembalikan ke Belum dibayar
+                            </button>
+                        </form>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Pengingat Jatuh Tempo -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4">Pengingat otomatis</h3>
+
+                    <div class="mb-4">
+                        <p class="text-xs text-gray-500 mb-1">Kontak PIC klien</p>
+                        <div class="text-sm font-medium text-gray-800 leading-relaxed break-words">
+                            <?= $e($inv->nama_pic ?: '-') ?><br>
+                            <span class="font-normal text-gray-600"><?= $e($inv->email_pic ?: '-') ?> &nbsp; <?= $e($inv->hp_pic ?: '-') ?></span>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-500 leading-relaxed">
+                        Pengingat dikirim otomatis melalui email dan WhatsApp pada H-30 dan hari jatuh tempo.
+                    </p>
+
+                    <?php if ($dibayar): ?>
+                        <p class="text-xs text-gray-500 leading-relaxed mt-2">Invoice sudah dibayar, pengingat otomatis tidak dikirim lagi.</p>
+                    <?php endif; ?>
+
+                    <!-- Riwayat pengiriman tetap menampilkan status Email dan WhatsApp -->
+                    <div class="border-t border-gray-200 mt-5 pt-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-sm font-semibold text-gray-800">Riwayat pengiriman</h4>
+                        </div>
+
+                        <?php foreach (['email' => 'Email', 'whatsapp' => 'WhatsApp'] as $keySaluran => $namaSaluran): ?>
+                            <?php $riwayatKirim = isset($pengiriman[$keySaluran]) ? $pengiriman[$keySaluran] : null; ?>
+                            <div class="flex items-center justify-between gap-3 py-2 border-b border-gray-100 last:border-b-0">
+                                <span class="text-sm font-medium text-gray-700">
+                                    <?= $e($namaSaluran) ?><?= $riwayatKirim ? ($riwayatKirim->berhasil ? ' - Terkirim' : ' - Gagal') : ' - Belum dikirim' ?>
+                                </span>
+                                <span class="text-xs text-gray-500 shrink-0">
+                                    <?php if ($riwayatKirim): ?>
+                                        <?= $tgl($riwayatKirim->created_at) ?>
+                                        <?php if (!empty($riwayatKirim->otomatis)): ?>
+                                            &middot; Otomatis <?= (int) $riwayatKirim->offset_hari === 0 ? 'hari H' : 'H-' . (int) $riwayatKirim->offset_hari ?>
+                                        <?php else: ?>
+                                            &middot; Manual
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        Belum dikirim
+                                    <?php endif; ?>
+                                </span>
+                            </div>
+                            <?php if ($riwayatKirim && !$riwayatKirim->berhasil && !empty($riwayatKirim->keterangan)): ?>
+                                <p class="text-xs text-red-600 leading-relaxed mt-1 mb-2">
+                                    <?= $e($riwayatKirim->keterangan) ?>
+                                </p>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-</div>
+</body>
+</html>

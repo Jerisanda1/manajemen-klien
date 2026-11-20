@@ -4,18 +4,16 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 class Pembayaran extends CI_Controller
 {
     private $statusList = [
-    'penawaran' => ['Draft', 'Dikirim', 'Disetujui', 'Ditolak'],
-    'invoice'   => ['Belum dibayar', 'Dibayar'],
-];
+        'penawaran' => ['Draft', 'Dikirim', 'Disetujui', 'Ditolak'],
+        'invoice'   => ['Belum dibayar', 'Dibayar'],
+    ];
 
     private $edit_id    = 0;
     private $tgl_dasar  = null;
     private $mode       = 'template';
     private $upload_err = '';
-
-    private $form_err = '';
-
-    private $cara_inv = 'template';
+    private $form_err   = '';
+    private $cara_inv   = 'template';
 
     public function __construct()
     {
@@ -24,6 +22,7 @@ class Pembayaran extends CI_Controller
             redirect('auth');
         }
         $this->load->model('Pembayaran_model');
+        $this->load->model('Pengaturan_model');
         $this->load->library('form_validation');
         $this->form_validation->set_error_delimiters('', '');
     }
@@ -38,6 +37,7 @@ class Pembayaran extends CI_Controller
         $klien   = (string) $this->input->get('klien', TRUE);
         $sumber  = (string) $this->input->get('sumber', TRUE);
         $status  = (string) $this->input->get('status', TRUE);
+        
         if (!in_array($status, $this->statusList[$tab], TRUE)) $status = '';
         if (!in_array($sumber, ['Project', 'Mandiri'], TRUE))  $sumber = '';
 
@@ -66,24 +66,24 @@ class Pembayaran extends CI_Controller
     }
 
     /* ---------- HELPER ---------- */
-   private function cek_tab($tab)
-{
-    if (!$this->Pembayaran_model->valid_tab($tab)) {
-        show_404();
+    private function cek_tab($tab)
+    {
+        if (!$this->Pembayaran_model->valid_tab($tab)) show_404();
     }
-}
 
-    private function render($view, $data)
+    private function render($view, $data, $use_main = TRUE)
     {
         $data['content'] = 'content/pembayaran/' . $view;
-        $this->load->view('main', $data);
+        if ($use_main) {
+            $this->load->view('main', $data);
+        } else {
+            $this->load->view($data['content'], $data);
+        }
     }
 
     private function form_data($title, $penawaran, $action, $from)
     {
-        $mode = $penawaran
-            ? (($penawaran->dibuat_lewat === 'Unggahan') ? 'unggah' : 'template')
-            : $this->mode;
+        $mode = $penawaran ? (($penawaran->dibuat_lewat === 'Unggahan') ? 'unggah' : 'template') : $this->mode;
 
         return [
             'title'       => $title,
@@ -101,14 +101,14 @@ class Pembayaran extends CI_Controller
     /* ---------- TAMBAH ---------- */
     public function tambah($tab = 'penawaran')
     {
-          if ($tab === 'invoice') return $this->tambah_invoice();
+        if ($tab === 'invoice') return $this->tambah_invoice();
         $this->cek_tab($tab);
-        $this->render('form', $this->form_data('Buat Penawaran', null, site_url('pembayaran/simpan/penawaran'), 'list'));
+        $this->render('form', $this->form_data('Buat Penawaran', null, site_url('pembayaran/simpan/penawaran'), 'list'), FALSE);
     }
 
     public function simpan($tab = 'penawaran')
     {
-         if ($tab === 'invoice') return $this->simpan_invoice();
+        if ($tab === 'invoice') return $this->simpan_invoice();
         $this->cek_tab($tab);
         if ($this->input->method() !== 'post') redirect('pembayaran');
 
@@ -135,7 +135,7 @@ class Pembayaran extends CI_Controller
     /* ---------- DETAIL ---------- */
     public function detail($tab, $id)
     {
-         if ($tab === 'invoice') return $this->detail_invoice($id);
+        if ($tab === 'invoice') return $this->detail_invoice($id);
         $this->cek_tab($tab);
         $penawaran = $this->Pembayaran_model->get_penawaran($id);
         if (!$penawaran) show_404();
@@ -145,7 +145,7 @@ class Pembayaran extends CI_Controller
             'penawaran'  => $penawaran,
             'riwayat'    => $this->Pembayaran_model->get_riwayat($id),
             'statusList' => $this->statusList['penawaran'],
-        ]);
+        ], FALSE);
     }
 
     /* ---------- UBAH STATUS ---------- */
@@ -166,253 +166,136 @@ class Pembayaran extends CI_Controller
         redirect('pembayaran/detail/penawaran/' . (int) $id);
     }
 
-   /* ---------- INVOICE: EDIT ---------- */
-private function edit_invoice($id)
-{
-    $inv = $this->Pembayaran_model->get_invoice($id);
-    if (!$inv) show_404();
+    /* ---------- INVOICE: EDIT ---------- */
+    private function edit_invoice($id)
+    {
+        $inv = $this->Pembayaran_model->get_invoice($id);
+        if (!$inv) show_404();
 
-    $from   = $this->input->get('from') === 'detail' ? 'detail' : 'list';
-    $action = site_url('pembayaran/update/invoice/' . (int) $id) . ($from === 'detail' ? '?from=detail' : '');
+        $from   = $this->input->get('from') === 'detail' ? 'detail' : 'list';
+        $action = site_url('pembayaran/update/invoice/' . (int) $id) . ($from === 'detail' ? '?from=detail' : '');
 
-    $data = $this->data_invoice('Edit Invoice', $inv, $action);
-    $data['from'] = $from;
-    $this->render('form_invoice', $data);
-}
-
-private function update_invoice($id)
-{
-    if ($this->input->method() !== 'post') redirect('pembayaran?tab=invoice');
-
-    $lama = $this->Pembayaran_model->get_invoice($id);
-    if (!$lama) show_404();
-
-    $cara    = ($lama->dibuat_lewat === 'Unggahan') ? 'unggah' : 'template';
-    $dariPw  = !empty($lama->penawaran_id);
-    $this->cara_inv  = $cara;
-    $this->edit_id   = (int) $id;
-    $this->tgl_dasar = $lama->tanggal_invoice;
-
-    $this->form_validation->set_rules('perihal', 'Perihal', 'required|trim|max_length[200]');
-    $this->form_validation->set_rules('jatuh_tempo', 'Tanggal jatuh tempo', 'required|trim|callback__cek_tempo');
-    if ($cara === 'unggah') {
-        $this->form_validation->set_rules('no_invoice', 'Nomor invoice', 'required|trim|max_length[50]|callback__nomor_invoice_unik');
-        $this->form_validation->set_rules('tanggal_invoice', 'Tanggal invoice', 'required|trim');
-    }
-    if (!$dariPw) {
-        $this->form_validation->set_rules('klien_id', 'Klien', 'required|integer');
-        $this->form_validation->set_rules('project_id', 'Project', 'trim|integer');
-    }
-    $ok = $this->form_validation->run();
-
-    $file = null;
-    if ($ok && $cara === 'unggah') {
-        $file = $this->proses_upload(empty($lama->file_path), 'invoice');
-        if ($file === false) $ok = FALSE;
-    }
-    if (!$ok) {
-        return $this->edit_invoice($id);
+        $data = $this->data_invoice('Edit Invoice', $inv, $action);
+        $data['from'] = $from;
+        $this->render('form_invoice', $data, FALSE);
     }
 
-    $data = [
-        'perihal'     => $this->input->post('perihal', TRUE),
-        'jatuh_tempo' => $this->input->post('jatuh_tempo', TRUE),
-    ];
+    private function update_invoice($id)
+    {
+        if ($this->input->method() !== 'post') redirect('pembayaran?tab=invoice');
 
-    // Klien & project hanya bisa diubah kalau invoice bukan dari penawaran
-    if (!$dariPw) {
-        $project = (int) $this->input->post('project_id');
-        $data['klien_id']   = (int) $this->input->post('klien_id');
-        $data['project_id'] = $project > 0 ? $project : NULL;
-    }
+        $lama = $this->Pembayaran_model->get_invoice($id);
+        if (!$lama) show_404();
 
-    if ($cara === 'unggah') {
-        $data['no_invoice']      = trim((string) $this->input->post('no_invoice', TRUE));
-        $data['tanggal_invoice'] = $this->input->post('tanggal_invoice', TRUE);
-        if (is_array($file)) $data = array_merge($data, $file);
-    } else {
-        $data['isi_surat']    = $this->input->post('isi_surat', TRUE);
-        $data['sertakan_kop'] = $this->input->post('sertakan_kop') ? 1 : 0;
-        $data['sertakan_ttd'] = $this->input->post('sertakan_ttd') ? 1 : 0;
-    }
+        $cara    = ($lama->dibuat_lewat === 'Unggahan') ? 'unggah' : 'template';
+        $dariPw  = !empty($lama->penawaran_id);
+        $this->cara_inv  = $cara;
+        $this->edit_id   = (int) $id;
+        $this->tgl_dasar = $lama->tanggal_invoice;
 
-    $this->Pembayaran_model->update_invoice($id, $data);
-
-    // File lama dibuang jika diganti
-    if (is_array($file) && !empty($lama->file_path)) {
-        $f = APPPATH . 'uploads/invoice/' . basename($lama->file_path);
-        if (is_file($f)) @unlink($f);
-    }
-
-    $this->session->set_flashdata('success', 'Invoice berhasil diperbarui.');
-if ($this->input->get('from') === 'detail') {
-    redirect('pembayaran/detail/invoice/' . (int) $id);
-}
-redirect('pembayaran?tab=invoice');
-}
-
-/* ---------- INVOICE: DETAIL ---------- */
-private function detail_invoice($id)
-{
-    $inv = $this->Pembayaran_model->get_invoice($id);
-    if (!$inv) show_404();
-
-    $this->render('detail_invoice', [
-        'title'      => 'Detail Invoice',
-        'inv'        => $inv,
-        'pengiriman' => $this->Pembayaran_model->get_pengiriman_terakhir($id),
-    ]);
-}
-
-private function status_invoice($id)
-{
-    if ($this->input->method() !== 'post') redirect('pembayaran/detail/invoice/' . (int) $id);
-
-    $inv = $this->Pembayaran_model->get_invoice($id);
-    if (!$inv) show_404();
-
-    $status = (string) $this->input->post('status', TRUE);
-    if (in_array($status, $this->statusList['invoice'], TRUE) && $status !== $inv->status) {
-        $this->Pembayaran_model->set_status_invoice($id, $status);
-        $this->session->set_flashdata('success', 'Status pembayaran berhasil diperbarui.');
-    }
-    redirect('pembayaran/detail/invoice/' . (int) $id);
-}
-
-/* ---------- INVOICE: KIRIM PENGINGAT ---------- */
-public function kirim($tab, $id)
-{
-    
-    
-    if ($tab !== 'invoice' || $this->input->method() !== 'post') redirect('pembayaran?tab=invoice');
-
-    $inv = $this->Pembayaran_model->get_invoice($id);
-    if (!$inv) show_404();
-
-    $balik = 'pembayaran/detail/invoice/' . (int) $id;
-    if ($inv->status === 'Dibayar') {
-        $this->session->set_flashdata('error', 'Invoice sudah dibayar, pengingat tidak diperlukan.');
-        redirect($balik);
-    }
-
-    $this->config->load('notifikasi', TRUE);
-
-    $bulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    $t = strtotime($inv->jatuh_tempo);
-    $tempo = $t ? date('j', $t) . ' ' . $bulan[(int) date('n', $t)] . ' ' . date('Y', $t) : '-';
-
-    $pesan = "Yth. " . ($inv->nama_pic ?: 'Bapak/Ibu') . ",\n\n"
-           . "Mengingatkan bahwa invoice {$inv->no_invoice} ({$inv->perihal}) jatuh tempo pada {$tempo}. "
-           . "Mohon segera melakukan pembayaran.\n\nTerima kasih.\nTridatu Solution";
-
-    $saluran = $this->input->post('saluran') === 'whatsapp' ? 'whatsapp' : 'email';
-
-    if ($saluran === 'whatsapp') {
-        $tujuan = preg_replace('/\D/', '', (string) $inv->hp_pic);
-        if ($tujuan === '') {
-            $this->session->set_flashdata('error', 'Nomor HP PIC klien belum diisi.');
-            redirect($balik);
+        $this->form_validation->set_rules('perihal', 'Perihal', 'required|trim|max_length[200]');
+        $this->form_validation->set_rules('jatuh_tempo', 'Tanggal jatuh tempo', 'required|trim|callback__cek_tempo');
+        if ($cara === 'unggah') {
+            $this->form_validation->set_rules('no_invoice', 'Nomor invoice', 'required|trim|max_length[50]|callback__nomor_invoice_unik');
+            $this->form_validation->set_rules('tanggal_invoice', 'Tanggal invoice', 'required|trim');
         }
-        list($ok, $ket) = $this->kirim_wa($tujuan, $pesan);
-        $label = 'WhatsApp';
-    } else {
-        $tujuan = (string) $inv->email_pic;
-        if (!filter_var($tujuan, FILTER_VALIDATE_EMAIL)) {
-            $this->session->set_flashdata('error', 'Email PIC klien belum diisi atau tidak valid.');
-            redirect($balik);
+        if (!$dariPw) {
+            $this->form_validation->set_rules('klien_id', 'Klien', 'required|integer');
+            // PROJECT DIWAJIBKAN
+            $this->form_validation->set_rules('project_id', 'Project', 'required|integer');
         }
-       $this->load->library('notifikasi');
-list($ok, $ket) = $this->notifikasi->email($tujuan, 'Pengingat jatuh tempo invoice ' . $inv->no_invoice, $pesan);
-        $label = 'Email';
+        $ok = $this->form_validation->run();
+
+        $file = null;
+        if ($ok && $cara === 'unggah') {
+            $file = $this->proses_upload(empty($lama->file_path), 'invoice');
+            if ($file === false) $ok = FALSE;
+        }
+        if (!$ok) {
+            return $this->edit_invoice($id);
+        }
+
+        $data = [
+            'perihal'     => $this->input->post('perihal', TRUE),
+            'jatuh_tempo' => $this->input->post('jatuh_tempo', TRUE),
+        ];
+
+        if (!$dariPw) {
+            $project = (int) $this->input->post('project_id');
+            $data['klien_id']   = (int) $this->input->post('klien_id');
+            $data['project_id'] = $project > 0 ? $project : NULL;
+        }
+
+        if ($cara === 'unggah') {
+            $data['no_invoice']      = trim((string) $this->input->post('no_invoice', TRUE));
+            $data['tanggal_invoice'] = $this->input->post('tanggal_invoice', TRUE);
+            if (is_array($file)) $data = array_merge($data, $file);
+        } else {
+            $data['isi_surat']    = $this->input->post('isi_surat', TRUE);
+            $data['sertakan_kop'] = $this->input->post('sertakan_kop') ? 1 : 0;
+            $data['sertakan_ttd'] = $this->input->post('sertakan_ttd') ? 1 : 0;
+        }
+
+        $this->Pembayaran_model->update_invoice($id, $data);
+
+        if (is_array($file) && !empty($lama->file_path)) {
+            $f = APPPATH . 'uploads/invoice/' . basename($lama->file_path);
+            if (is_file($f)) @unlink($f);
+        }
+
+        $this->session->set_flashdata('success', 'Invoice berhasil diperbarui.');
+        if ($this->input->get('from') === 'detail') {
+            redirect('pembayaran/detail/invoice/' . (int) $id);
+        }
+        redirect('pembayaran?tab=invoice');
     }
 
-    $this->Pembayaran_model->add_pengiriman($id, $saluran, $tujuan, $ok, $ket);
+    /* ---------- INVOICE: DETAIL ---------- */
+    private function detail_invoice($id)
+    {
+        $inv = $this->Pembayaran_model->get_invoice($id);
+        if (!$inv) show_404();
 
-    if ($ok) {
-        $this->session->set_flashdata('success', $label . ' pengingat berhasil dikirim ke ' . $tujuan . '.');
-    } else {
-        $this->session->set_flashdata('error', $label . ' gagal dikirim: ' . $ket);
-    }
-    redirect($balik);
-}
-
-// Mengembalikan [berhasil(bool), keterangan(string)]
-private function kirim_email($ke, $subjek, $isi)
-{
-    $c = function ($k) { return $this->config->item($k, 'notifikasi'); };
-
-    if (!$c('email_smtp_user') || !$c('email_smtp_pass')) {
-        return [FALSE, 'SMTP belum diisi di application/config/notifikasi.php.'];
+        $this->render('detail_invoice', [
+            'title'      => 'Detail Invoice',
+            'inv'        => $inv,
+            'pengiriman' => $this->Pembayaran_model->get_pengiriman_terakhir($id),
+        ], FALSE);
     }
 
-    $this->load->library('email');
-    $this->email->initialize([
-        'protocol'     => 'smtp',
-        'smtp_host'    => $c('email_smtp_host'),
-        'smtp_port'    => (int) $c('email_smtp_port'),
-        'smtp_user'    => $c('email_smtp_user'),
-        'smtp_pass'    => $c('email_smtp_pass'),
-        'smtp_crypto'  => $c('email_smtp_crypto'),
-        'smtp_timeout' => 15,
-        'mailtype'     => 'text',
-        'charset'      => 'utf-8',
-        'newline'      => "\r\n",
-        'crlf'         => "\r\n",
-    ]);
-    $this->email->from($c('email_from') ?: $c('email_smtp_user'), $c('email_from_name'));
-    $this->email->to($ke);
-    $this->email->subject($subjek);
-    $this->email->message($isi);
+    private function status_invoice($id)
+    {
+        if ($this->input->method() !== 'post') redirect('pembayaran/detail/invoice/' . (int) $id);
 
-    if ($this->email->send(FALSE)) return [TRUE, ''];
+        $inv = $this->Pembayaran_model->get_invoice($id);
+        if (!$inv) show_404();
 
-    $err = trim(preg_replace('/\s+/', ' ', strip_tags($this->email->print_debugger([]))));
-    return [FALSE, $err !== '' ? $err : 'Server email menolak pengiriman.'];
-}
+        $status = (string) $this->input->post('status', TRUE);
+        if (in_array($status, $this->statusList['invoice'], TRUE) && $status !== $inv->status) {
+            $this->Pembayaran_model->set_status_invoice($id, $status);
+            $this->session->set_flashdata('success', 'Status pembayaran berhasil diperbarui.');
+        }
+        redirect('pembayaran/detail/invoice/' . (int) $id);
+    }
 
-private function kirim_wa($nomor, $pesan)
-{
-    $token = $this->config->item('fonnte_token', 'notifikasi');
-    if (!$token) return [FALSE, 'Token Fonnte belum diisi di application/config/notifikasi.php.'];
-    if (!function_exists('curl_init')) return [FALSE, 'Ekstensi cURL PHP belum aktif.'];
+    /* ---------- EDIT ---------- */
+    public function edit($tab, $id)
+    {
+        if ($tab === 'invoice') return $this->edit_invoice($id);
+        $this->cek_tab($tab);
 
-    $ch = curl_init('https://api.fonnte.com/send');
-    curl_setopt_array($ch, [
-        CURLOPT_POST           => TRUE,
-        CURLOPT_POSTFIELDS     => ['target' => $nomor, 'message' => $pesan, 'countryCode' => '62'],
-        CURLOPT_HTTPHEADER     => ['Authorization: ' . $token],
-        CURLOPT_RETURNTRANSFER => TRUE,
-        CURLOPT_CONNECTTIMEOUT => 10,
-        CURLOPT_TIMEOUT        => 20,
-    ]);
-    $res = curl_exec($ch);
-    $err = curl_error($ch);
-    curl_close($ch);
+        $penawaran = $this->Pembayaran_model->get_penawaran($id);
+        if (!$penawaran) show_404();
 
-    if ($res === FALSE) return [FALSE, 'Tidak bisa terhubung ke Fonnte: ' . $err];
+        $from   = $this->input->get('from') === 'detail' ? 'detail' : 'list';
+        $action = site_url('pembayaran/update/penawaran/' . (int) $id) . ($from === 'detail' ? '?from=detail' : '');
 
-    $j = json_decode($res, TRUE);
-    if (!empty($j['status'])) return [TRUE, ''];
+        $this->render('form', $this->form_data('Edit Penawaran', $penawaran, $action, $from), FALSE);
+    }
 
-    return [FALSE, 'Fonnte: ' . (isset($j['reason']) ? $j['reason'] : 'respons tidak dikenal')];
-}
-/* ---------- EDIT ---------- */
-public function edit($tab, $id)
-{
-    if ($tab === 'invoice') return $this->edit_invoice($id);
-    $this->cek_tab($tab);
-
-    $penawaran = $this->Pembayaran_model->get_penawaran($id);
-    if (!$penawaran) show_404();
-
-    $from   = $this->input->get('from') === 'detail' ? 'detail' : 'list';
-    $action = site_url('pembayaran/update/penawaran/' . (int) $id) . ($from === 'detail' ? '?from=detail' : '');
-
-    $this->render('form', $this->form_data('Edit Penawaran', $penawaran, $action, $from));
-}
     public function update($tab, $id)
     {
-         if ($tab === 'invoice') return $this->update_invoice($id);
+        if ($tab === 'invoice') return $this->update_invoice($id);
         $this->cek_tab($tab);
         if ($this->input->method() !== 'post') redirect('pembayaran');
 
@@ -438,7 +321,6 @@ public function edit($tab, $id)
 
         $this->Pembayaran_model->update_penawaran($id, $data);
 
-        // File lama dibuang jika diganti
         if (is_array($file) && !empty($lama->file_path)) {
             $f = APPPATH . 'uploads/penawaran/' . basename($lama->file_path);
             if (is_file($f)) @unlink($f);
@@ -469,210 +351,214 @@ public function edit($tab, $id)
         $p->alamat            = $klien ? $klien->alamat : NULL;
         $p->nama_project      = $in['project_id'] ? $this->Pembayaran_model->get_project_nama($in['project_id']) : NULL;
 
-        $this->load->view('content/pembayaran/cetak', ['penawaran' => $p]);
+        $this->stream_pdf_penawaran($p, TRUE);
     }
 
- /* ---------- UNDUH ---------- */
-public function unduh($tab, $id)
-{
-     if ($tab === 'invoice') return $this->unduh_invoice($id);
-    $this->cek_tab($tab);
+    /* ---------- UNDUH ---------- */
+    public function unduh($tab, $id)
+    {
+        if ($tab === 'invoice') return $this->unduh_invoice($id);
+        $this->cek_tab($tab);
 
-    // Ambil data berdasarkan tab
-    if ($tab === 'invoice') {
-        $data_row = $this->Pembayaran_model->get_invoice($id);
-    } else {
         $data_row = $this->Pembayaran_model->get_penawaran($id);
+        if (!$data_row) show_404();
+
+        $inline = $this->input->get('inline') ? TRUE : FALSE;
+        $this->stream_pdf_penawaran($data_row, $inline);
     }
 
-    if (!$data_row) show_404();
+    // Helper khusus Penawaran
+    private function stream_pdf_penawaran($p, $inline)
+    {
+        if (file_exists(FCPATH . 'vendor/autoload.php')) {
+            require_once FCPATH . 'vendor/autoload.php';
+        }
+        if (!class_exists('Dompdf\Dompdf')) {
+            show_error('Dompdf belum terpasang. Jalankan "composer require dompdf/dompdf" di root project.', 500);
+        }
 
-    if (!class_exists('Dompdf\Dompdf')) {
-        show_error('Dompdf belum terpasang.', 500);
+        $settings = $this->Pengaturan_model->get_settings();
+
+        $html = $this->load->view('content/pembayaran/pdf', [
+            'penawaran' => $p,
+            'settings'  => $settings
+        ], TRUE);
+
+        $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => FALSE]);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $nama = preg_replace('/[^A-Za-z0-9_\-]/', '-', $p->no_penawaran ?? 'penawaran') . '.pdf';
+        $dompdf->stream($nama, ['Attachment' => !$inline]);
+        exit;
     }
 
-    // Render view PDF yang sesuai
-    if ($tab === 'invoice') {
-        $html = $this->load->view('content/pembayaran/pdf_invoice', ['invoice' => $data_row], TRUE);
-        $no_dokumen = isset($data_row->no_invoice) ? $data_row->no_invoice : 'invoice';
-    } else {
-        $html = $this->load->view('content/pembayaran/pdf', ['penawaran' => $data_row], TRUE);
-        $no_dokumen = isset($data_row->no_penawaran) ? $data_row->no_penawaran : 'penawaran';
+    /* ---------- INVOICE: UNDUH / PRATINJAU ---------- */
+    private function unduh_invoice($id)
+    {
+        $inv = $this->Pembayaran_model->get_invoice($id);
+        if (!$inv) show_404();
+
+        if ($inv->dibuat_lewat === 'Unggahan' && !empty($inv->file_path)) {
+            redirect('pembayaran/berkas-invoice/' . (int) $id . '?unduh=1');
+        }
+        $this->stream_pdf_invoice($inv, (bool) $this->input->get('inline'));
     }
 
-    $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => FALSE]);
-    $dompdf->loadHtml($html, 'UTF-8');
-    $dompdf->setPaper('A4', 'portrait');
-    $dompdf->render();
+    public function pratinjau_invoice()
+    {
+        if ($this->input->method() !== 'post') redirect('pembayaran?tab=invoice');
 
-    $nama = preg_replace('/[^A-Za-z0-9_\-]/', '-', $no_dokumen) . '.pdf';
-    $inline = $this->input->get('inline') ? TRUE : FALSE;
-    $dompdf->stream($nama, ['Attachment' => !$inline]);
-    exit;
-}
+        $klien   = $this->Pembayaran_model->get_klien((int) $this->input->post('klien_id'));
+        $project = (int) $this->input->post('project_id');
 
-/* ---------- INVOICE: UNDUH / PRATINJAU ---------- */
-private function unduh_invoice($id)
-{
-    $inv = $this->Pembayaran_model->get_invoice($id);
-    if (!$inv) show_404();
-
-    // Invoice unggahan: unduh file aslinya
-    if ($inv->dibuat_lewat === 'Unggahan' && !empty($inv->file_path)) {
-        redirect('pembayaran/berkas-invoice/' . (int) $id . '?unduh=1');
+        $o = (object) [
+            'no_invoice'      => $this->input->post('pv_nomor', TRUE) ?: $this->Pembayaran_model->next_nomor_invoice(date('Y')),
+            'tanggal_invoice' => $this->input->post('pv_tanggal', TRUE) ?: date('Y-m-d'),
+            'jatuh_tempo'     => $this->input->post('jatuh_tempo', TRUE) ?: NULL,
+            'perihal'         => $this->input->post('perihal', TRUE),
+            'isi_surat'       => $this->input->post('isi_surat', TRUE),
+            'sertakan_kop'    => $this->input->post('sertakan_kop') ? 1 : 0,
+            'sertakan_ttd'    => $this->input->post('sertakan_ttd') ? 1 : 0,
+            'nama_klien'      => $klien ? $klien->nama_klien : NULL,
+            'nama_pic'        => $klien ? $klien->nama_pic : NULL,
+            'alamat'          => $klien ? $klien->alamat : NULL,
+            'nama_project'    => $project > 0 ? $this->Pembayaran_model->get_project_nama($project) : NULL,
+        ];
+        $this->stream_pdf_invoice($o, TRUE);
     }
-    $this->stream_pdf_invoice($inv, (bool) $this->input->get('inline'));
-}
 
-public function pratinjau_invoice()
-{
-    if ($this->input->method() !== 'post') redirect('pembayaran?tab=invoice');
+    private function stream_pdf_invoice($o, $inline)
+    {
+        if (file_exists(FCPATH . 'vendor/autoload.php')) {
+            require_once FCPATH . 'vendor/autoload.php';
+        }
+        if (!class_exists('Dompdf\Dompdf')) {
+            show_error('Dompdf belum terpasang. Jalankan "composer require dompdf/dompdf" di root project.', 500);
+        }
 
-    $klien   = $this->Pembayaran_model->get_klien((int) $this->input->post('klien_id'));
-    $project = (int) $this->input->post('project_id');
+        $settings = $this->Pengaturan_model->get_settings();
 
-    $o = (object) [
-        'no_invoice'      => $this->input->post('pv_nomor', TRUE) ?: $this->Pembayaran_model->next_nomor_invoice(date('Y')),
-        'tanggal_invoice' => $this->input->post('pv_tanggal', TRUE) ?: date('Y-m-d'),
-        'jatuh_tempo'     => $this->input->post('jatuh_tempo', TRUE) ?: NULL,
-        'perihal'         => $this->input->post('perihal', TRUE),
-        'isi_surat'       => $this->input->post('isi_surat', TRUE),
-        'sertakan_kop'    => $this->input->post('sertakan_kop') ? 1 : 0,
-        'sertakan_ttd'    => $this->input->post('sertakan_ttd') ? 1 : 0,
-        'nama_klien'      => $klien ? $klien->nama_klien : NULL,
-        'nama_pic'        => $klien ? $klien->nama_pic : NULL,
-        'alamat'          => $klien ? $klien->alamat : NULL,
-        'nama_project'    => $project > 0 ? $this->Pembayaran_model->get_project_nama($project) : NULL,
-    ];
-    $this->stream_pdf_invoice($o, TRUE);
-}
+        $html = $this->load->view('content/pembayaran/pdf_invoice', [
+            'invoice'  => $o,
+            'settings' => $settings
+        ], TRUE);
 
-private function stream_pdf_invoice($o, $inline)
-{
-    require_once FCPATH . 'vendor/autoload.php';
+        $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => FALSE]);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
 
-    $html = $this->load->view('content/pembayaran/pdf_invoice', ['invoice' => $o], TRUE);
+        $nama = preg_replace('/[^A-Za-z0-9_\-]/', '-', $o->no_invoice) . '.pdf';
+        $dompdf->stream($nama, ['Attachment' => !$inline]);
+        exit;
+    }
 
-    $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => FALSE]);
-    $dompdf->loadHtml($html, 'UTF-8');
-    $dompdf->setPaper('A4', 'portrait');
-    $dompdf->render();
+    public function berkas_invoice($id)
+    {
+        $inv = $this->Pembayaran_model->get_invoice($id);
+        if (!$inv || empty($inv->file_path)) show_404();
 
-    $nama = preg_replace('/[^A-Za-z0-9_\-]/', '-', $o->no_invoice) . '.pdf';
-    $dompdf->stream($nama, ['Attachment' => !$inline]);
-    exit;
-}
+        $path = APPPATH . 'uploads/invoice/' . basename($inv->file_path);
+        if (!is_file($path)) show_404();
 
-public function berkas_invoice($id)
-{
-    $inv = $this->Pembayaran_model->get_invoice($id);
-    if (!$inv || empty($inv->file_path)) show_404();
+        $ext   = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimes = [
+            'pdf'  => 'application/pdf',
+            'doc'  => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ];
+        $mime = isset($mimes[$ext]) ? $mimes[$ext] : 'application/octet-stream';
+        $nama = str_replace(['"', "\r", "\n"], '', $inv->file_nama ?: basename($path));
+        $disp = ($ext === 'pdf' && !$this->input->get('unduh')) ? 'inline' : 'attachment';
 
-    $path = APPPATH . 'uploads/invoice/' . basename($inv->file_path);
-    if (!is_file($path)) show_404();
+        header('Content-Type: ' . $mime);
+        header('Content-Disposition: ' . $disp . '; filename="' . $nama . '"');
+        header('Content-Length: ' . filesize($path));
+        header('X-Content-Type-Options: nosniff');
+        readfile($path);
+        exit;
+    }
 
-    $ext   = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    $mimes = [
-        'pdf'  => 'application/pdf',
-        'doc'  => 'application/msword',
-        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    ];
-    $mime = isset($mimes[$ext]) ? $mimes[$ext] : 'application/octet-stream';
-    $nama = str_replace(['"', "\r", "\n"], '', $inv->file_nama ?: basename($path));
-    $disp = ($ext === 'pdf' && !$this->input->get('unduh')) ? 'inline' : 'attachment';
+    /* ---------- FILE UNGGAHAN ---------- */
+    public function berkas($id)
+    {
+        $p = $this->Pembayaran_model->get_penawaran($id);
+        if (!$p || empty($p->file_path)) show_404();
 
-    header('Content-Type: ' . $mime);
-    header('Content-Disposition: ' . $disp . '; filename="' . $nama . '"');
-    header('Content-Length: ' . filesize($path));
-    header('X-Content-Type-Options: nosniff');
-    readfile($path);
-    exit;
-}
+        $path = APPPATH . 'uploads/penawaran/' . basename($p->file_path);
+        if (!is_file($path)) show_404();
 
-/* ---------- FILE UNGGAHAN ---------- */
-public function berkas($id)
-{
-    $p = $this->Pembayaran_model->get_penawaran($id);
-    if (!$p || empty($p->file_path)) show_404();
+        $ext   = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimes = [
+            'pdf'  => 'application/pdf',
+            'doc'  => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ];
+        $mime = isset($mimes[$ext]) ? $mimes[$ext] : 'application/octet-stream';
+        $nama = str_replace(['"', "\r", "\n"], '', $p->file_nama ?: basename($path));
 
-    $path = APPPATH . 'uploads/penawaran/' . basename($p->file_path);
-    if (!is_file($path)) show_404();
+        $paksa = $this->input->get('unduh') ? TRUE : FALSE;
+        $disp  = ($ext === 'pdf' && !$paksa) ? 'inline' : 'attachment';
 
-    $ext   = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    $mimes = [
-        'pdf'  => 'application/pdf',
-        'doc'  => 'application/msword',
-        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    ];
-    $mime = isset($mimes[$ext]) ? $mimes[$ext] : 'application/octet-stream';
-    $nama = str_replace(['"', "\r", "\n"], '', $p->file_nama ?: basename($path));
+        header('Content-Type: ' . $mime);
+        header('Content-Disposition: ' . $disp . '; filename="' . $nama . '"');
+        header('Content-Length: ' . filesize($path));
+        header('X-Content-Type-Options: nosniff');
+        readfile($path);
+        exit;
+    }
 
-    // ?unduh=1 memaksa unduh; tanpa itu PDF dibuka di browser (untuk pratinjau)
-    $paksa = $this->input->get('unduh') ? TRUE : FALSE;
-    $disp  = ($ext === 'pdf' && !$paksa) ? 'inline' : 'attachment';
+    private function proses_upload($wajib, $sub = 'penawaran')
+    {
+        if (empty($_FILES['berkas']['name'])) {
+            if ($wajib) {
+                $this->upload_err = 'File ' . $sub . ' wajib diunggah.';
+                return false;
+            }
+            return null;
+        }
 
-    header('Content-Type: ' . $mime);
-    header('Content-Disposition: ' . $disp . '; filename="' . $nama . '"');
-    header('Content-Length: ' . filesize($path));
-    header('X-Content-Type-Options: nosniff');
-    readfile($path);
-    exit;
-}
+        $dir = APPPATH . 'uploads/' . $sub . '/';
+        if (!is_dir($dir)) @mkdir($dir, 0755, true);
 
-    // null = tidak ada file baru, false = gagal, array = berhasil
-   private function proses_upload($wajib, $sub = 'penawaran')
-{
-    if (empty($_FILES['berkas']['name'])) {
-        if ($wajib) {
-            $this->upload_err = 'File ' . $sub . ' wajib diunggah.';
+        $this->load->library('upload');
+        $this->upload->initialize([
+            'upload_path'   => $dir,
+            'allowed_types' => 'pdf|doc|docx',
+            'max_size'      => 5120,
+            'encrypt_name'  => TRUE,
+        ]);
+
+        if (!$this->upload->do_upload('berkas')) {
+            $this->upload_err = strip_tags($this->upload->display_errors('', ''));
             return false;
         }
-        return null;
+
+        $d = $this->upload->data();
+        return ['file_path' => $d['file_name'], 'file_nama' => $d['client_name']];
     }
-
-    $dir = APPPATH . 'uploads/' . $sub . '/';
-    if (!is_dir($dir)) @mkdir($dir, 0755, true);
-
-    $this->load->library('upload');
-    $this->upload->initialize([
-        'upload_path'   => $dir,
-        'allowed_types' => 'pdf|doc|docx',
-        'max_size'      => 5120, // KB
-        'encrypt_name'  => TRUE,
-    ]);
-
-    if (!$this->upload->do_upload('berkas')) {
-        $this->upload_err = strip_tags($this->upload->display_errors('', ''));
-        return false;
-    }
-
-    $d = $this->upload->data();
-    return ['file_path' => $d['file_name'], 'file_nama' => $d['client_name']];
-}
 
     /* ---------- HAPUS ---------- */
-   public function hapus()
-{
-    if ($this->input->method() !== 'post') redirect('pembayaran');
+    public function hapus()
+    {
+        if ($this->input->method() !== 'post') redirect('pembayaran');
 
-    $tab = (string) $this->input->post('tab', TRUE);
-    if (!$this->Pembayaran_model->valid_tab($tab)) redirect('pembayaran');
+        $tab = (string) $this->input->post('tab', TRUE);
+        if (!$this->Pembayaran_model->valid_tab($tab)) redirect('pembayaran');
 
-    // Proses hapus data
-    $this->Pembayaran_model->delete($tab, $this->input->post('id', TRUE));
-
-    // Kirim pesan sukses
-    $this->session->set_flashdata('success', ($tab === 'invoice' ? 'Invoice' : 'Penawaran') . ' berhasil dihapus.');
-
-    // Kembali ke halaman pembayaran (tanpa halaman putih)
-    redirect('pembayaran?tab=' . $tab);
-}
+        $this->Pembayaran_model->delete($tab, $this->input->post('id', TRUE));
+        $this->session->set_flashdata('success', ($tab === 'invoice' ? 'Invoice' : 'Penawaran') . ' berhasil dihapus.');
+        redirect('pembayaran?tab=' . $tab);
+    }
 
     /* ---------- VALIDASI ---------- */
     private function validasi()
     {
         $this->form_validation->set_rules('klien_id', 'Klien', 'required|integer');
-        $this->form_validation->set_rules('project_id', 'Project', 'trim|integer');
+        // PROJECT DIWAJIBKAN
+        $this->form_validation->set_rules('project_id', 'Project', 'required|integer');
         $this->form_validation->set_rules('perihal', 'Perihal', 'required|trim|max_length[200]');
         $this->form_validation->set_rules('berlaku_sampai', 'Berlaku sampai', 'trim|callback__cek_tanggal');
 
@@ -745,130 +631,130 @@ public function berkas($id)
     }
 
     /* ---------- INVOICE: TAMBAH ---------- */
-private function data_invoice($title, $inv, $action)
-{
-    return [
-        'title'         => $title,
-        'inv'           => $inv,
-        'klienList'     => $this->Pembayaran_model->get_klien_options(),
-        'projectList'   => $this->Pembayaran_model->get_project_options(),
-        'penawaranList' => $inv ? [] : $this->Pembayaran_model->get_penawaran_disetujui(),
-        'nomorBaru'     => $this->Pembayaran_model->next_nomor_invoice(date('Y')),
-        'pre'           => $inv ? 0 : (int) $this->input->get('penawaran_id'),
-        'action'        => $action,
-        'formErr'       => $this->form_err,
-        'uploadErr'     => $this->upload_err,
-    ];
-}
-
-private function tambah_invoice()
-{
-    $this->render('form_invoice', $this->data_invoice('Tambah Invoice', null, site_url('pembayaran/simpan/invoice')));
-}
-
-private function simpan_invoice()
-{
-    if ($this->input->method() !== 'post') redirect('pembayaran?tab=invoice');
-
-    $sumber = $this->input->post('sumber') === 'penawaran' ? 'penawaran' : 'baru';
-    $cara   = $this->input->post('cara') === 'unggah' ? 'unggah' : 'template';
-    $this->cara_inv = $cara;
-
-    $this->form_validation->set_rules('perihal', 'Perihal', 'required|trim|max_length[200]');
-    $this->form_validation->set_rules('jatuh_tempo', 'Tanggal jatuh tempo', 'required|trim|callback__cek_tempo');
-    if ($cara === 'unggah') {
-        $this->form_validation->set_rules('no_invoice', 'Nomor invoice', 'required|trim|max_length[50]|callback__nomor_invoice_unik');
-        $this->form_validation->set_rules('tanggal_invoice', 'Tanggal invoice', 'required|trim');
+    private function data_invoice($title, $inv, $action)
+    {
+        return [
+            'title'         => $title,
+            'inv'           => $inv,
+            'klienList'     => $this->Pembayaran_model->get_klien_options(),
+            'projectList'   => $this->Pembayaran_model->get_project_options(),
+            'penawaranList' => $inv ? [] : $this->Pembayaran_model->get_penawaran_disetujui(),
+            'nomorBaru'     => $this->Pembayaran_model->next_nomor_invoice(date('Y')),
+            'pre'           => $inv ? 0 : (int) $this->input->get('penawaran_id'),
+            'action'        => $action,
+            'formErr'       => $this->form_err,
+            'uploadErr'     => $this->upload_err,
+        ];
     }
-    if ($sumber === 'penawaran') {
-        $this->form_validation->set_rules('penawaran_id', 'Penawaran', 'required|integer');
-    } else {
-        $this->form_validation->set_rules('klien_id', 'Klien', 'required|integer');
-        $this->form_validation->set_rules('project_id', 'Project', 'trim|integer');
-    }
-    $ok = $this->form_validation->run();
 
-    // Klien & project diambil dari penawaran di server (bukan dari isian form)
-    $klien   = (int) $this->input->post('klien_id');
-    $project = (int) $this->input->post('project_id');
-    $pwId    = NULL;
-    if ($ok && $sumber === 'penawaran') {
-        $pw = $this->Pembayaran_model->get_penawaran($this->input->post('penawaran_id'));
-        if (!$pw || $pw->status !== 'Disetujui') {
-            $this->form_err = 'Penawaran harus berstatus Disetujui.';
-            $ok = FALSE;
-        } else {
-            $pwId    = (int) $pw->id;
-            $klien   = (int) $pw->klien_id;
-            $project = (int) $pw->project_id;
+    private function tambah_invoice()
+    {
+        $this->render('form_invoice', $this->data_invoice('Tambah Invoice', null, site_url('pembayaran/simpan/invoice')), FALSE);
+    }
+
+    private function simpan_invoice()
+    {
+        if ($this->input->method() !== 'post') redirect('pembayaran?tab=invoice');
+
+        $sumber = $this->input->post('sumber') === 'penawaran' ? 'penawaran' : 'baru';
+        $cara   = $this->input->post('cara') === 'unggah' ? 'unggah' : 'template';
+        $this->cara_inv = $cara;
+
+        $this->form_validation->set_rules('perihal', 'Perihal', 'required|trim|max_length[200]');
+        $this->form_validation->set_rules('jatuh_tempo', 'Tanggal jatuh tempo', 'required|trim|callback__cek_tempo');
+        if ($cara === 'unggah') {
+            $this->form_validation->set_rules('no_invoice', 'Nomor invoice', 'required|trim|max_length[50]|callback__nomor_invoice_unik');
+            $this->form_validation->set_rules('tanggal_invoice', 'Tanggal invoice', 'required|trim');
         }
+        if ($sumber === 'penawaran') {
+            $this->form_validation->set_rules('penawaran_id', 'Penawaran', 'required|integer');
+        } else {
+            $this->form_validation->set_rules('klien_id', 'Klien', 'required|integer');
+            // PROJECT DIWAJIBKAN
+            $this->form_validation->set_rules('project_id', 'Project', 'required|integer');
+        }
+        $ok = $this->form_validation->run();
+
+        $klien   = (int) $this->input->post('klien_id');
+        $project = (int) $this->input->post('project_id');
+        $pwId    = NULL;
+        if ($ok && $sumber === 'penawaran') {
+            $pw = $this->Pembayaran_model->get_penawaran($this->input->post('penawaran_id'));
+            if (!$pw || $pw->status !== 'Disetujui') {
+                $this->form_err = 'Penawaran harus berstatus Disetujui.';
+                $ok = FALSE;
+            } else {
+                $pwId    = (int) $pw->id;
+                $klien   = (int) $pw->klien_id;
+                $project = (int) $pw->project_id;
+            }
+        }
+
+        $file = null;
+        if ($ok && $cara === 'unggah') {
+            $file = $this->proses_upload(TRUE, 'invoice');
+            if ($file === false) $ok = FALSE;
+        }
+        if (!$ok) {
+            return $this->tambah_invoice();
+        }
+
+        $data = [
+            'klien_id'     => $klien,
+            'project_id'   => $project > 0 ? $project : NULL,
+            'penawaran_id' => $pwId,
+            'perihal'      => $this->input->post('perihal', TRUE),
+            'jatuh_tempo'  => $this->input->post('jatuh_tempo', TRUE),
+            'status'       => 'Belum dibayar',
+        ];
+
+        if ($cara === 'unggah') {
+            $data['no_invoice']      = trim((string) $this->input->post('no_invoice', TRUE));
+            $data['tanggal_invoice'] = $this->input->post('tanggal_invoice', TRUE);
+            $data['dibuat_lewat']    = 'Unggahan';
+            $data['isi_surat']       = NULL;
+            $data['sertakan_kop']    = 0;
+            $data['sertakan_ttd']    = 0;
+            $data = array_merge($data, $file);
+        } else {
+            $data['no_invoice']      = $this->Pembayaran_model->next_nomor_invoice(date('Y'));
+            $data['tanggal_invoice'] = date('Y-m-d');
+            $data['dibuat_lewat']    = 'Template Baku';
+            $data['isi_surat']       = $this->input->post('isi_surat', TRUE);
+            $data['sertakan_kop']    = $this->input->post('sertakan_kop') ? 1 : 0;
+            $data['sertakan_ttd']    = $this->input->post('sertakan_ttd') ? 1 : 0;
+        }
+
+        $this->Pembayaran_model->insert_invoice($data);
+        $this->session->set_flashdata('success', 'Invoice berhasil dibuat.');
+        redirect('pembayaran?tab=invoice');
     }
 
-    $file = null;
-    if ($ok && $cara === 'unggah') {
-        $file = $this->proses_upload(TRUE, 'invoice');
-        if ($file === false) $ok = FALSE;
-    }
-    if (!$ok) {
-        return $this->tambah_invoice();
-    }
-
-    $data = [
-        'klien_id'     => $klien,
-        'project_id'   => $project > 0 ? $project : NULL,
-        'penawaran_id' => $pwId,
-        'perihal'      => $this->input->post('perihal', TRUE),
-        'jatuh_tempo'  => $this->input->post('jatuh_tempo', TRUE),
-        'status'       => 'Belum dibayar',
-    ];
-
-    if ($cara === 'unggah') {
-        $data['no_invoice']      = trim((string) $this->input->post('no_invoice', TRUE));
-        $data['tanggal_invoice'] = $this->input->post('tanggal_invoice', TRUE);
-        $data['dibuat_lewat']    = 'Unggahan';
-        $data['isi_surat']       = NULL;
-        $data['sertakan_kop']    = 0;
-        $data['sertakan_ttd']    = 0;
-        $data = array_merge($data, $file);
-    } else {
-        $data['no_invoice']      = $this->Pembayaran_model->next_nomor_invoice(date('Y'));
-        $data['tanggal_invoice'] = date('Y-m-d');
-        $data['dibuat_lewat']    = 'Template Baku';
-        $data['isi_surat']       = $this->input->post('isi_surat', TRUE);
-        $data['sertakan_kop']    = $this->input->post('sertakan_kop') ? 1 : 0;
-        $data['sertakan_ttd']    = $this->input->post('sertakan_ttd') ? 1 : 0;
+    public function _cek_tempo($tgl)
+    {
+        if ($this->cara_inv === 'unggah') {
+            $dasar = $this->input->post('tanggal_invoice');
+            $pesan = 'Tanggal jatuh tempo tidak boleh sebelum tanggal invoice.';
+        } elseif ($this->tgl_dasar) {
+            $dasar = $this->tgl_dasar;
+            $pesan = 'Tanggal jatuh tempo tidak boleh sebelum tanggal invoice.';
+        } else {
+            $dasar = date('Y-m-d');
+            $pesan = 'Tanggal jatuh tempo tidak boleh sebelum hari ini.';
+        }
+        if ($tgl && $dasar && strtotime($tgl) < strtotime($dasar)) {
+            $this->form_validation->set_message('_cek_tempo', $pesan);
+            return FALSE;
+        }
+        return TRUE;
     }
 
-    $this->Pembayaran_model->insert_invoice($data);
-    $this->session->set_flashdata('success', 'Invoice berhasil dibuat.');
-    redirect('pembayaran?tab=invoice');
-}
-
-public function _cek_tempo($tgl)
-{
-    if ($this->cara_inv === 'unggah') {
-        $dasar = $this->input->post('tanggal_invoice');
-        $pesan = 'Tanggal jatuh tempo tidak boleh sebelum tanggal invoice.';
-    } elseif ($this->tgl_dasar) {
-        $dasar = $this->tgl_dasar;
-        $pesan = 'Tanggal jatuh tempo tidak boleh sebelum tanggal invoice.';
-    } else {
-        $dasar = date('Y-m-d');
-        $pesan = 'Tanggal jatuh tempo tidak boleh sebelum hari ini.';
+    public function _nomor_invoice_unik($no)
+    {
+        if ($this->Pembayaran_model->nomor_invoice_dipakai($no, $this->edit_id)) {
+            $this->form_validation->set_message('_nomor_invoice_unik', 'Nomor invoice sudah dipakai.');
+            return FALSE;
+        }
+        return TRUE;
     }
-    if ($tgl && $dasar && strtotime($tgl) < strtotime($dasar)) {
-        $this->form_validation->set_message('_cek_tempo', $pesan);
-        return FALSE;
-    }
-    return TRUE;
-}
-
-public function _nomor_invoice_unik($no)
-{
-    if ($this->Pembayaran_model->nomor_invoice_dipakai($no, $this->edit_id)) {
-        $this->form_validation->set_message('_nomor_invoice_unik', 'Nomor invoice sudah dipakai.');
-        return FALSE;
-    }
-    return TRUE;
-}
 }

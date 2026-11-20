@@ -1,22 +1,46 @@
 <?php
 
+if (!defined('CRONJOBS_FUNCTIONS_LOADED')) {
+    define('CRONJOBS_FUNCTIONS_LOADED', true);
+}
+
+/**
+ * Membaca konfigurasi pengguna.
+ * File windows-cronjobs.config berada di root windows-cronjobs-main.
+ */
 function get_user_config()
 {
-    $configFile = 'C:\\laragon\\www\\manajemen_klien\\windows-cronjobs-main\\windows-cronjobs.config';
+    $configFile = dirname(__DIR__) . '/windows-cronjobs.config';
+
+    if (!file_exists($configFile)) {
+        throw new Exception('File windows-cronjobs.config tidak ditemukan: ' . $configFile);
+    }
+
     $configLines = file($configFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
+    if ($configLines === false) {
+        throw new Exception('Gagal membaca windows-cronjobs.config');
+    }
+
     $CONFIG = [];
+
     foreach ($configLines as $line) {
         $line = trim($line);
+
+        // Abaikan baris kosong dan komentar
         if ($line === '' || strpos($line, '#') === 0 || strpos($line, ';') === 0) {
             continue;
         }
+
         $parts = explode('=', $line, 2);
+
         if (count($parts) === 2) {
             $key = trim($parts[0]);
             $value = trim($parts[1]);
-            // Bersihkan tanda kutip jika tak sengaja ikut tersimpan
+
+            // Hapus tanda kutip jika ada
             $value = trim($value, "\"'");
+
             $CONFIG[$key] = $value;
         }
     }
@@ -25,67 +49,118 @@ function get_user_config()
 }
 
 
+/**
+ * Membaca konfigurasi sistem.
+ */
 function get_system_config()
 {
     $configFile = __DIR__ . '/system.config';
-    $configLines = file($configFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+    if (!file_exists($configFile)) {
+        return [];
+    }
+
+    $configLines = file(
+        $configFile,
+        FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES
+    );
+
+    if ($configLines === false) {
+        throw new Exception('Gagal membaca system.config');
+    }
 
     $SYSTEM = [];
+
     foreach ($configLines as $line) {
-        if (strpos(trim($line), '#') === 0 || strpos(trim($line), ';') === 0) {
+        $line = trim($line);
+
+        if ($line === '' || strpos($line, '#') === 0 || strpos($line, ';') === 0) {
             continue;
         }
-        list($key, $value) = explode('=', $line, 2);
-        $SYSTEM[trim($key)] = trim($value);
+
+        $parts = explode('=', $line, 2);
+
+        if (count($parts) === 2) {
+            $key = trim($parts[0]);
+            $value = trim($parts[1]);
+
+            $SYSTEM[$key] = $value;
+        }
     }
 
     return $SYSTEM;
 }
 
 
+/**
+ * Mengatur timezone dan mengambil waktu.
+ */
 function get_current_time($timezone = 'WITA', $format = '', $timestamp = null)
 {
     if ($timezone === 'WIB') {
         $timezone = 'Asia/Jakarta';
-    } else if ($timezone === 'WITA') {
+    } elseif ($timezone === 'WITA') {
         $timezone = 'Asia/Makassar';
-    } else if ($timezone === 'WIT') {
+    } elseif ($timezone === 'WIT') {
         $timezone = 'Asia/Jayapura';
     }
 
-    if ($timestamp === null) $timestamp = time();
+    if ($timestamp === null) {
+        $timestamp = time();
+    }
 
     $dt = new DateTime();
+
     $dt->setTimezone(new DateTimeZone($timezone));
     $dt->setTimestamp($timestamp);
+
     return $dt->format($format);
 }
 
 
+/**
+ * Membuat direktori jika belum tersedia.
+ */
 function create_logs_directory($path)
 {
-    while (true) {
-        if (!is_dir($path)) {
-            mkdir($path);
-            break;
+    if (!is_dir($path)) {
+        if (!mkdir($path, 0777, true) && !is_dir($path)) {
+            throw new Exception('Gagal membuat direktori log: ' . $path);
         }
     }
 }
 
 
+/**
+ * Menulis log.
+ */
 function log_data($path, $message = '')
 {
-    $file = fopen($path, 'a');
-    fwrite($file, $message . PHP_EOL);
-    fclose($file);
+    $directory = dirname($path);
+
+    if (!is_dir($directory)) {
+        create_logs_directory($directory);
+    }
+
+    $result = file_put_contents(
+        $path,
+        $message . PHP_EOL,
+        FILE_APPEND
+    );
+
+    if ($result === false) {
+        throw new Exception('Gagal menulis log: ' . $path);
+    }
 }
 
 
-
+/**
+ * Menjalankan perintah cron.
+ */
 function run_command($command, $index, $logs_path)
 {
     $number = $index + 1;
-    $output = $logs_path . "/command_$number.log";
+    $output = $logs_path . '/command_' . $number . '.log';
 
     $descriptorspec = [
         0 => ['pipe', 'r'],
@@ -93,7 +168,7 @@ function run_command($command, $index, $logs_path)
         2 => ['file', $output, 'a'],
     ];
 
-    // Jalankan dari folder utama project
+    // Folder utama project manajemen_klien
     $project_path = dirname(__DIR__, 2);
 
     $process = proc_open(
@@ -107,18 +182,19 @@ function run_command($command, $index, $logs_path)
         throw new Exception('Gagal menjalankan perintah cronjobs.');
     }
 
-    // Hanya pipes[0] yang merupakan resource pipe
+    // Tutup stdin
     if (isset($pipes[0]) && is_resource($pipes[0])) {
         fclose($pipes[0]);
     }
 
+    // Tunggu proses selesai
     $exit_code = proc_close($process);
 
+    // Simpan hasil eksekusi
     log_data(
         $logs_path . '/windows-cronjobs.log',
-        "- run command: $command | exit code: $exit_code"
+        '- run command: ' . $command . ' | exit code: ' . $exit_code
     );
 
     return $exit_code;
 }
-

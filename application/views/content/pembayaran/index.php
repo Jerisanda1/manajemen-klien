@@ -1,32 +1,40 @@
 <?php
-/**
- * @var CI_Controller $this
- * @var string $tab
- * @var array  $rows, $klienList, $statusList
- * @var int    $total, $page, $perPage, $totalPages
- * @var string $q, $fKlien, $fSumber, $fStatus
- */
-$e = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
+$e = function ($v) {
+    return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+};
 
 $bulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 $tgl = function ($tanggal) use ($bulan) {
     $t = $tanggal ? strtotime((string) $tanggal) : false;
-    return $t ? date('j', $t) . ' ' . $bulan[(int) date('n', $t)] . ' ' . date('Y', $t) : '-';
+    return $t ? date('d', $t) . ' ' . $bulan[(int) date('n', $t)] . ' ' . date('Y', $t) : '-';
 };
 
 $isInvoice = ($tab === 'invoice');
 $label = $isInvoice
-    ? ['judul' => 'Invoice', 'no' => 'No. Invoice', 'tgl' => 'Tanggal Invoice', 'akhir' => 'Jatuh Tempo', 'tombol' => 'Buat Invoice', 'cari' => 'Cari nomor invoice, klien, project....', 'status' => 'Status invoice']
-    : ['judul' => 'Penawaran', 'no' => 'No. Penawaran', 'tgl' => 'Tanggal Penawaran', 'akhir' => 'Berlaku Sampai', 'tombol' => 'Buat Penawaran', 'cari' => 'Cari nomor penawaran, klien, project....', 'status' => 'Status penawaran'];
+    ? ['judul' => 'Invoice', 'no' => 'No. Invoice', 'tgl' => 'Tgl Invoice', 'akhir' => 'Jatuh Tempo', 'tombol' => 'Buat Invoice', 'cari' => 'Cari invoice, klien...', 'status' => 'Status invoice']
+    : ['judul' => 'Penawaran', 'no' => 'No. Penawaran', 'tgl' => 'Tgl Penawaran', 'akhir' => 'Berlaku Sampai', 'tombol' => 'Buat Penawaran', 'cari' => 'Cari penawaran, klien...', 'status' => 'Status penawaran'];
 
+// Warna Badge (Konsep dot + ring seperti Project)
 $badge = [
-    'Draft'         => 'background:#e2e8f0;color:#475569',
-    'Dikirim'       => 'background:#dbeafe;color:#1d8fe1',
-    'Disetujui'     => 'background:#bbf7d0;color:#15803d',
-    'Ditolak'       => 'background:#fecaca;color:#dc2626',
-    'Belum dibayar' => 'background:#fed7aa;color:#ea580c',
-    'Dibayar'       => 'background:#bbf7d0;color:#15803d',
+    'Draft'         => ['bg-slate-100 text-slate-700 ring-slate-200',      'bg-slate-500'],   
+    'Dikirim'       => ['bg-sky-50 text-sky-700 ring-sky-200',             'bg-sky-500'],     
+    'Disetujui'     => ['bg-emerald-50 text-emerald-700 ring-emerald-200', 'bg-emerald-500'], 
+    'Ditolak'       => ['bg-rose-50 text-rose-700 ring-rose-200',          'bg-rose-500'],    
+    'Belum dibayar' => ['bg-amber-50 text-amber-700 ring-amber-200',       'bg-amber-500'],   
+    'Dibayar'       => ['bg-emerald-50 text-emerald-700 ring-emerald-200', 'bg-emerald-500'], 
 ];
+
+$renderBadge = function ($status) use ($badge) {
+    $status = trim((string)$status);
+    if ($status === '') {
+        return '<span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset bg-slate-100 text-slate-500 ring-slate-200"><span class="h-1.5 w-1.5 rounded-full bg-slate-400"></span>-</span>';
+    }
+    $key = ucwords(strtolower($status)); 
+    [$kelas, $dot] = $badge[$key] ?? ['bg-slate-200 text-slate-700 ring-slate-300', 'bg-slate-500'];
+    
+    return '<span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ' . $kelas . '">'
+         . '<span class="h-1.5 w-1.5 rounded-full ' . $dot . '"></span>' . htmlspecialchars($key) . '</span>';
+};
 
 $urlHalaman = function ($p) use ($tab, $q, $fKlien, $fSumber, $fStatus) {
     return site_url('pembayaran') . '?' . http_build_query([
@@ -36,236 +44,413 @@ $urlHalaman = function ($p) use ($tab, $q, $fKlien, $fSumber, $fStatus) {
 
 $awal  = $total > 0 ? (($page - 1) * $perPage) + 1 : 0;
 $akhir = $total > 0 ? min($page * $perPage, $total) : 0;
-?>
-<style>
-    .pb { padding: 20px 32px 40px; color: #0f172a; }
-    .pb a { text-decoration: none; }
-    .pb-head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
-    .pb-head h1 { font-size:32px; font-weight:700; margin:0; }
-    .pb-head p { margin:4px 0 0; font-size:16px; color:#64748b; }
-    .pb-add { display:inline-flex; align-items:center; gap:8px; background:#a62626; color:#fff; padding:12px 22px; border-radius:12px; font-size:16px; font-weight:500; box-shadow:0 1px 2px rgba(0,0,0,.1); align-self:flex-start; }
-    .pb-add:hover { background:#8c1f1f; }
 
-    .pb-tabs { display:flex; gap:28px; margin-bottom:14px; }
-    .pb-tab { font-size:18px; color:#0f172a; padding-bottom:4px; border-bottom:2px solid transparent; }
-    .pb-tab.on { color:#1d8fe1; border-bottom-color:#1d8fe1; }
+$labelKlien  = 'Semua Klien';
+$labelSumber = 'Semua Sumber';
+$labelStatus = $label['status'];
 
-    .pb-card { background:#fff; border:1px solid #cbd5e1; border-radius:16px; padding:20px; }
-    .pb-flash { margin-bottom:14px; border:1px solid #a7f3d0; background:#ecfdf5; color:#047857; border-radius:8px; padding:10px 16px; font-size:14px; }
-
-    .pb-filter { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
-    .pb-search { position:relative; flex:1 1 260px; min-width:0; }
-    .pb-search svg { position:absolute; left:14px; top:50%; transform:translateY(-50%); width:20px; height:20px; color:#64748b; pointer-events:none; }
-    .pb-input, .pb-select { height:48px; box-sizing:border-box; border:1px solid #cbd5e1; border-radius:8px; background:#fff; font-size:14px; color:#0f172a; font-family:inherit; }
-    .pb-input { width:100%; padding:0 16px 0 44px; background:#f8fafc; }
-    .pb-select { padding:0 12px; flex:0 1 160px; min-width:130px; }
-    .pb-input:focus, .pb-select:focus { outline:none; border-color:#a62626; box-shadow:0 0 0 3px rgba(166,38,38,.12); }
-
-    .pb-box { border:1px solid #cbd5e1; border-radius:8px; overflow:hidden; }
-    .pb-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-    .pb-table { width:100%; min-width:900px; border-collapse:collapse; font-size:14px; text-align:left; }
-    .pb-table th { background:#f1f5f9; color:#475569; font-weight:600; padding:16px 14px; border-bottom:1px solid #cbd5e1; }
-    .pb-table td { padding:16px 14px; border-bottom:1px solid #e2e8f0; vertical-align:middle; }
-    .pb-table th:first-child, .pb-table td:first-child { padding-left:24px; }
-    .pb-table tbody tr:hover { background:#f8fafc; }
-    .pb-no { color:#1d8fe1; font-weight:600; font-size:16px; text-decoration:underline !important; white-space:nowrap; }
-    .pb-klien { font-weight:700; text-transform:uppercase; }
-    .pb-proj { font-weight:600; }
-    .pb-nowrap { white-space:nowrap; color:#475569; }
-    .pb-pill { display:inline-block; border-radius:999px; padding:4px 14px; font-size:12px; font-weight:600; white-space:nowrap; }
-    .pb-empty { text-align:center; color:#64748b; padding:40px 16px !important; }
-
-    .pb-acts { display:flex; align-items:center; gap:10px; }
-    .pb-ico { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; background:#fff; border:1px solid #cbd5e1; color:#475569; cursor:pointer; padding:0; }
-    .pb-ico:hover { background:#f1f5f9; }
-    .pb-ico.del { border-color:#f87171; color:#dc2626; }
-    .pb-ico.del:hover { background:#fef2f2; }
-
-    .pb-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:18px 24px; background:#f1f5f9; border-top:1px solid #cbd5e1; font-size:14px; color:#475569; }
-    .pb-pager { display:flex; align-items:center; gap:6px; }
-    .pb-pg { min-width:32px; height:32px; padding:0 8px; box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center; border:1px solid #cbd5e1; border-radius:6px; background:#fff; color:#475569; font-size:14px; }
-    .pb-pg:hover { background:#f8fafc; }
-    .pb-pg.on { border-color:#fca5a5; background:#fef2f2; color:#b91c1c; font-weight:600; }
-    .pb-pg.off { color:#cbd5e1; border-color:#e2e8f0; cursor:not-allowed; }
-
-    .pb-note { display:inline-flex; align-items:center; gap:8px; margin-top:16px; padding:6px 12px; border:1px solid #cbd5e1; border-radius:4px; background:#f8fafc; font-size:11px; color:#475569; }
-
-    .pb-modal { position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; padding:16px; background:rgba(15,23,42,.5); }
-    .pb-modal.open { display:flex; }
-    .pb-dialog { width:100%; max-width:420px; background:#fff; border-radius:16px; padding:24px; box-shadow:0 20px 40px rgba(0,0,0,.2); }
-    .pb-dialog h3 { margin:0 0 8px; font-size:18px; }
-    .pb-dialog p { margin:0; font-size:14px; line-height:1.5; color:#64748b; }
-    .pb-dialog-act { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
-    .pb-btn { height:38px; padding:0 16px; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer; font-family:inherit; }
-    .pb-btn-c { border:1px solid #cbd5e1; background:#fff; color:#334155; }
-    .pb-btn-d { border:0; background:#dc2626; color:#fff; }
-    .pb-btn-d:hover { background:#b91c1c; }
-
-    @media (max-width: 800px) {
-        .pb { padding:16px; }
-        .pb-head h1 { font-size:26px; }
-        .pb-select { flex:1 1 140px; }
-        .pb-foot { padding:14px 16px; }
+if ($fKlien !== '') {
+    foreach ($klienList as $k) {
+        if ((string) $k->id === (string) $fKlien) { $labelKlien = $k->nama_klien; break; }
     }
-</style>
+}
+if ($fSumber !== '') $labelSumber = $fSumber;
+if ($fStatus !== '') $labelStatus = $fStatus;
 
-<div class="pb">
-
-    <div class="pb-head">
+$adaFilter = ($q !== '' || $fKlien !== '' || $fSumber !== '' || $fStatus !== '');
+?>
+<main class="flex-1 overflow-x-hidden overflow-y-auto bg-[#f4f6f9] p-6">
+    
+    <!-- Header Halaman -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
-            <h1>Pembayaran</h1>
-            <p>Kelola Penawaran dan Invoice</p>
+            <h2 class="text-2xl font-bold text-gray-900 tracking-tight">Pembayaran</h2>
+            <p class="text-sm text-gray-500 mt-1">Kelola data Penawaran dan Invoice klien.</p>
         </div>
-        <a href="<?= site_url('pembayaran/tambah/' . $tab) ?>" class="pb-add">
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            <?= $e($label['tombol']) ?>
+        <div class="flex items-center gap-3">
+            <div class="hidden md:flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span class="font-bold text-gray-800"><?= (int) $total ?></span> 
+                <span class="text-gray-500 text-sm"><?= $label['judul'] ?></span>
+            </div>
+            <a href="<?= site_url('pembayaran/tambah/' . $tab) ?>" class="bg-[#9f2b2b] hover:bg-[#8a2525] text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all shadow-md shadow-[#9f2b2b]/20">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <?= $e($label['tombol']) ?>
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="flex gap-6 border-b border-gray-200 mb-5">
+        <a href="<?= site_url('pembayaran') ?>?tab=penawaran" class="pb-3 text-sm font-semibold transition-colors flex items-center gap-2 <?= !$isInvoice ? 'text-[#9f2b2b] border-b-2 border-[#9f2b2b]' : 'text-gray-500 hover:text-gray-700' ?>">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Penawaran
+        </a>
+        <a href="<?= site_url('pembayaran') ?>?tab=invoice" class="pb-3 text-sm font-semibold transition-colors flex items-center gap-2 <?= $isInvoice ? 'text-[#9f2b2b] border-b-2 border-[#9f2b2b]' : 'text-gray-500 hover:text-gray-700' ?>">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            Invoice
         </a>
     </div>
 
-    <div class="pb-tabs">
-        <a href="<?= site_url('pembayaran') ?>?tab=penawaran" class="pb-tab <?= !$isInvoice ? 'on' : '' ?>">Penawaran</a>
-        <a href="<?= site_url('pembayaran') ?>?tab=invoice" class="pb-tab <?= $isInvoice ? 'on' : '' ?>">Invoice</a>
-    </div>
-
-    <?php if ($this->session->flashdata('success')): ?>
-        <div class="pb-flash"><?= $e($this->session->flashdata('success')) ?></div>
-    <?php endif; ?>
-
-    <section class="pb-card">
-
-        <!-- Filter -->
-        <form method="get" action="<?= site_url('pembayaran') ?>" class="pb-filter">
+    <!-- Card Tabel -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        
+        <!-- Toolbar Filter -->
+        <form method="GET" action="<?= site_url('pembayaran') ?>" id="filterForm" class="p-4 sm:p-5 border-b border-gray-100 bg-white flex flex-col xl:flex-row gap-3 items-center justify-between">
             <input type="hidden" name="tab" value="<?= $e($tab) ?>">
-
-            <div class="pb-search">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
-                <input type="text" name="q" value="<?= $e($q) ?>" placeholder="<?= $e($label['cari']) ?>" class="pb-input">
+            
+            <!-- Search -->
+            <div class="relative w-full xl:w-72">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <input type="text" name="q" id="searchInput" value="<?= $e($q) ?>" class="bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl block w-full pl-10 p-2.5 outline-none focus:bg-white focus:border-[#9f2b2b] focus:ring-4 focus:ring-[#9f2b2b]/10 transition-all" placeholder="<?= $e($label['cari']) ?>">
             </div>
+            
+            <!-- Filters -->
+            <div class="flex flex-wrap lg:flex-nowrap items-center gap-2 w-full xl:w-auto mt-2 xl:mt-0">
+                
+                <!-- Filter Klien -->
+                <div class="relative custom-dropdown flex-shrink-0 w-full sm:w-auto" data-target="filterKlien">
+                    <button type="button" class="dropdown-btn flex items-center justify-between bg-white border border-gray-300 hover:border-gray-400 text-gray-700 text-sm font-medium rounded-xl w-full sm:min-w-[150px] pl-3 pr-9 py-2.5 outline-none focus:border-[#9f2b2b] focus:ring-4 focus:ring-[#9f2b2b]/10 transition-all cursor-pointer">
+                        <span class="dropdown-text truncate"><?= $e($labelKlien) ?></span>
+                        <svg class="w-4 h-4 text-gray-500 absolute right-3 pointer-events-none transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="dropdown-menu absolute z-50 hidden mt-2 w-full sm:min-w-[150px] bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden transform opacity-0 scale-95 transition-all duration-200">
+                        <ul class="dropdown-list py-1 text-sm text-gray-700 max-h-60 overflow-y-auto">
+                            <li class="px-3 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $fKlien === '' ? 'bg-red-50 text-[#9f2b2b] font-bold' : 'font-medium' ?>" data-value="">Semua Klien</li>
+                            <?php foreach ($klienList as $k): ?>
+                                <li class="px-3 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors truncate <?= (string) $fKlien === (string) $k->id ? 'bg-red-50 text-[#9f2b2b] font-bold' : '' ?>" data-value="<?= (int) $k->id ?>" title="<?= $e($k->nama_klien) ?>"><?= $e($k->nama_klien) ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                    <input type="hidden" name="klien" id="filterKlien" value="<?= $e($fKlien) ?>">
+                </div>
 
-            <select name="klien" class="pb-select" onchange="this.form.submit()">
-                <option value="">Semua Klien</option>
-                <?php foreach ($klienList as $k): ?>
-                    <option value="<?= (int) $k->id ?>" <?= (string) $fKlien === (string) $k->id ? 'selected' : '' ?>><?= $e($k->nama_klien) ?></option>
-                <?php endforeach; ?>
-            </select>
+                <!-- Filter Sumber -->
+                <div class="relative custom-dropdown flex-shrink-0 w-full sm:w-auto" data-target="filterSumber">
+                    <button type="button" class="dropdown-btn flex items-center justify-between bg-white border border-gray-300 hover:border-gray-400 text-gray-700 text-sm font-medium rounded-xl w-full sm:min-w-[130px] pl-3 pr-9 py-2.5 outline-none focus:border-[#9f2b2b] focus:ring-4 focus:ring-[#9f2b2b]/10 transition-all cursor-pointer">
+                        <span class="dropdown-text truncate"><?= $e($labelSumber) ?></span>
+                        <svg class="w-4 h-4 text-gray-500 absolute right-3 pointer-events-none transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="dropdown-menu absolute z-50 hidden mt-2 w-full sm:min-w-[130px] bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden transform opacity-0 scale-95 transition-all duration-200">
+                        <ul class="dropdown-list py-1 text-sm text-gray-700 max-h-60 overflow-y-auto">
+                            <li class="px-3 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $fSumber === '' ? 'bg-red-50 text-[#9f2b2b] font-bold' : 'font-medium' ?>" data-value="">Semua Sumber</li>
+                            <li class="px-3 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $fSumber === 'Project' ? 'bg-red-50 text-[#9f2b2b] font-bold' : '' ?>" data-value="Project">Dari Project</li>
+                            <li class="px-3 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $fSumber === 'Mandiri' ? 'bg-red-50 text-[#9f2b2b] font-bold' : '' ?>" data-value="Mandiri">Mandiri</li>
+                        </ul>
+                    </div>
+                    <input type="hidden" name="sumber" id="filterSumber" value="<?= $e($fSumber) ?>">
+                </div>
 
-            <select name="sumber" class="pb-select" onchange="this.form.submit()">
-                <option value="">Semua sumber</option>
-                <option value="Project" <?= $fSumber === 'Project' ? 'selected' : '' ?>>Dari project</option>
-                <option value="Mandiri" <?= $fSumber === 'Mandiri' ? 'selected' : '' ?>>Mandiri</option>
-            </select>
+                <!-- Filter Status -->
+                <div class="relative custom-dropdown flex-shrink-0 w-full sm:w-auto" data-target="filterStatus">
+                    <button type="button" class="dropdown-btn flex items-center justify-between bg-white border border-gray-300 hover:border-gray-400 text-gray-700 text-sm font-medium rounded-xl w-full sm:min-w-[150px] pl-3 pr-9 py-2.5 outline-none focus:border-[#9f2b2b] focus:ring-4 focus:ring-[#9f2b2b]/10 transition-all cursor-pointer">
+                        <span class="dropdown-text truncate"><?= $e($labelStatus) ?></span>
+                        <svg class="w-4 h-4 text-gray-500 absolute right-3 pointer-events-none transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="dropdown-menu absolute z-50 hidden mt-2 w-full sm:min-w-[150px] bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden transform opacity-0 scale-95 transition-all duration-200">
+                        <ul class="dropdown-list py-1 text-sm text-gray-700 max-h-60 overflow-y-auto">
+                            <li class="px-3 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $fStatus === '' ? 'bg-red-50 text-[#9f2b2b] font-bold' : 'font-medium' ?>" data-value=""><?= $e($label['status']) ?></li>
+                            <?php foreach ($statusList as $s): ?>
+                                <li class="px-3 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $fStatus === $s ? 'bg-red-50 text-[#9f2b2b] font-bold' : '' ?>" data-value="<?= $e($s) ?>"><?= $e($s) ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                    <input type="hidden" name="status" id="filterStatus" value="<?= $e($fStatus) ?>">
+                </div>
 
-            <select name="status" class="pb-select" onchange="this.form.submit()">
-                <option value=""><?= $e($label['status']) ?></option>
-                <?php foreach ($statusList as $s): ?>
-                    <option value="<?= $e($s) ?>" <?= $fStatus === $s ? 'selected' : '' ?>><?= $e($s) ?></option>
-                <?php endforeach; ?>
-            </select>
+                <!-- Tombol Reset -->
+                <button type="button" id="btnResetFilter" class="<?= $adaFilter ? '' : 'hidden' ?> flex-shrink-0 px-3.5 py-2.5 bg-red-50 text-[#9f2b2b] hover:bg-red-100 border border-red-100 text-sm font-medium rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    Reset
+                </button>
+            </div>
         </form>
 
-        <!-- Tabel -->
-        <div class="pb-box">
-            <div class="pb-scroll">
-                <table class="pb-table">
-                    <thead>
+        <!-- Tabel Data -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="border-b border-gray-200 bg-gray-50/50">
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider"><?= $e($label['no']) ?></th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Klien</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Project</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center"><?= $e($label['tgl']) ?></th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center"><?= $e($label['akhir']) ?></th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Status</th>
+                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if(empty($rows)): ?>
                         <tr>
-                            <th><?= $e($label['no']) ?></th>
-                            <th>Klien</th>
-                            <th>Project</th>
-                            <th><?= $e($label['tgl']) ?></th>
-                            <th><?= $e($label['akhir']) ?></th>
-                            <th>Status</th>
-                            <th>Aksi</th>
+                            <td colspan="7" class="px-6 py-12 text-center">
+                                <div class="flex flex-col items-center justify-center text-gray-400">
+                                    <?php if ($adaFilter): ?>
+                                        <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                        <p class="text-sm font-medium">Data tidak ditemukan.</p>
+                                        <p class="text-xs text-gray-400 mt-1">Coba gunakan kata kunci atau filter lain.</p>
+                                    <?php else: ?>
+                                        <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                        <p class="text-sm font-medium">Belum ada data <?= strtolower($label['judul']) ?>.</p>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                    <?php if (empty($rows)): ?>
-                        <tr><td colspan="7" class="pb-empty">Belum ada data <?= $isInvoice ? 'invoice' : 'penawaran' ?>.</td></tr>
-                    <?php else: foreach ($rows as $r): ?>
-                        <tr>
-                            <td><a href="<?= site_url('pembayaran/detail/' . $tab . '/' . (int) $r->id) ?>" class="pb-no"><?= $e($r->nomor) ?></a></td>
-                            <td class="pb-klien"><?= $e($r->nama_klien ?: '-') ?></td>
-                            <td class="pb-proj"><?= $e($r->nama_project ?: '-') ?></td>
-                            <td class="pb-nowrap"><?= $tgl($r->tanggal) ?></td>
-                            <td class="pb-nowrap"><?= $tgl($r->akhir) ?></td>
-                            <td><span class="pb-pill" style="<?= $badge[$r->status] ?? 'background:#f1f5f9;color:#475569' ?>"><?= $e($r->status) ?></span></td>
-                            <td>
-                                <div class="pb-acts">
-                                   <a href="<?= site_url('pembayaran/unduh/' . $tab . '/' . (int) $r->id) ?>" class="pb-ico" aria-label="Unduh">
-                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m0 0l-6-6m6 6l6-6"/></svg>
+                    <?php else: ?>
+                        <?php foreach($rows as $r): ?>
+                        <tr class="border-b border-gray-100 hover:bg-gray-50/60 transition-colors group">
+                            <td class="px-5 py-4">
+                                <a href="<?= site_url('pembayaran/detail/' . $tab . '/' . (int) $r->id) ?>" class="text-sm font-semibold text-blue-600 underline underline-offset-2 decoration-blue-300 hover:text-blue-800 hover:decoration-blue-500 line-clamp-2" title="Lihat Detail">
+                                    <?= $e($r->nomor) ?>
+                                </a>
+                            </td>
+                            <td class="px-5 py-4 text-sm text-gray-700 font-medium max-w-[200px] truncate" title="<?= $e($r->nama_klien) ?>">
+                                <?= $e($r->nama_klien ?: '-') ?>
+                            </td>
+                            <td class="px-5 py-4 text-sm text-gray-600 max-w-[200px] truncate" title="<?= $e($r->nama_project ?? '') ?>">
+                                <?= $r->nama_project ? $e($r->nama_project) : '<span class="text-gray-400 italic">-</span>' ?>
+                            </td>
+                            <td class="px-5 py-4 text-sm text-gray-600 text-center whitespace-nowrap">
+                                <?= $tgl($r->tanggal) ?>
+                            </td>
+                            <td class="px-5 py-4 text-sm text-gray-600 text-center whitespace-nowrap">
+                                <?= $tgl($r->akhir) ?>
+                            </td>
+                            <td class="px-5 py-4 text-center">
+                                <?= $renderBadge($r->status) ?>
+                            </td>
+                            <td class="px-5 py-4 text-center">
+                                <div class="flex justify-center items-center gap-1.5">
+                                    <a href="<?= site_url('pembayaran/unduh/' . $tab . '/' . (int) $r->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Unduh Dokumen">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                     </a>
-                                    <a href="<?= site_url('pembayaran/edit/' . $tab . '/' . (int) $r->id) ?>" class="pb-ico" aria-label="Edit">
-                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                    <a href="<?= site_url('pembayaran/edit/' . $tab . '/' . (int) $r->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                     </a>
-                                    <button type="button" class="pb-ico del" aria-label="Hapus"
-                                            data-id="<?= (int) $r->id ?>" data-nama="<?= $e($r->nomor) ?>"
-                                            onclick="bukaHapus(this.dataset.id, this.dataset.nama)">
-                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    <button type="button" class="btn-hapus p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm" data-id="<?= (int)$r->id ?>" data-nama="<?= htmlspecialchars($r->nomor, ENT_QUOTES) ?>" title="Hapus">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                     </button>
                                 </div>
                             </td>
                         </tr>
-                    <?php endforeach; endif; ?>
-                    </tbody>
-                </table>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer & Pagination -->
+        <div class="flex flex-col border-t border-gray-200 bg-gray-50/30 px-5 py-4 gap-4">
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-gray-600">
+                <div class="flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    Reminder otomatis dikirim ke klien saat mendekati jatuh tempo pembayaran.
+                </div>
             </div>
 
-            <div class="pb-foot">
-                <span>Menampilkan <?= $awal ?>-<?= $akhir ?> dari <?= (int) $total ?> data</span>
-                <div class="pb-pager">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-200/60 pt-3">
+                <span class="text-sm text-gray-500">
+                    Menampilkan <?= $awal ?>–<?= $akhir ?> dari <?= (int) $total ?> <?= $label['judul'] ?>
+                </span>
+                <div class="flex items-center gap-1.5">
                     <?php if ($page > 1): ?>
-                        <a class="pb-pg" href="<?= $urlHalaman($page - 1) ?>" aria-label="Sebelumnya">&lsaquo;</a>
+                        <a href="<?= $urlHalaman($page - 1) ?>" class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors">
                     <?php else: ?>
-                        <span class="pb-pg off">&lsaquo;</span>
+                        <span class="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-300">
                     <?php endif; ?>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    <?= $page > 1 ? '</a>' : '</span>' ?>
 
                     <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
-                        <a class="pb-pg <?= $i === $page ? 'on' : '' ?>" href="<?= $urlHalaman($i) ?>"><?= $i ?></a>
+                        <a href="<?= $urlHalaman($i) ?>" class="flex h-8 min-w-[2rem] items-center justify-center rounded-lg border text-sm font-medium transition-colors <?= $i === $page ? 'border-[#9f2b2b] bg-[#9f2b2b] text-white shadow-sm' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50' ?>">
+                            <?= $i ?>
+                        </a>
                     <?php endfor; ?>
 
                     <?php if ($page < $totalPages): ?>
-                        <a class="pb-pg" href="<?= $urlHalaman($page + 1) ?>" aria-label="Berikutnya">&rsaquo;</a>
+                        <a href="<?= $urlHalaman($page + 1) ?>" class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors">
                     <?php else: ?>
-                        <span class="pb-pg off">&rsaquo;</span>
+                        <span class="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-300">
                     <?php endif; ?>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    <?= $page < $totalPages ? '</a>' : '</span>' ?>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="pb-note">
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            Reminder otomatis dikirim ke klien saat mendekati jatuh tempo tanggal pembayaran.
+    <!-- Container untuk Toast -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+</main>
+
+<!-- Modal Hapus -->
+<div id="modalHapus" class="fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div class="absolute inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity" onclick="tutupModalHapus()"></div>
+
+    <div id="modalContent" class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-95 opacity-0 transition-all duration-300 z-10">
+        <div class="flex items-center justify-center w-16 h-16 mx-auto bg-red-50 rounded-full mb-5">
+            <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
         </div>
-    </section>
-</div>
 
-<!-- Modal hapus -->
-<div id="pbModal" class="pb-modal" role="dialog" aria-modal="true" onclick="if(event.target===this)tutupHapus()">
-    <div class="pb-dialog">
-        <h3>Hapus <?= $isInvoice ? 'invoice' : 'penawaran' ?>?</h3>
-        <p><strong id="pbNama" style="color:#0f172a"></strong> akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.</p>
-        <form method="post" action="<?= site_url('pembayaran/hapus') ?>" class="pb-dialog-act">
+        <h3 class="text-xl font-bold text-center text-gray-900 mb-2">Hapus <?= $isInvoice ? 'Invoice' : 'Penawaran' ?>?</h3>
+        <p class="text-center text-gray-500 mb-6 text-sm">
+            Apakah Anda yakin ingin menghapus data <br>
+            <strong id="namaDokumenHapus" class="text-gray-900 text-base"></strong>?<br>
+            <span class="text-xs text-red-500 mt-3 block bg-red-50 py-1.5 px-2 rounded-lg">Tindakan ini tidak dapat dibatalkan.</span>
+        </p>
+
+        <form method="post" action="<?= site_url('pembayaran/hapus') ?>" class="flex justify-center gap-3">
             <?php if ($this->config->item('csrf_protection')): ?>
                 <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
             <?php endif; ?>
             <input type="hidden" name="tab" value="<?= $e($tab) ?>">
             <input type="hidden" name="id" id="pbId">
-            <button type="button" class="pb-btn pb-btn-c" onclick="tutupHapus()">Batal</button>
-            <button type="submit" class="pb-btn pb-btn-d">Hapus</button>
+
+            <button type="button" onclick="tutupModalHapus()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors w-full text-sm">Batal</button>
+            <button type="submit" class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all shadow-md shadow-red-500/30 w-full text-sm">Ya, Hapus</button>
         </form>
     </div>
 </div>
 
+<style>
+    @keyframes toastIn  { from { opacity:0; transform:translateX(100%); } to { opacity:1; transform:translateX(0); } }
+    @keyframes toastOut { from { opacity:1; transform:translateX(0); }    to { opacity:0; transform:translateX(100%); } }
+    .toast-item { animation: toastIn 0.3s ease-out; }
+    .toast-item.hide { animation: toastOut 0.3s ease-in forwards; }
+</style>
+
 <script>
-    function bukaHapus(id, nama) {
-        document.getElementById('pbId').value = id;
-        document.getElementById('pbNama').textContent = nama;
-        document.getElementById('pbModal').classList.add('open');
+    // --- TOAST CONFIG ---
+    const TOAST_CFG = {
+        success: { bg: 'bg-emerald-50 border-emerald-200 text-emerald-800', ic: 'text-emerald-500', d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+        error:   { bg: 'bg-red-50 border-red-200 text-red-800',             ic: 'text-red-500',     d: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+        info:    { bg: 'bg-blue-50 border-blue-200 text-blue-800',          ic: 'text-blue-500',    d: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+    };
+
+    function showToast(msg, type = 'success') {
+        const c = TOAST_CFG[type] || TOAST_CFG.info;
+        const el = document.createElement('div');
+        el.className = `toast-item pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg max-w-sm ${c.bg}`;
+        el.innerHTML = `<svg class="w-5 h-5 flex-shrink-0 ${c.ic}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${c.d}"/></svg><span class="text-sm font-medium flex-1">${msg}</span><button type="button" class="opacity-60 hover:opacity-100 flex-shrink-0" onclick="this.parentElement.remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
+        document.getElementById('toastContainer').appendChild(el);
+        setTimeout(() => { el.classList.add('hide'); setTimeout(() => el.remove(), 300); }, 3000);
     }
-    function tutupHapus() {
-        document.getElementById('pbModal').classList.remove('open');
+
+    // --- MEMUNCULKAN NOTIFIKASI PHP VIA TOAST ---
+    document.addEventListener('DOMContentLoaded', () => {
+        <?php if($this->session->flashdata('success')): ?>
+            showToast('<?= addslashes($this->session->flashdata('success')) ?>', 'success');
+        <?php endif; ?>
+        
+        <?php if($this->session->flashdata('error')): ?>
+            showToast('<?= addslashes(strip_tags($this->session->flashdata('error'))) ?>', 'error');
+        <?php endif; ?>
+    });
+
+    /* ========== CUSTOM DROPDOWN ========== */
+    const filterForm = document.getElementById('filterForm');
+    const searchInput = document.getElementById('searchInput');
+    const resetBtn = document.getElementById('btnResetFilter');
+    let debounceTimer = null;
+
+    function closeDD(dd) {
+        dd.classList.remove('open');
+        const menu = dd.querySelector('.dropdown-menu');
+        menu.classList.add('opacity-0', 'scale-95');
+        menu.classList.remove('opacity-100', 'scale-100');
+        dd.querySelector('.dropdown-btn svg').classList.remove('rotate-180');
+        setTimeout(() => menu.classList.add('hidden'), 200);
     }
-    document.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Escape') tutupHapus();
+
+    function openDD(dd) {
+        document.querySelectorAll('.custom-dropdown').forEach(o => { if (o !== dd) closeDD(o); });
+        const menu = dd.querySelector('.dropdown-menu');
+        dd.classList.add('open');
+        menu.classList.remove('hidden');
+        void menu.offsetWidth;
+        menu.classList.remove('opacity-0', 'scale-95');
+        menu.classList.add('opacity-100', 'scale-100');
+        dd.querySelector('.dropdown-btn svg').classList.add('rotate-180');
+    }
+
+    document.querySelectorAll('.custom-dropdown').forEach(dd => {
+        const btn = dd.querySelector('.dropdown-btn');
+
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            dd.classList.contains('open') ? closeDD(dd) : openDD(dd);
+        });
+
+        dd.addEventListener('click', e => {
+            if (e.target.tagName !== 'LI') return;
+            const value = e.target.dataset.value;
+            const label = e.target.textContent.trim();
+            dd.querySelector('input[type="hidden"]').value = value;
+            dd.querySelector('.dropdown-text').textContent = label;
+            closeDD(dd);
+            filterForm.submit(); // filter server-side → reload dengan parameter GET
+        });
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown').forEach(closeDD);
+    });
+
+    /* ========== SEARCH (debounce + Enter) ========== */
+    searchInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => filterForm.submit(), 500);
+    });
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(debounceTimer);
+            filterForm.submit();
+        }
+    });
+
+    /* ========== RESET ========== */
+    resetBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        document.getElementById('filterKlien').value = '';
+        document.getElementById('filterSumber').value = '';
+        document.getElementById('filterStatus').value = '';
+        window.location.href = '<?= site_url('pembayaran') ?>?tab=<?= $tab ?>';
+    });
+
+    /* ========== MODAL HAPUS ========== */
+    const modal = document.getElementById('modalHapus');
+    const modalContent = document.getElementById('modalContent');
+
+    document.querySelectorAll('.btn-hapus').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.getElementById('pbId').value = this.dataset.id;
+            document.getElementById('namaDokumenHapus').innerText = this.dataset.nama;
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        });
+    });
+
+    function tutupModalHapus() {
+        modalContent.classList.remove('scale-100', 'opacity-100');
+        modalContent.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }, 300);
+    }
+
+    document.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape' && !modal.classList.contains('hidden')) tutupModalHapus();
     });
 </script>

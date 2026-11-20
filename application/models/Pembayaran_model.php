@@ -272,7 +272,7 @@ public function get_by_id($tab, $id)
 /* ---------- PENGINGAT OTOMATIS ---------- */
 public function get_invoice_belum_bayar()
 {
-    return $this->db->select('i.id, i.no_invoice, i.perihal, i.jatuh_tempo, k.nama_pic, k.email AS email_pic')
+    return $this->db->select('i.id, i.no_invoice, i.perihal, i.jatuh_tempo, k.nama_pic, k.email AS email_pic, k.no_hp AS hp_pic')
                     ->from('invoice i')
                     ->join('clients k', 'k.id = i.klien_id', 'left')
                     ->where('i.status', 'Belum dibayar')
