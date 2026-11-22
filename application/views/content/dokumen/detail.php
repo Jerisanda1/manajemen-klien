@@ -1,10 +1,10 @@
 <?php
 $isLocal = ($doc->storage_type === 'local');
 $isOwnLocal = ($isLocal && $doc->device_id === $currentDeviceId);
+$isOtherLocal = ($isLocal && !$isOwnLocal);
 $isCloud = ($doc->storage_type === 'cloud');
 $ext = strtolower(pathinfo($doc->file_name, PATHINFO_EXTENSION));
 
-// PERBAIKAN 1: Penanganan tanggal kosong agar tidak error
 $tgl_akhir_raw = !empty($doc->tanggal_berakhir) ? $doc->tanggal_berakhir : '2099-12-31';
 $today = new DateTime(date('Y-m-d'));
 $end   = new DateTime($tgl_akhir_raw);
@@ -14,14 +14,13 @@ if ($diff < 0) { $status_class = 'bg-red-50 text-red-600 border-red-100'; $statu
 elseif ($diff <= 30) { $status_class = 'bg-orange-50 text-orange-600 border-orange-100'; $status_text = 'Akan Berakhir'; }
 else { $status_class = 'bg-blue-50 text-blue-600 border-blue-100'; $status_text = 'Aktif'; }
 
-// PERBAIKAN 2: Ikon File Dinamis
-$fileIcon = '<svg class="w-8 h-8 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
 $iconColor = 'text-gray-400';
-
 if ($ext === 'pdf') { $iconColor = 'text-red-500'; }
 elseif (in_array($ext, ['doc', 'docx'])) { $iconColor = 'text-blue-500'; }
 elseif (in_array($ext, ['xls', 'xlsx'])) { $iconColor = 'text-emerald-500'; }
 elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) { $iconColor = 'text-purple-500'; }
+
+$fileHash8 = substr($doc->file_hash ?? '', 0, 8);
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -49,14 +48,12 @@ elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) { $iconColor = 'text-purple-500'
                 </div>
 
                 <div class="flex gap-3 shrink-0">
-                    <?php if (!$isLocal || $isOwnLocal): ?>
+                    <?php if (!$isOtherLocal): ?>
                     <a href="<?= site_url('dokumen/edit/'.$doc->id) ?>" class="px-5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                         Edit
                     </a>
                     <?php endif; ?>
-                    
-                    <!-- PERBAIKAN 3: Tombol Hapus dengan Modal Kustom -->
                     <button type="button" onclick="bukaModalHapus()" class="px-5 py-2 bg-white border border-red-200 hover:bg-red-50 text-red-600 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         Hapus
@@ -117,10 +114,8 @@ elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) { $iconColor = 'text-purple-500'
                         </div>
                     <?php endif; ?>
 
-                    <!-- Box File dengan Ikon Berwarna -->
                     <div class="border border-gray-300 rounded-xl p-4 flex items-center justify-between gap-3">
                         <div class="flex items-center gap-3 min-w-0">
-                            <!-- Ikon Dokumen Dinamis -->
                             <div class="<?= $iconColor ?>">
                                 <svg class="w-8 h-8 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             </div>
@@ -139,10 +134,10 @@ elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) { $iconColor = 'text-purple-500'
                                 Unduh File
                             </a>
                         <?php elseif($isOwnLocal): ?>
-                            <a href="http://localhost:8080/download?filename=<?= urlencode($doc->file_name) ?>" class="shrink-0 px-5 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                Unduh File
-                            </a>
+                            <button type="button" id="btnSyncDetail" class="shrink-0 px-5 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                <span id="btnSyncDetailText">Sync ke Server</span>
+                            </button>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -166,15 +161,30 @@ elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) { $iconColor = 'text-purple-500'
                             </div>
                         <?php endif; ?>
                     <?php elseif($isOwnLocal): ?>
+                        <!-- Loading state (awal) -->
                         <div id="localPreviewLoading" class="text-white font-medium flex flex-col items-center">
                             <svg class="w-8 h-8 animate-spin mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                             Memuat Pratinjau...
                         </div>
+
+                        <!-- Content (diisi JS) -->
                         <div id="localPreviewContent" class="hidden w-full h-full flex items-center justify-center"></div>
+
+                        <!-- Error (file hilang / folder belum dipilih) -->
                         <div id="localPreviewError" class="hidden bg-white w-full max-w-sm aspect-[1/1.4] shadow-2xl rounded p-8 flex-col items-center justify-center text-center">
                             <svg class="w-16 h-16 text-red-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                            <p class="text-gray-600 font-bold">Aplikasi Belum Terbuka</p>
-                            <p class="text-sm text-gray-500 mt-2">Buka TridatuAgent.exe untuk melihat pratinjau.</p>
+                            <p class="text-gray-600 font-bold">File Tidak Ditemukan</p>
+                            <p class="text-sm text-gray-500 mt-2 mb-4">File mungkin dihapus atau folder belum dipilih.</p>
+                            <button type="button" id="btnPilihFolder" class="px-4 py-2 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors">
+                                Pilih Folder
+                            </button>
+                        </div>
+
+                        <!-- Locked (FF/Safari) -->
+                        <div id="localPreviewLocked" class="hidden bg-white w-full max-w-sm aspect-[1/1.4] shadow-2xl rounded p-8 flex-col items-center justify-center text-center">
+                            <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            <p class="text-gray-600 font-bold">Pratinjau Tidak Tersedia</p>
+                            <p class="text-sm text-gray-500 mt-2">Browser Anda belum mendukung pratinjau lokal. Buka file langsung dari folder Downloads.</p>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -182,7 +192,7 @@ elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) { $iconColor = 'text-purple-500'
         </div>
     </div>
 
-    <!-- MODAL KONFIRMASI HAPUS (Kustom) -->
+    <!-- MODAL KONFIRMASI HAPUS -->
     <div id="modalHapus" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
         <div class="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" onclick="tutupModalHapus()"></div>
         <div id="modalContent" class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-95 opacity-0 transition-all duration-300 z-10">
@@ -197,100 +207,331 @@ elseif (in_array($ext, ['jpg', 'jpeg', 'png'])) { $iconColor = 'text-purple-500'
             </p>
             <div class="flex justify-center gap-3">
                 <button type="button" onclick="tutupModalHapus()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors w-full text-sm">Batal</button>
-                <button type="button" onclick="eksekusiHapus()" class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all shadow-md shadow-red-500/30 w-full text-sm">Ya, Hapus</button>
+                <button type="button" onclick="eksekusiHapus()" id="btnHapusConfirm" class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all shadow-md shadow-red-500/30 w-full text-sm disabled:opacity-50">Ya, Hapus</button>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPT PRATINJAU & MODAL HAPUS -->
+    <!-- Container Toast -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+
+    <style>
+        @keyframes toastIn  { from { opacity:0; transform:translateX(100%); } to { opacity:1; transform:translateX(0); } }
+        @keyframes toastOut { from { opacity:1; transform:translateX(0); }    to { opacity:0; transform:translateX(100%); } }
+        .toast-item { animation: toastIn 0.3s ease-out; }
+        .toast-item.hide { animation: toastOut 0.3s ease-in forwards; }
+    </style>
+
+    <script src="<?= base_url('assets/js/tridatu-fs.js') ?>"></script>
     <script>
-        const DOCUMENT_CSRF_TOKEN = <?= json_encode($documentCsrfToken) ?>;
-        const SERVER_DEVICE_ID = <?= json_encode($currentDeviceId) ?>;
-        if (SERVER_DEVICE_ID || localStorage.getItem('tridatu_device_id')) {
-            const deviceId = SERVER_DEVICE_ID || localStorage.getItem('tridatu_device_id');
-            localStorage.setItem('tridatu_device_id', deviceId);
-            const cookieId = document.cookie.split('; ').find(row => row.startsWith('tridatu_device_id='))?.split('=')[1];
-            if (cookieId !== deviceId) {
-                document.cookie = `tridatu_device_id=${deviceId}; path=/; max-age=31536000; SameSite=Lax`;
-                if (!SERVER_DEVICE_ID && !sessionStorage.getItem('tridatu_device_bootstrap')) {
-                    sessionStorage.setItem('tridatu_device_bootstrap', '1');
-                    window.location.reload();
-                }
+    // =====================================================
+    // DATA DARI SERVER
+    // =====================================================
+    const DOCUMENT_CSRF_TOKEN = <?= json_encode($documentCsrfToken) ?>;
+    const DOC = {
+        id:         <?= (int) $doc->id ?>,
+        storage:    <?= json_encode($doc->storage_type) ?>,
+        fileName:   <?= json_encode($doc->file_name) ?>,
+        fileHash:   <?= json_encode($doc->file_hash) ?>,
+        fileSize:   <?= (int) ($doc->file_size ?? 0) ?>,
+        mimeType:   <?= json_encode($doc->mime_type) ?>,
+        klienId:    <?= (int) $doc->client_id ?>,
+        klienNama:  <?= json_encode($doc->nama_klien) ?>,
+        deviceId:   <?= json_encode($doc->device_id) ?>,
+        nama:       <?= json_encode($doc->nama_dokumen) ?>,
+        ext:        <?= json_encode($ext) ?>,
+    };
+    const IS_OWN_LOCAL = <?= $isOwnLocal ? 'true' : 'false' ?>;
+    const IS_CLOUD     = <?= $isCloud ? 'true' : 'false' ?>;
+
+    // =====================================================
+    // DEVICE ID
+    // =====================================================
+    const DEVICE_ID = (() => {
+        const serverId = <?= json_encode($currentDeviceId) ?>;
+        let id = serverId || localStorage.getItem('tridatu_device_id');
+        if (!id) id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now().toString(36) + Math.random().toString(36).slice(2));
+        localStorage.setItem('tridatu_device_id', id);
+        const cookieId = document.cookie.split('; ').find(row => row.startsWith('tridatu_device_id='))?.split('=')[1];
+        if (cookieId !== id) {
+            document.cookie = `tridatu_device_id=${id}; path=/; max-age=31536000; SameSite=Lax`;
+            if (!serverId && !sessionStorage.getItem('tridatu_device_bootstrap')) {
+                sessionStorage.setItem('tridatu_device_bootstrap', '1');
+                window.location.reload();
             }
         }
+        return id;
+    })();
 
-        const modal = document.getElementById('modalHapus');
-        const modalContent = document.getElementById('modalContent');
+    // =====================================================
+    // TOAST
+    // =====================================================
+    const TOAST_CFG = {
+        success: { bg: 'bg-emerald-50 border-emerald-200 text-emerald-800', ic: 'text-emerald-500', d: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+        error:   { bg: 'bg-red-50 border-red-200 text-red-800',             ic: 'text-red-500',     d: 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+        info:    { bg: 'bg-blue-50 border-blue-200 text-blue-800',          ic: 'text-blue-500',    d: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+    };
+    function showToast(msg, type = 'success') {
+        const c = TOAST_CFG[type] || TOAST_CFG.info;
+        const el = document.createElement('div');
+        el.className = `toast-item pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg max-w-sm ${c.bg}`;
+        el.innerHTML = `<svg class="w-5 h-5 flex-shrink-0 ${c.ic}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${c.d}"/></svg><span class="text-sm font-medium flex-1">${msg}</span><button type="button" class="opacity-60 hover:opacity-100 flex-shrink-0" onclick="this.parentElement.remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
+        document.getElementById('toastContainer').appendChild(el);
+        setTimeout(() => { el.classList.add('hide'); setTimeout(() => el.remove(), 300); }, 4000);
+    }
 
-        function bukaModalHapus() {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            setTimeout(() => {
-                modalContent.classList.remove('scale-95', 'opacity-0');
-                modalContent.classList.add('scale-100', 'opacity-100');
-            }, 10);
+    // =====================================================
+    // HASH
+    // =====================================================
+    async function hitungHash(blob) {
+        const buf = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+        return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // =====================================================
+    // PRATINJAU LOCAL (OWN LOCAL)
+    // =====================================================
+    let currentBlobUrl = null;
+
+    function revokeBlobUrl() {
+        if (currentBlobUrl) {
+            try { URL.revokeObjectURL(currentBlobUrl); } catch (e) {}
+            currentBlobUrl = null;
+        }
+    }
+
+    function showPreviewState(state) {
+        document.getElementById('localPreviewLoading').classList.add('hidden');
+        document.getElementById('localPreviewContent').classList.add('hidden');
+        const errEl = document.getElementById('localPreviewError');
+        errEl.classList.add('hidden');
+        errEl.classList.remove('flex');
+        const lockEl = document.getElementById('localPreviewLocked');
+        lockEl.classList.add('hidden');
+        lockEl.classList.remove('flex');
+
+        if (state === 'loading') {
+            document.getElementById('localPreviewLoading').classList.remove('hidden');
+        } else if (state === 'error') {
+            errEl.classList.remove('hidden');
+            errEl.classList.add('flex');
+        } else if (state === 'locked') {
+            lockEl.classList.remove('hidden');
+            lockEl.classList.add('flex');
+        } else if (state === 'content') {
+            document.getElementById('localPreviewContent').classList.remove('hidden');
+        }
+    }
+
+    async function loadLocalPreview() {
+        if (!IS_OWN_LOCAL) return;
+
+        // FF/Safari: dikunci
+        if (!TridatuFS.isSupported()) {
+            showPreviewState('locked');
+            return;
         }
 
-        function tutupModalHapus() {
-            modalContent.classList.remove('scale-100', 'opacity-100');
-            modalContent.classList.add('scale-95', 'opacity-0');
-            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
-        }
+        showPreviewState('loading');
+        try {
+            const file = await TridatuFS.readFile({
+                klienId:   DOC.klienId,
+                klienNama: DOC.klienNama,
+                fileName:  DOC.fileName,
+                fileHash:  DOC.fileHash
+            });
 
-        async function eksekusiHapus() {
+            if (!file) {
+                showPreviewState('error');
+                return;
+            }
+
+            revokeBlobUrl();
+            currentBlobUrl = URL.createObjectURL(file);
+
+            const contentDiv = document.getElementById('localPreviewContent');
+            contentDiv.innerHTML = '';
+
+            if (['jpg', 'jpeg', 'png'].includes(DOC.ext)) {
+                const img = document.createElement('img');
+                img.src = currentBlobUrl;
+                img.className = 'max-w-full max-h-full object-contain bg-white shadow-2xl rounded';
+                contentDiv.appendChild(img);
+            } else if (DOC.ext === 'pdf') {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'w-full h-full max-w-3xl mx-auto bg-white shadow-2xl rounded overflow-hidden';
+                const iframe = document.createElement('iframe');
+                iframe.src = currentBlobUrl + '#toolbar=0&navpanes=0&scrollbar=0&view=Fit';
+                iframe.className = 'w-full h-full border-none';
+                wrapper.appendChild(iframe);
+                contentDiv.appendChild(wrapper);
+            } else {
+                contentDiv.innerHTML = `<div class="bg-white w-full max-w-sm aspect-[1/1.4] shadow-2xl rounded p-8 flex flex-col items-center justify-center text-center"><p class="text-gray-500 font-medium">Pratinjau tidak tersedia untuk format ${DOC.ext.toUpperCase()}.</p></div>`;
+            }
+            showPreviewState('content');
+        } catch (err) {
+            console.error('Preview error:', err);
+            showPreviewState('error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadLocalPreview();
+
+        // Tombol "Pilih Folder" untuk retry
+        const btnPilihFolder = document.getElementById('btnPilihFolder');
+        if (btnPilihFolder) {
+            btnPilihFolder.addEventListener('click', async () => {
+                const h = await TridatuFS.getFolderHandle(true);
+                if (h) {
+                    showPreviewState('loading');
+                    loadLocalPreview();
+                }
+            });
+        }
+    });
+
+    window.addEventListener('beforeunload', revokeBlobUrl);
+
+    // =====================================================
+    // SYNC (OWN LOCAL → CLOUD)
+    // =====================================================
+    const btnSyncDetail = document.getElementById('btnSyncDetail');
+    if (btnSyncDetail) {
+        btnSyncDetail.addEventListener('click', async () => {
+            const btnText = document.getElementById('btnSyncDetailText');
+            const originalText = btnText.textContent;
+
+            // 1. Ambil file
+            let file = null;
+            let fileSource = '';
+
+            if (TridatuFS.isSupported()) {
+                // Coba baca dari folder
+                const fromFolder = await TridatuFS.readFile({
+                    klienId:   DOC.klienId,
+                    klienNama: DOC.klienNama,
+                    fileName:  DOC.fileName,
+                    fileHash:  DOC.fileHash
+                });
+                if (fromFolder) {
+                    file = fromFolder;
+                    fileSource = 'folder';
+                }
+            }
+
+            // Fallback: pilih file manual
+            if (!file) {
+                file = await TridatuFS.pickFile();
+                fileSource = 'picker';
+            }
+
+            if (!file) return; // user cancel
+
+            // 2. Hash & validasi
+            btnSyncDetail.disabled = true;
+            btnText.textContent = 'Menghitung hash...';
+            const fileHash = await hitungHash(file);
+
+            if (fileHash !== DOC.fileHash) {
+                btnSyncDetail.disabled = false;
+                btnText.textContent = originalText;
+                showToast('File berbeda dari aslinya. Gunakan Edit Dokumen jika ingin mengganti file.', 'error');
+                return;
+            }
+
+            // 3. Upload
+            btnText.textContent = 'Mengunggah...';
             try {
-                const formData = new FormData();
-                formData.append('dokumen_csrf_token', DOCUMENT_CSRF_TOKEN);
-                const response = await fetch('<?= site_url('dokumen/hapus/'.$doc->id) ?>', {
+                const fd = new FormData();
+                fd.append('id', DOC.id);
+                fd.append('device_id', DEVICE_ID);
+                fd.append('dokumen_csrf_token', DOCUMENT_CSRF_TOKEN);
+                fd.append('file_hash', fileHash);
+                fd.append('file', file, DOC.fileName);
+
+                const res = await fetch('<?= site_url("dokumen/sync_to_cloud") ?>', {
                     method: 'POST',
-                    body: formData,
+                    body: fd,
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
-                const result = await response.json();
-                if (!response.ok || !result.status) throw new Error(result.msg || 'Dokumen gagal dihapus.');
+                const data = await res.json();
+                if (!data.status) throw new Error(data.msg || 'Gagal mengunggah.');
 
-                <?php if($isOwnLocal): ?>
-                try {
-                    await fetch(`http://localhost:8080/delete?filename=<?= urlencode($doc->file_name) ?>`, { method: 'DELETE' });
-                } catch (agentError) {
-                    console.warn('Agent mati atau file tidak ada.');
-                }
-                <?php endif; ?>
-                window.location.href = result.redirect || '<?= site_url('dokumen') ?>';
+                showToast('Berhasil diunggah ke Server Sistem!', 'success');
+                setTimeout(() => window.location.reload(), 1200);
             } catch (err) {
-                alert(err.message || 'Dokumen gagal dihapus.');
-            }
-        }
-
-        <?php if($isOwnLocal): ?>
-        document.addEventListener('DOMContentLoaded', async () => {
-            const ext = "<?= $ext ?>";
-            const fileName = "<?= htmlspecialchars($doc->file_name) ?>";
-            const loadingDiv = document.getElementById('localPreviewLoading');
-            const contentDiv = document.getElementById('localPreviewContent');
-            const errorDiv = document.getElementById('localPreviewError');
-
-            try {
-                const ping = await fetch('http://localhost:8080/ping', { mode: 'cors' });
-                if (!ping.ok) throw new Error('Agent mati');
-                const fileUrl = `http://localhost:8080/file?filename=${encodeURIComponent(fileName)}`;
-
-                if (['jpg', 'jpeg', 'png'].includes(ext)) {
-                    contentDiv.innerHTML = `<img src="${fileUrl}" class="max-w-full max-h-full object-contain bg-white shadow-2xl rounded">`;
-                } else if (ext === 'pdf') {
-                    contentDiv.innerHTML = `<div class="w-full h-full max-w-3xl mx-auto bg-white shadow-2xl rounded overflow-hidden"><iframe src="${fileUrl}#toolbar=0&navpanes=0&scrollbar=0&view=Fit" class="w-full h-full border-none"></iframe></div>`;
-                } else {
-                    contentDiv.innerHTML = `<div class="bg-white w-full max-w-sm aspect-[1/1.4] shadow-2xl rounded p-8 flex flex-col items-center justify-center text-center"><p class="text-gray-500 font-medium">Pratinjau tidak tersedia untuk format ${ext.toUpperCase()}.</p></div>`;
-                }
-                loadingDiv.classList.add('hidden');
-                contentDiv.classList.remove('hidden');
-            } catch (err) {
-                loadingDiv.classList.add('hidden');
-                errorDiv.classList.remove('hidden');
-                errorDiv.classList.add('flex');
+                btnSyncDetail.disabled = false;
+                btnText.textContent = originalText;
+                showToast(err.message || 'Terjadi kesalahan.', 'error');
             }
         });
-        <?php endif; ?>
+    }
+
+    // =====================================================
+    // HAPUS
+    // =====================================================
+    const modal = document.getElementById('modalHapus');
+    const modalContent = document.getElementById('modalContent');
+
+    function bukaModalHapus() {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        setTimeout(() => {
+            modalContent.classList.remove('scale-95', 'opacity-0');
+            modalContent.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function tutupModalHapus() {
+        modalContent.classList.remove('scale-100', 'opacity-100');
+        modalContent.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 300);
+    }
+
+    async function eksekusiHapus() {
+        const btn = document.getElementById('btnHapusConfirm');
+        btn.disabled = true;
+        btn.textContent = 'Menghapus...';
+
+        try {
+            const fd = new FormData();
+            fd.append('dokumen_csrf_token', DOCUMENT_CSRF_TOKEN);
+
+            const response = await fetch('<?= site_url('dokumen/hapus/') ?>' + DOC.id, {
+                method: 'POST',
+                body: fd,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const result = await response.json();
+            if (!response.ok || !result.status) throw new Error(result.msg || 'Dokumen gagal dihapus.');
+
+            // Hapus file fisik (Chromium only)
+            if (IS_OWN_LOCAL) {
+                if (TridatuFS.isSupported()) {
+                    const del = await TridatuFS.deleteFile({
+                        klienId:   DOC.klienId,
+                        klienNama: DOC.klienNama,
+                        fileName:  DOC.fileName,
+                        fileHash:  DOC.fileHash
+                    });
+                    if (!del.ok) {
+                        console.warn('Gagal hapus file fisik:', del.msg);
+                    }
+                } else {
+                    showToast('Data terhapus. File di folder Downloads masih ada — hapus manual jika perlu.', 'info');
+                    await new Promise(r => setTimeout(r, 1500));
+                }
+            }
+
+            window.location.href = result.redirect || '<?= site_url('dokumen') ?>';
+        } catch (err) {
+            btn.disabled = false;
+            btn.textContent = 'Ya, Hapus';
+            tutupModalHapus();
+            showToast(err.message || 'Gagal menghapus.', 'error');
+        }
+    }
     </script>
 </body>
 </html>

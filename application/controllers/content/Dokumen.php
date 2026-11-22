@@ -17,28 +17,43 @@ class Dokumen extends MY_Controller {
 
     public function index() {
         $q       = trim((string) $this->input->get('q', TRUE));
-        $jenis   = (string) $this->input->get('jenis', TRUE);
-        
-        $perPage = 5; 
+        $jenis   = trim((string) $this->input->get('jenis', TRUE));
+        $klien   = trim((string) $this->input->get('klien', TRUE));
+        $project = trim((string) $this->input->get('project', TRUE));
+
+        // Daftar opsi filter
+        $klienList   = $this->dokumen_model->get_klien_filter_list();
+        $projectList = $this->dokumen_model->get_project_filter_list($klien);
+
+        // Kalau klien diganti dan project lama tidak termasuk klien tsb, reset project
+        if ($project !== '' && !in_array($project, $projectList, true)) {
+            $project = '';
+        }
+
+        $perPage = 5;
         $page    = max(1, (int) $this->input->get('page'));
 
-        $total      = $this->dokumen_model->count_filtered($q, $jenis);
+        $total      = $this->dokumen_model->count_filtered($q, $jenis, $klien, $project);
         $totalPages = max(1, (int) ceil($total / $perPage));
         $page       = min($page, $totalPages);
 
         $data = [
-            'title'         => 'Dokumen Kerja Sama - Tridatu',
-            'content'       => 'content/dokumen/index',
-            'documents'     => $this->dokumen_model->get_list($q, $jenis, $perPage, ($page - 1) * $perPage),
-            'jenis_dokumen' => $this->dokumen_model->get_jenis_dokumen(),
-            'total'         => $total,
-            'page'          => $page,
-            'perPage'       => $perPage,
-            'totalPages'    => $totalPages,
-            'q'             => $q,
-            'fJenis'        => $jenis,
+            'title'             => 'Dokumen Kerja Sama - Tridatu',
+            'content'           => 'content/dokumen/index',
+            'documents'         => $this->dokumen_model->get_list($q, $jenis, $klien, $project, $perPage, ($page - 1) * $perPage),
+            'jenis_dokumen'     => $this->dokumen_model->get_jenis_dokumen(),
+            'klien_list'        => $klienList,
+            'project_list'      => $projectList,
+            'total'             => $total,
+            'page'              => $page,
+            'perPage'           => $perPage,
+            'totalPages'        => $totalPages,
+            'q'                 => $q,
+            'fJenis'            => $jenis,
+            'fKlien'            => $klien,
+            'fProject'          => $project,
             'documentCsrfToken' => $this->documentCsrfToken,
-            'currentDeviceId' => $this->currentDeviceId,
+            'currentDeviceId'   => $this->currentDeviceId,
         ];
         $this->load->view('main', $data);
     }

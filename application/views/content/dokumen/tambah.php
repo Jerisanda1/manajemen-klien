@@ -61,6 +61,10 @@
                                 </div>
                             </label>
                         </div>
+                        <div id="unsupportedNote" class="hidden mt-3 flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span>Browser Anda belum mendukung pemilihan folder. File akan diunduh ke folder <strong>Downloads</strong>.</span>
+                        </div>
                     </div>
 
                     <div class="w-full lg:w-1/2">
@@ -189,14 +193,15 @@
         </form>
     </div>
 
+    <script src="<?= base_url('assets/js/tridatu-fs.js') ?>"></script>
     <script>
-    // --- UTILITY ---
+    // =====================================================
+    // DEVICE ID
+    // =====================================================
     const DEVICE_ID = (() => {
         const serverId = <?= json_encode($currentDeviceId) ?>;
         let id = serverId || localStorage.getItem('tridatu_device_id');
-        if (!id) {
-            id = crypto.randomUUID();
-        }
+        if (!id) id = (crypto.randomUUID && crypto.randomUUID()) || (Date.now().toString(36) + Math.random().toString(36).slice(2));
         localStorage.setItem('tridatu_device_id', id);
         const cookieId = document.cookie.split('; ').find(row => row.startsWith('tridatu_device_id='))?.split('=')[1];
         if (cookieId !== id) {
@@ -215,7 +220,9 @@
         return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // --- FILE PREVIEW ---
+    // =====================================================
+    // FILE PREVIEW
+    // =====================================================
     const fileInput = document.getElementById('fileInput');
     const dropzone = document.getElementById('dropzone');
     const filePreview = document.getElementById('filePreview');
@@ -251,23 +258,22 @@
         filePreview.classList.add('hidden');
     }
 
-    // --- DROPDOWN ---
+    // =====================================================
+    // CUSTOM DROPDOWN
+    // =====================================================
     function setDropdownValue(targetId, value, label) {
         const dd = document.querySelector(`.custom-dropdown[data-target="${targetId}"]`);
         if (!dd) return;
         const input = dd.querySelector('input[type="hidden"]');
         const text = dd.querySelector('.dropdown-text');
-
         input.value = value;
         text.textContent = label;
         text.classList.toggle('text-gray-400', value === '');
         text.classList.toggle('text-gray-900', value !== '');
-
         dd.querySelectorAll('li').forEach(li => {
             li.classList.remove('bg-red-50', 'text-[#9f2b2b]', 'font-bold');
             if (li.dataset.value === String(value)) li.classList.add('bg-red-50', 'text-[#9f2b2b]', 'font-bold');
         });
-
         input.dispatchEvent(new Event('change'));
     }
 
@@ -321,7 +327,6 @@
                 }
             });
             resetList();
-
             menu.style.visibility = 'hidden';
             menu.classList.remove('hidden');
             const rect = btn.getBoundingClientRect();
@@ -330,14 +335,12 @@
             dd.classList.toggle('drop-up', below < h + 16 && rect.top > below);
             menu.classList.add('hidden');
             menu.style.visibility = '';
-
             dd.classList.add('open');
             menu.classList.remove('hidden');
             void menu.offsetWidth;
             menu.classList.remove('opacity-0', 'scale-95');
             menu.classList.add('opacity-100', 'scale-100');
             icon.classList.add('rotate-180');
-
             if (search) setTimeout(() => search.focus(), 50);
         };
 
@@ -385,23 +388,22 @@
         });
     });
 
-    // --- CASCADING PROJECT ---
+    // =====================================================
+    // CASCADING PROJECT
+    // =====================================================
     document.getElementById('client_id').addEventListener('change', async function() {
         const clientId = this.value;
         const dd = document.querySelector('.custom-dropdown[data-target="project_id"]');
         const list = dd.querySelector('.dropdown-list');
         const search = dd.querySelector('.dropdown-search');
-
         setDropdownValue('project_id', '', 'Memuat project...');
         list.innerHTML = '<li class="px-3 py-2 text-gray-400 italic cursor-default">Memuat...</li>';
         if (search) search.value = '';
-
         if (!clientId) {
             setDropdownValue('project_id', '', 'Pilih Klien Terlebih Dahulu');
             list.innerHTML = '<li class="px-3 py-2 text-gray-400 italic cursor-default">Pilih Klien Terlebih Dahulu</li>';
             return;
         }
-
         try {
             const res = await fetch('<?= site_url("dokumen/get_projects") ?>', {
                 method: 'POST',
@@ -410,13 +412,11 @@
             });
             const data = await res.json();
             const projects = data.data || data || [];
-
             if (projects.length === 0) {
                 setDropdownValue('project_id', '', 'Klien ini belum punya project');
                 list.innerHTML = '<li class="px-3 py-2 text-gray-400 italic cursor-default">Klien ini belum punya project</li>';
                 return;
             }
-
             setDropdownValue('project_id', '', 'Pilih project');
             list.innerHTML = '<li class="px-3 py-2 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors font-medium" data-value="">Pilih project</li>';
             projects.forEach(p => {
@@ -433,17 +433,34 @@
         }
     });
 
-    // --- STORAGE TOGGLE ---
+    // =====================================================
+    // STORAGE TOGGLE
+    // =====================================================
     let currentStorage = 'cloud';
     function toggleStorage(type) {
         currentStorage = type;
         document.getElementById('dropzoneText').textContent = type === 'local'
-            ? 'Tarik file ke sini atau pilih dari perangkat (Disimpan lokal)'
+            ? (TridatuFS.isSupported() 
+                ? 'Tarik file ke sini atau pilih dari perangkat (Disimpan lokal)'
+                : 'Tarik file ke sini atau pilih dari perangkat (Akan diunduh ke Downloads)')
             : 'Tarik file ke sini atau pilih dari perangkat';
     }
 
-    // --- FORM SUBMIT DENGAN LOCAL SERVICE ---
+    // =====================================================
+    // DETEKSI DUKUNGAN BROWSER
+    // =====================================================
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!TridatuFS.isSupported()) {
+            document.getElementById('unsupportedNote').classList.remove('hidden');
+            document.getElementById('unsupportedNote').classList.add('flex');
+        }
+    });
+
+    // =====================================================
+    // FORM SUBMIT — MODE LOCAL (FS API / Download)
+    // =====================================================
     document.getElementById('formDokumen').addEventListener('submit', async function(e) {
+        // Validasi dropdown
         const fields = [
             { id: 'client_id', label: 'Klien' },
             { id: 'jenis_dokumen', label: 'Jenis dokumen' },
@@ -457,40 +474,40 @@
             }
         }
 
-        // Mode Cloud: biarkan submit standar
+        // Mode Cloud: submit standar
         if (currentStorage === 'cloud') return;
 
+        // ===== MODE LOCAL =====
         e.preventDefault();
         const file = fileInput.files[0];
         if (!file) return alert('Pilih file terlebih dahulu!');
 
         const btn = document.getElementById('btnSimpan');
-        btn.textContent = 'Menghubungi Local Agent...';
+        btn.textContent = 'Memproses...';
         btn.disabled = true;
 
         try {
-            // 1. Cek apakah Local Agent aktif
-            try {
-                await fetch('http://localhost:8080/ping', { mode: 'cors' });
-            } catch (err) {
-                throw new Error('Aplikasi TridatuAgent.exe belum dibuka. Silakan buka aplikasinya terlebih dahulu di laptop Anda.');
+            // Ambil info klien untuk folder
+            const clientId = document.getElementById('client_id').value;
+            const clientDD = document.querySelector('.custom-dropdown[data-target="client_id"]');
+            const clientNama = clientDD.querySelector('.dropdown-text').textContent.trim();
+
+            // 1. Minta folder (Chromium) — batal = abort tanpa POST
+            if (TridatuFS.isSupported()) {
+                btn.textContent = 'Meminta akses folder...';
+                const handle = await TridatuFS.getFolderHandle();
+                if (!handle) {
+                    btn.textContent = 'Simpan Dokumen';
+                    btn.disabled = false;
+                    return;
+                }
             }
 
-            // 2. Kirim file ke Local Agent untuk disimpan di hardisk
-            btn.textContent = 'Menyimpan ke Folder...';
-            const resAgent = await fetch(`http://localhost:8080/save?filename=${encodeURIComponent(file.name)}`, {
-                method: 'POST',
-                body: file // Kirim raw file
-            });
-
-            const dataAgent = await resAgent.json();
-            if (!dataAgent.success) throw new Error(dataAgent.error || 'Gagal menyimpan file di laptop.');
-
-            // 3. Kirim metadata ke server CodeIgniter (tanpa file fisik)
-            btn.textContent = 'Menyimpan Data...';
+            // 2. POST metadata
+            btn.textContent = 'Menyimpan data...';
             const fd = new FormData(this);
-            fd.delete('file_dokumen'); // Pastikan file tidak di-upload ke hosting
-            fd.set('storage_type', 'local'); // Set tipe local
+            fd.delete('file_dokumen');
+            fd.set('storage_type', 'local');
 
             const res = await fetch(this.action, {
                 method: 'POST',
@@ -498,14 +515,33 @@
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             const data = await res.json();
+            if (!data.status) throw new Error(data.msg || 'Gagal menyimpan data.');
 
-            if (data.status) {
-                window.location.href = data.redirect || '<?= site_url("dokumen") ?>';
-            } else {
-                throw new Error(data.msg || 'Gagal menyimpan data ke database.');
+            // 3. Simpan file
+            btn.textContent = 'Menyimpan file...';
+            const fileHash = document.getElementById('file_hash_local').value;
+
+            try {
+                const saveRes = await TridatuFS.saveFile({
+                    klienId: clientId,
+                    klienNama: clientNama,
+                    fileName: file.name,
+                    fileHash: fileHash,
+                    blob: file
+                });
+                if (!saveRes.ok) {
+                    throw new Error(saveRes.msg || 'Gagal menyimpan file.');
+                }
+            } catch (saveErr) {
+                console.warn('Save file failed:', saveErr);
+                alert('Data tersimpan, tapi file gagal disimpan. Silakan buka Edit untuk melampirkan ulang file.');
             }
+
+            // 4. Redirect
+            window.location.href = data.redirect || '<?= site_url("dokumen") ?>';
+
         } catch (err) {
-            alert(err.message || err);
+            alert(err.message || 'Terjadi kesalahan.');
             btn.textContent = 'Simpan Dokumen';
             btn.disabled = false;
         }

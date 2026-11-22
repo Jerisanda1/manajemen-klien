@@ -18,30 +18,75 @@ class Dokumen_model extends CI_Model {
         $this->db->join('project p', 'p.id = d.project_id', 'left');
     }
 
-    private function _apply_filters($q, $jenis) {
+    private function _apply_filters($q, $jenis, $klien = '', $project = '') {
         if (!empty($q)) {
             $this->db->like('d.nama_dokumen', $q);
         }
         if (!empty($jenis)) {
             $this->db->where('d.jenis_dokumen', $jenis);
         }
+        if (!empty($klien)) {
+            $this->db->where('c.nama_klien', $klien);
+        }
+        if (!empty($project)) {
+            $this->db->where('p.nama_project', $project);
+        }
     }
 
     // Menghitung total data setelah difilter (untuk pagination)
-    public function count_filtered($q = '', $jenis = '') {
+    public function count_filtered($q = '', $jenis = '', $klien = '', $project = '') {
         $this->_base_query();
-        $this->_apply_filters($q, $jenis);
+        $this->_apply_filters($q, $jenis, $klien, $project);
         return (int) $this->db->count_all_results();
     }
 
     // Mengambil daftar dokumen dengan limit & offset (untuk pagination)
-    public function get_list($q = '', $jenis = '', $limit = 10, $offset = 0) {
+    public function get_list($q = '', $jenis = '', $klien = '', $project = '', $limit = 10, $offset = 0) {
         $this->db->select('d.*, c.nama_klien, p.nama_project');
         $this->_base_query();
-        $this->_apply_filters($q, $jenis);
+        $this->_apply_filters($q, $jenis, $klien, $project);
         $this->db->order_by('d.id', 'DESC');
         $this->db->limit((int) $limit, (int) $offset);
         return $this->db->get()->result();
+    }
+
+    /* =========================================
+     * 1b. OPSI FILTER KLIEN & PROJECT
+     * ========================================= */
+
+    // Daftar nama klien yang memiliki dokumen (untuk dropdown filter)
+    public function get_klien_filter_list() {
+        $rows = $this->db
+            ->select('c.nama_klien')
+            ->distinct()
+            ->from('documents d')
+            ->join('clients c', 'c.id = d.client_id')
+            ->where('c.nama_klien IS NOT NULL', null, false)
+            ->where("c.nama_klien <> ''", null, false)
+            ->order_by('c.nama_klien', 'ASC')
+            ->get()->result_array();
+
+        return array_column($rows, 'nama_klien');
+    }
+
+    // Daftar nama project yang memiliki dokumen.
+    // Jika $klien diisi, hanya project milik klien tersebut.
+    public function get_project_filter_list($klien = '') {
+        $this->db
+            ->select('p.nama_project')
+            ->distinct()
+            ->from('documents d')
+            ->join('project p', 'p.id = d.project_id')
+            ->join('clients c', 'c.id = d.client_id')
+            ->where('p.nama_project IS NOT NULL', null, false)
+            ->where("p.nama_project <> ''", null, false);
+
+        if (!empty($klien)) {
+            $this->db->where('c.nama_klien', $klien);
+        }
+
+        $rows = $this->db->order_by('p.nama_project', 'ASC')->get()->result_array();
+        return array_column($rows, 'nama_project');
     }
 
     /* =========================================
