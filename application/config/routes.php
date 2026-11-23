@@ -101,7 +101,8 @@ $route['pembayaran/berkas/(:num)'] = 'content/pembayaran/berkas/$1';
 $route['pembayaran/hapus'] = 'content/pembayaran/hapus';
 $route['pembayaran/berkas-invoice/(:num)'] = 'content/pembayaran/berkas_invoice/$1';
 $route['pembayaran/pratinjau-invoice']     = 'content/pembayaran/pratinjau_invoice';
-
+$route['pembayaran/kirim-email/(:num)'] = 'content/pembayaran/kirim_email/$1';
+$route['pembayaran/kirim-wa/(:num)'] = 'content/pembayaran/kirim_wa/$1';
 
 $route['pengaturan'] = 'content/pengaturan/index';
 

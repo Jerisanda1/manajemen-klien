@@ -76,6 +76,7 @@ if (!function_exists('kirim_wa_fonnte')) {
         if ($httpCode >= 200 && $httpCode < 300 && $sent) {
             return ['status' => true, 'reason' => ''];
         }
+        
 
         $reason = isset($result['reason']) && is_scalar($result['reason'])
             ? (string) $result['reason']
@@ -83,6 +84,7 @@ if (!function_exists('kirim_wa_fonnte')) {
                 ? (string) $result['detail']
                 : 'Fonnte menolak pengiriman.');
 
+                
         return ['status' => false, 'reason' => 'HTTP ' . $httpCode . ': ' . $reason];
     }
 }

@@ -298,6 +298,155 @@ class Pembayaran extends CI_Controller
         ], FALSE);
     }
 
+
+    public function kirim_email($id)
+{
+    if ($this->input->method() !== 'post') {
+        redirect('pembayaran/detail/invoice/' . (int) $id);
+    }
+
+    $inv = $this->Pembayaran_model->get_invoice($id);
+    if (!$inv) {
+        show_404();
+    }
+
+    if ($inv->status === 'Dibayar') {
+        $this->session->set_flashdata('error', 'Invoice sudah dibayar. Email pengingat tidak dikirim.');
+        redirect('pembayaran/detail/invoice/' . (int) $id);
+    }
+
+    $tujuan = trim((string) $inv->email_pic);
+
+    if (!filter_var($tujuan, FILTER_VALIDATE_EMAIL)) {
+        $this->Pembayaran_model->add_pengiriman(
+            $id,
+            'email',
+            $tujuan,
+            FALSE,
+            'Alamat email PIC tidak valid.'
+        );
+
+        $this->session->set_flashdata('error', 'Alamat email PIC tidak valid.');
+        redirect('pembayaran/detail/invoice/' . (int) $id);
+    }
+
+    $this->load->library('Notifikasi');
+
+    $hari = (int) floor(
+        (strtotime($inv->jatuh_tempo) - strtotime(date('Y-m-d'))) / 86400
+    );
+
+    list($subjek, $isi) = $this->notifikasi->pesan_pengingat($inv, $hari);
+
+    list($berhasil, $keterangan) = $this->notifikasi->email(
+        $tujuan,
+        $subjek,
+        $isi
+    );
+
+    $this->Pembayaran_model->add_pengiriman(
+        $id,
+        'email',
+        $tujuan,
+        $berhasil,
+        $keterangan,
+        0,
+        NULL
+    );
+
+    if ($berhasil) {
+        $this->session->set_flashdata('success', 'Email pengingat berhasil dikirim ke ' . $tujuan . '.');
+    } else {
+        $this->session->set_flashdata('error', 'Email gagal dikirim: ' . $keterangan);
+    }
+
+    redirect('pembayaran/detail/invoice/' . (int) $id);
+}
+
+public function kirim_wa($id)
+{
+    if ($this->input->method() !== 'post') {
+        redirect('pembayaran/detail/invoice/' . (int) $id);
+    }
+
+    $inv = $this->Pembayaran_model->get_invoice($id);
+
+    if (!$inv) {
+        show_404();
+    }
+
+    if ($inv->status === 'Dibayar') {
+        $this->session->set_flashdata(
+            'error',
+            'Invoice sudah dibayar. WhatsApp pengingat tidak dikirim.'
+        );
+
+        redirect('pembayaran/detail/invoice/' . (int) $id);
+    }
+
+    $tujuan = trim((string) $inv->hp_pic);
+
+    if ($tujuan === '') {
+        $this->Pembayaran_model->add_pengiriman(
+            $id,
+            'whatsapp',
+            $tujuan,
+            FALSE,
+            'Nomor WhatsApp PIC kosong.'
+        );
+
+        $this->session->set_flashdata(
+            'error',
+            'Nomor WhatsApp PIC belum tersedia.'
+        );
+
+        redirect('pembayaran/detail/invoice/' . (int) $id);
+    }
+
+    $this->load->helper('fonnte');
+
+    $hari = (int) floor(
+        (strtotime($inv->jatuh_tempo) - strtotime(date('Y-m-d'))) / 86400
+    );
+
+    $pesan = "Halo {$inv->nama_pic},\n\n"
+        . "Kami ingin mengingatkan bahwa invoice {$inv->no_invoice} "
+        . "dengan perihal {$inv->perihal} "
+        . "jatuh tempo pada " . date('d-m-Y', strtotime($inv->jatuh_tempo)) . ".\n\n"
+        . "Mohon segera melakukan pembayaran. "
+        . "Jika pembayaran sudah dilakukan, silakan abaikan pesan ini.\n\n"
+        . "Terima kasih,\nTridatu Solution.";
+
+    $hasil = kirim_wa_fonnte($tujuan, $pesan);
+
+    $berhasil = !empty($hasil['status']);
+    $keterangan = $berhasil
+        ? ''
+        : (isset($hasil['reason']) ? $hasil['reason'] : 'Pengiriman WhatsApp gagal.');
+
+    $this->Pembayaran_model->add_pengiriman(
+        $id,
+        'whatsapp',
+        $tujuan,
+        $berhasil,
+        $keterangan
+    );
+
+    if ($berhasil) {
+        $this->session->set_flashdata(
+            'success',
+            'WhatsApp pengingat berhasil dikirim ke ' . $tujuan . '.'
+        );
+    } else {
+        $this->session->set_flashdata(
+            'error',
+            'WhatsApp gagal dikirim: ' . $keterangan
+        );
+    }
+
+    redirect('pembayaran/detail/invoice/' . (int) $id);
+}
+
     private function status_invoice($id)
     {
         if ($this->input->method() !== 'post') redirect('pembayaran/detail/invoice/' . (int) $id);

@@ -8,6 +8,7 @@ class Cron extends CI_Controller {
         parent::__construct();
 
         $this->load->model('Dokumen_model', 'dokumen_model');
+        $this->load->model('Pembayaran_model', 'pembayaran_model');
 
         // Load konfigurasi
         $this->load->config('email_reminder');
@@ -119,6 +120,241 @@ class Cron extends CI_Controller {
      * @param string $tipe 'akan_berakhir' | 'expired'
      * @return array ['total','email','wa','gagal','errors']
      */
+
+
+/**
+ * REMINDER INVOICE OTOMATIS
+ * Mengirim email pada H-30 dan hari jatuh tempo.
+ */
+public function kirim_reminder_invoice()
+{
+    // CLI diizinkan; browser wajib menggunakan key valid
+    if (!is_cli() && !$this->_key_valid()) {
+        show_404();
+    }
+
+    $br = is_cli() ? PHP_EOL : '<br>';
+
+    echo "[REMINDER INVOICE]" . $br;
+
+    $today = new DateTime(date('Y-m-d'));
+
+    $invoices = $this->pembayaran_model->get_invoice_belum_bayar();
+
+    if (empty($invoices)) {
+        echo "Tidak ada invoice yang belum dibayar." . $br;
+        return;
+    }
+
+    $total = 0;
+    $berhasil = 0;
+    $gagal = 0;
+    $dilewati = 0;
+
+    foreach ($invoices as $inv) {
+
+        $jatuhTempo = new DateTime(date('Y-m-d', strtotime($inv->jatuh_tempo)));
+
+        $selisih = (int) $today->diff($jatuhTempo)->format('%r%a');
+
+        // Hanya memproses H-30 dan hari H
+        if (!in_array($selisih, [30, 0], true)) {
+            $dilewati++;
+            continue;
+        }
+
+        $offset = $selisih;
+
+        $total++;
+
+        $email = trim((string) $inv->email_pic);
+
+        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->pembayaran_model->add_pengiriman(
+                $inv->id,
+                'email',
+                $email,
+                false,
+                'Alamat email PIC kosong atau tidak valid.',
+                1,
+                $offset
+            );
+
+            $gagal++;
+            echo "GAGAL: Email invoice {$inv->no_invoice} tidak valid." . $br;
+            continue;
+        }
+
+        // Cegah pengiriman otomatis berulang
+        if ($this->pembayaran_model->sudah_dikirim_otomatis(
+            $inv->id,
+            'email',
+            $offset
+        )) {
+            $dilewati++;
+            echo "SKIP: Invoice {$inv->no_invoice} sudah dikirim." . $br;
+            continue;
+        }
+
+
+// ==============================
+// WHATSAPP FONNTE
+// ==============================
+
+$nomorWa = trim((string) $inv->hp_pic);
+
+if ($nomorWa === '') {
+
+    echo "WA SKIP: Nomor PIC invoice {$inv->no_invoice} kosong." . $br;
+
+} elseif (!$this->pembayaran_model->sudah_dikirim_otomatis(
+    $inv->id,
+    'whatsapp',
+    $offset
+)) {
+
+    $waktu = ($offset === 30)
+        ? '30 hari lagi'
+        : 'hari ini';
+
+    $pesanWa =
+        "*PENGINGAT PEMBAYARAN INVOICE*\n\n" .
+        "Yth. " . ($inv->nama_pic ?: 'Pelanggan') . ",\n\n" .
+        "Kami ingin mengingatkan bahwa invoice berikut akan jatuh tempo {$waktu}.\n\n" .
+        "No. Invoice: {$inv->no_invoice}\n" .
+        "Perihal: {$inv->perihal}\n" .
+        "Jatuh Tempo: " . date('d-m-Y', strtotime($inv->jatuh_tempo)) . "\n\n" .
+        "Mohon melakukan pembayaran sesuai jadwal yang ditentukan.\n" .
+        "Jika pembayaran sudah dilakukan, silakan abaikan pesan ini.\n\n" .
+        "Terima kasih.\nTridatu Solution";
+
+    $resWa = kirim_wa_fonnte($nomorWa, $pesanWa);
+
+    $waBerhasil = isset($resWa['status']) && $resWa['status'] === true;
+
+    $this->pembayaran_model->add_pengiriman(
+        $inv->id,
+        'whatsapp',
+        $nomorWa,
+        $waBerhasil,
+        $waBerhasil ? '' : ($resWa['reason'] ?? 'Pengiriman WhatsApp gagal.'),
+        1,
+        $offset
+    );
+
+    if ($waBerhasil) {
+        echo "WA BERHASIL: Invoice {$inv->no_invoice} ke {$nomorWa}." . $br;
+    } else {
+        echo "WA GAGAL: Invoice {$inv->no_invoice} - " .
+            ($resWa['reason'] ?? 'Alasan tidak tersedia.') . $br;
+    }
+
+} else {
+
+    echo "WA SKIP: Invoice {$inv->no_invoice} sudah dikirim." . $br;
+}
+
+
+        $labelWaktu = ($offset === 30)
+            ? '30 hari lagi'
+            : 'hari ini';
+
+        $subject = ($offset === 30)
+            ? 'Pengingat Invoice - H-30'
+            : 'Pengingat Invoice - Jatuh Tempo Hari Ini';
+
+        $namaPIC = htmlspecialchars($inv->nama_pic ?: 'Pelanggan', ENT_QUOTES, 'UTF-8');
+        $noInvoice = htmlspecialchars($inv->no_invoice, ENT_QUOTES, 'UTF-8');
+        $perihal = htmlspecialchars($inv->perihal, ENT_QUOTES, 'UTF-8');
+        $tanggal = date('d-m-Y', strtotime($inv->jatuh_tempo));
+
+        $message = '
+            <div style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+                <h2>Pengingat Pembayaran Invoice</h2>
+
+                <p>Yth. ' . $namaPIC . ',</p>
+
+                <p>
+                    Kami ingin mengingatkan bahwa invoice berikut
+                    memiliki jadwal jatuh tempo ' . $labelWaktu . '.
+                </p>
+
+                <table cellpadding="8" cellspacing="0"
+                    style="border-collapse:collapse;border:1px solid #ddd;">
+                    <tr>
+                        <td><strong>No. Invoice</strong></td>
+                        <td>' . $noInvoice . '</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Perihal</strong></td>
+                        <td>' . $perihal . '</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Jatuh Tempo</strong></td>
+                        <td>' . $tanggal . '</td>
+                    </tr>
+                </table>
+
+                <p>
+                    Mohon melakukan pembayaran sesuai jadwal yang telah
+                    ditentukan. Jika pembayaran sudah dilakukan,
+                    silakan abaikan email ini.
+                </p>
+
+                <p>Terima kasih.</p>
+                <hr>
+                <small>Tridatu Solution</small>
+            </div>
+        ';
+
+        $this->email->clear();
+
+        $this->email->from(
+            $this->config->item('smtp_user'),
+            'Tridatu Solution'
+        );
+
+        $this->email->to($email);
+        $this->email->subject($subject);
+        $this->email->message($message);
+
+        $success = $this->email->send();
+
+        $keterangan = '';
+
+        if (!$success) {
+            $debug = $this->email->print_debugger(['headers']);
+            $keterangan = trim(
+                preg_replace('/\s+/', ' ', strip_tags($debug))
+            );
+        }
+
+        $this->pembayaran_model->add_pengiriman(
+            $inv->id,
+            'email',
+            $email,
+            $success,
+            $keterangan,
+            1,
+            $offset
+        );
+
+        if ($success) {
+            $berhasil++;
+            echo "BERHASIL: Invoice {$inv->no_invoice} ke {$email}." . $br;
+        } else {
+            $gagal++;
+            echo "GAGAL: Invoice {$inv->no_invoice} - {$keterangan}" . $br;
+        }
+    }
+
+    echo $br . "Selesai memproses reminder invoice." . $br;
+    echo "Total diproses: {$total}" . $br;
+    echo "Email berhasil: {$berhasil}" . $br;
+    echo "Email gagal: {$gagal}" . $br;
+    echo "Dilewati: {$dilewati}" . $br;
+}
+
     private function _proses_reminder($docs, $admin_email, $admin_wa, $tipe) {
 
         $result = [

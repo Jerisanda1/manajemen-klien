@@ -321,6 +321,59 @@ $pengiriman = (isset($pengiriman) && is_array($pengiriman)) ? $pengiriman : [];
                         Pengingat dikirim otomatis melalui email dan WhatsApp pada H-30 dan hari jatuh tempo.
                     </p>
 
+                    <br>
+<?php
+$emailTersedia = !empty($inv->email_pic);
+$waTersedia = !empty($inv->hp_pic);
+?>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+    <!-- Tombol Kirim Email -->
+    <form method="post"
+          action="<?= site_url('pembayaran/kirim-email/' . $id) ?>"
+          onsubmit="return confirm('Kirim pengingat invoice melalui email sekarang?');"
+          class="m-0">
+        <?= $csrf ?>
+
+        <button type="submit"
+                <?= (!$emailTersedia || $dibayar) ? 'disabled' : '' ?>
+                class="w-full h-11 px-3 rounded-lg text-sm font-semibold transition-colors
+                <?= ($emailTersedia && !$dibayar)
+                    ? 'bg-[#9f2b2b] hover:bg-[#8a2525] text-white'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed' ?>">
+            Kirim Email
+        </button>
+    </form>
+
+    <!-- Tombol Kirim WhatsApp -->
+    <form method="post"
+          action="<?= site_url('pembayaran/kirim-wa/' . $id) ?>"
+          onsubmit="return confirm('Kirim pengingat invoice melalui WhatsApp sekarang?');"
+          class="m-0">
+        <?= $csrf ?>
+
+        <button type="submit"
+                <?= (!$waTersedia || $dibayar) ? 'disabled' : '' ?>
+                class="w-full h-11 px-3 rounded-lg text-sm font-semibold transition-colors
+                <?= ($waTersedia && !$dibayar)
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed' ?>">
+            Kirim WhatsApp
+        </button>
+    </form>
+</div>
+
+<?php if ($dibayar): ?>
+    <p class="text-xs text-gray-500 mt-2">
+        Pengiriman pengingat dinonaktifkan karena invoice sudah dibayar.
+    </p>
+<?php elseif (!$emailTersedia || !$waTersedia): ?>
+    <p class="text-xs text-amber-600 mt-2">
+        Tombol pengiriman akan aktif jika kontak PIC tersedia.
+    </p>
+<?php endif; ?>
+
+
                     <?php if ($dibayar): ?>
                         <p class="text-xs text-gray-500 leading-relaxed mt-2">Invoice sudah dibayar, pengingat otomatis tidak dikirim lagi.</p>
                     <?php endif; ?>
