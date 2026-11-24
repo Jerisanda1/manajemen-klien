@@ -15,7 +15,7 @@ $tgl   = function ($tanggal) use ($bulan) {
     return $t ? date('d', $t) . ' ' . $bulan[(int) date('n', $t)] . ' ' . date('Y', $t) : '-';
 };
 
-// PERBAIKAN: Warna badge 'Ditunda' disesuaikan dengan halaman Project
+// Warna badge 'Ditunda' disesuaikan dengan halaman Project
 $badge = [
     'Berjalan'      => ['bg-blue-50 text-blue-700 ring-blue-200',          'bg-blue-500'],
     'Selesai'       => ['bg-emerald-50 text-emerald-700 ring-emerald-200', 'bg-emerald-500'],
@@ -26,7 +26,7 @@ $badge = [
 ];
 
 $projects = isset($list_project) ? $list_project : [];
-$dokumen  = isset($list_dokumen) ? $list_dokumen : [];
+$dokumen  = isset($list_dokumen) ? $list_dokumen : []; // Tetap dideklarasikan untuk ringkasan
 
 $statusDokumen = function ($d) {
     if (empty($d->tanggal_berakhir)) return 'Aktif';
@@ -54,7 +54,6 @@ $renderBadge = function ($status) use ($badge) {
          . '<span class="h-1.5 w-1.5 rounded-full ' . $dot . '"></span>' . htmlspecialchars($status) . '</span>';
 };
 
-// PERBAIKAN: Warna Pagination disesuaikan ke Marun (#9f2b2b)
 $renderFooter = function ($total) {
     $teks = $total > 0 ? 'Menampilkan 1–' . $total . ' dari ' . $total . ' data' : 'Menampilkan 0 data';
     return '<div class="flex shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-2">'
@@ -181,7 +180,7 @@ $renderFooter = function ($total) {
                 <h2 class="mb-3 text-base font-semibold text-slate-900">Ringkasan</h2>
                 <div class="grid grid-cols-2 gap-2.5">
 
-                    <!-- Total Project (Ubah ke Marun) -->
+                    <!-- Total Project -->
                     <div class="group relative overflow-hidden rounded-xl bg-red-50/60 p-3 ring-1 ring-inset ring-red-100/70 transition-colors hover:bg-red-50">
                         <div class="flex items-start justify-between">
                             <p class="text-[10px] font-semibold uppercase tracking-wider text-[#9f2b2b]/80">Total Project</p>
@@ -221,107 +220,81 @@ $renderFooter = function ($total) {
             </div>
         </section>
 
-        <!-- Project & dokumen -->
-        <section class="grid min-h-0 flex-1 grid-cols-1 gap-5 rounded-2xl border border-slate-200 bg-white p-4 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-2 xl:grid-rows-1">
-
-            <!-- Project -->
-            <div class="flex min-h-0 flex-col">
-                <div class="flex items-center justify-between mb-2 shrink-0">
-                    <h2 class="text-base font-semibold text-slate-900">Project</h2>
-                    <!-- TOMBOL TAMBAH PROJECT BARU -->
-                    <a href="<?= site_url('project/tambah?klien_id='.$klien->id) ?>" class="text-sm font-medium text-[#9f2b2b] hover:underline flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        Tambah
-                    </a>
-                </div>
-                <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200">
-                    <div class="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
-                        <table class="w-full text-left text-[13px]">
-                            <thead class="sticky top-0 z-10 h-10 bg-slate-50">
-                                <tr class="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-                                    <th class="px-4 py-2">Nama Project</th>
-                                    <th class="px-4 py-2">Mulai</th>
-                                    <th class="px-4 py-2">Selesai</th>
-                                    <th class="px-4 py-2">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                <?php if (empty($projects)): ?>
-                                    <tr>
-                                        <td colspan="4" class="px-4 py-8 text-center text-slate-500">Belum ada data project.</td>
-                                    </tr>
-                                <?php else: ?>
-                                    <?php foreach ($projects as $p): ?>
-                                    <tr class="transition-colors hover:bg-slate-50">
-                                        <td class="px-4 py-2 font-semibold text-slate-900"><?= $e($p->nama_project) ?></td>
-                                        <td class="whitespace-nowrap px-4 py-2 text-slate-600"><?= $e($tgl($p->tanggal_mulai)) ?></td>
-                                        <td class="whitespace-nowrap px-4 py-2 text-slate-600"><?= $e($tgl($p->tanggal_selesai)) ?></td>
-                                        <td class="whitespace-nowrap px-4 py-2"><?= $renderBadge($p->status ?: '-') ?></td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    <?= $renderFooter($jmlProject) ?>
-                </div>
+        <!-- Project Section (Full Width) -->
+        <section class="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-4">
+            <div class="flex items-center justify-between mb-3 shrink-0">
+                <h2 class="text-base font-semibold text-slate-900">Daftar Project</h2>
+                <a href="<?= site_url('project/tambah?klien_id='.$klien->id) ?>" class="text-sm font-medium text-[#9f2b2b] hover:underline flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Tambah Project
+                </a>
             </div>
-
-            <!-- Dokumen kerja sama -->
-            <div class="flex min-h-0 flex-col">
-                <div class="flex items-center justify-between mb-2 shrink-0">
-                    <h2 class="text-base font-semibold text-slate-900">Dokumen Kerja Sama</h2>
-                    <!-- TOMBOL TAMBAH DOKUMEN BARU -->
-                    <a href="<?= site_url('dokumen/tambah?client_id='.$klien->id) ?>" class="text-sm font-medium text-[#9f2b2b] hover:underline flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        Tambah
-                    </a>
-                </div>
-                <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200">
-                    <div class="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
-                        <table class="w-full text-left text-[13px]">
-                            <thead class="sticky top-0 z-10 h-10 bg-slate-50">
-                                <tr class="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-                                    <th class="px-4 py-2">Nama Dokumen</th>
-                                    <th class="px-4 py-2">Project</th>
-                                    <th class="px-4 py-2">Jenis</th>
-                                    <th class="px-4 py-2">Berakhir</th>
-                                    <th class="px-4 py-2">Status</th>
+            
+            <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200">
+                <div class="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
+                    <table class="w-full text-left text-[13px]">
+                        <thead class="sticky top-0 z-10 h-10 bg-slate-50">
+                            <tr class="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
+                                <th class="px-4 py-2">Nama Project</th>
+                                <th class="px-4 py-2">Deskripsi</th>
+                                <th class="px-4 py-2">Mulai</th>
+                                <th class="px-4 py-2">Selesai</th>
+                                <th class="px-4 py-2">Status</th>
+                                <th class="px-4 py-2 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <?php if (empty($projects)): ?>
+                                <tr>
+                                    <td colspan="6" class="px-4 py-8 text-center text-slate-500">Belum ada data project.</td>
                                 </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                <?php if (empty($dokumen)): ?>
-                                    <tr>
-                                        <td colspan="5" class="px-4 py-8 text-center text-slate-500">Belum ada data dokumen.</td>
-                                    </tr>
-                                <?php else: ?>
-                                    <?php foreach ($dokumen as $d): ?>
-                                        <?php $statusDok = $statusDokumen($d); ?>
-                                        <tr class="transition-colors hover:bg-slate-50">
-                                            <td class="px-4 py-2">
-                                                <a href="<?= site_url('dokumen/detail/' . $d->id) ?>" class="font-medium text-[#9f2b2b] hover:underline">
-                                                    <?= $e($d->nama_dokumen) ?>
-                                                </a>
-                                            </td>
-                                            <td class="px-4 py-2 font-semibold text-slate-900"><?= $e($d->nama_project ?: '-') ?></td>
-                                            <td class="whitespace-nowrap px-4 py-2">
-                                                <span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700"><?= $e($d->jenis_dokumen) ?></span>
-                                            </td>
-                                            <td class="whitespace-nowrap px-4 py-2 <?= $statusDok === 'Akan Berakhir' ? 'font-medium text-orange-700' : 'text-slate-600' ?>"><?= $e($tgl($d->tanggal_berakhir)) ?></td>
-                                            <td class="whitespace-nowrap px-4 py-2"><?= $renderBadge($statusDok) ?></td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    <?= $renderFooter($jmlDokumen) ?>
+                            <?php else: ?>
+                                <?php foreach ($projects as $p): ?>
+                                <tr class="transition-colors hover:bg-slate-50">
+                                    <td class="px-4 py-2 font-semibold text-[#9f2b2b] hover:underline">
+                                        <a href="<?= site_url('project/detail/'.$p->id) ?>"><?= $e($p->nama_project) ?></a>
+                                    </td>
+                                    <td class="px-4 py-2 text-slate-600">
+                                        <p class="line-clamp-2 max-w-[250px]" title="<?= $e($p->deskripsi ?? '') ?>">
+                                            <?= !empty($p->deskripsi) ? $e($p->deskripsi) : '<span class="text-slate-400 italic">-</span>' ?>
+                                        </p>
+                                    </td>
+                                    <td class="whitespace-nowrap px-4 py-2 text-slate-600"><?= $e($tgl($p->tanggal_mulai)) ?></td>
+                                    <td class="whitespace-nowrap px-4 py-2 text-slate-600"><?= $e($tgl($p->tanggal_selesai)) ?></td>
+                                    <td class="whitespace-nowrap px-4 py-2"><?= $renderBadge($p->status ?: '-') ?></td>
+                                    <td class="px-4 py-2 text-center">
+                                        <div class="flex justify-center items-center gap-1">
+                                            <!-- Tombol Detail -->
+                                            <a href="<?= site_url('project/detail/'.$p->id) ?>" class="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm" title="Lihat Detail">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                            </a>
+                                            <!-- Tombol Edit -->
+                                            <a href="<?= site_url('project/edit/'.$p->id) ?>" class="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all shadow-sm" title="Edit Data">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                            </a>
+                                            <!-- Tombol Hapus (FIX: pakai data-* + this.dataset) -->
+                                            <button type="button"
+                                                    data-id="<?= (int) $p->id ?>"
+                                                    data-nama="<?= $e($p->nama_project) ?>"
+                                                    onclick="bukaModalHapusProject(this.dataset.id, this.dataset.nama)"
+                                                    class="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm"
+                                                    title="Hapus Project">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
+                <?= $renderFooter($jmlProject) ?>
             </div>
         </section>
     </div>
 
-    <!-- Modal hapus (Menggunakan Form POST + CSRF) -->
+    <!-- Modal hapus Klien -->
     <div id="modalHapus" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
         <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onclick="tutupModalHapus()"></div>
         <div id="modalContent" class="relative z-10 w-full max-w-md scale-95 transform rounded-2xl bg-white p-6 opacity-0 shadow-xl transition-all duration-200">
@@ -338,7 +311,6 @@ $renderFooter = function ($total) {
                 </div>
             </div>
             
-            <!-- FORM POST UNTUK HAPUS -->
             <form method="post" action="<?= site_url('klien/hapus/') ?>" id="formHapus" class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <?php if ($this->config->item('csrf_protection')): ?>
                     <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
@@ -351,7 +323,38 @@ $renderFooter = function ($total) {
         </div>
     </div>
 
+    <!-- Modal hapus Project -->
+    <div id="modalHapusProject" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onclick="tutupModalHapusProject()"></div>
+        <div id="modalContentProject" class="relative z-10 w-full max-w-md scale-95 transform rounded-2xl bg-white p-6 opacity-0 shadow-xl transition-all duration-200">
+            <div class="flex gap-4">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-50">
+                    <svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-900">Hapus Project?</h3>
+                    <p class="mt-1 text-sm leading-relaxed text-slate-500">
+                        Apakah Anda yakin ingin menghapus project <br>
+                        <strong id="namaProjectHapus" class="font-semibold text-slate-900"></strong>?<br>
+                        <span class="text-xs text-red-500 mt-2 block bg-red-50 py-1.5 px-2 rounded-lg">Tindakan ini tidak dapat dibatalkan.</span>
+                    </p>
+                </div>
+            </div>
+            
+            <form method="post" action="<?= site_url('project/hapus') ?>" id="formHapusProject" class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <?php if ($this->config->item('csrf_protection')): ?>
+                    <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                <?php endif; ?>
+                <input type="hidden" name="id" id="inputHapusIdProject">
+                
+                <button type="button" onclick="tutupModalHapusProject()" class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">Batal</button>
+                <button type="submit" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700">Ya, Hapus</button>
+            </form>
+        </div>
+    </div>
+
     <script>
+        // --- JS UNTUK MODAL HAPUS KLIEN ---
         const modal = document.getElementById('modalHapus');
         const modalContent = document.getElementById('modalContent');
         const formHapus = document.getElementById('formHapus');
@@ -381,8 +384,37 @@ $renderFooter = function ($total) {
             }, 200);
         }
 
+        // --- JS UNTUK MODAL HAPUS PROJECT ---
+        const modalProject = document.getElementById('modalHapusProject');
+        const modalContentProject = document.getElementById('modalContentProject');
+        const inputHapusIdProject = document.getElementById('inputHapusIdProject');
+
+        function bukaModalHapusProject(id, nama) {
+            document.getElementById('namaProjectHapus').textContent = nama;
+            inputHapusIdProject.value = id;
+
+            modalProject.classList.remove('hidden');
+            modalProject.classList.add('flex');
+            setTimeout(() => {
+                modalContentProject.classList.remove('scale-95', 'opacity-0');
+                modalContentProject.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function tutupModalHapusProject() {
+            modalContentProject.classList.remove('scale-100', 'opacity-100');
+            modalContentProject.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modalProject.classList.add('hidden');
+                modalProject.classList.remove('flex');
+            }, 200);
+        }
+
         document.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Escape' && !modal.classList.contains('hidden')) tutupModalHapus();
+            if (ev.key === 'Escape') {
+                if (!modal.classList.contains('hidden')) tutupModalHapus();
+                if (!modalProject.classList.contains('hidden')) tutupModalHapusProject();
+            }
         });
     </script>
 </body>

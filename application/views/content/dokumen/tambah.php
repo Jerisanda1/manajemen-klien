@@ -15,7 +15,8 @@
     <div class="max-w-[1280px] mx-auto p-4 md:p-6 lg:p-8">
 
         <div class="mb-5">
-            <a href="<?= site_url('dokumen') ?>" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-2 transition-colors">
+            <!-- SMART BACK BUTTON (href = fallback bila asal tidak diketahui) -->
+            <a href="<?= site_url('dokumen') ?>" id="backBtn" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-2 transition-colors">
                 <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                 Kembali
             </a>
@@ -187,7 +188,8 @@
             </div>
 
             <div class="flex justify-end gap-3">
-                <a href="<?= site_url('dokumen') ?>" class="px-6 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">Batal</a>
+                <!-- Batal juga kembali ke halaman asal (data-smart-back) -->
+                <a href="<?= site_url('dokumen') ?>" data-smart-back class="px-6 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">Batal</a>
                 <button type="submit" id="btnSimpan" class="px-6 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-[#9f2b2b]/20 disabled:opacity-50">Simpan Dokumen</button>
             </div>
         </form>
@@ -547,5 +549,8 @@
         }
     });
     </script>
+
+    <!-- SMART BACK BUTTON (script bersama) -->
+    <?php $this->load->view('partials/smart_back'); ?>
 </body>
 </html>

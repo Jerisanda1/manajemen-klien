@@ -3,6 +3,8 @@
  * Form Tambah & Edit Project — halaman mandiri
  * Konsep visual mengikuti form Klien: card 55/45 dengan ilustrasi.
  * Custom dropdown Klien & Status dipertahankan (konsisten dengan form Dokumen).
+ * + Smart Back Button — Kembali & Batal menuju halaman asal form dibuka
+ *   (daftar project / detail project / detail klien). $urlKembali jadi fallback.
  */
 $e = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
 
@@ -17,7 +19,11 @@ $err = function ($f) {
 };
 
 $from = isset($from) ? $from : 'list';
+// Fallback bila asal tidak diketahui (mis. URL dibuka langsung)
 $urlKembali = site_url($isEdit && $from === 'detail' ? 'project/detail/' . (int) $project->id : 'project');
+
+// Kunci tetap agar asal tidak hilang saat validasi gagal (URL berubah ke project/simpan atau project/update/ID)
+$backKey = 'project-form-' . ($isEdit ? (int) $project->id : 'new');
 
 $gambar = 'assets/img/project_form.png';
 $adaGambar = file_exists(FCPATH . $gambar);
@@ -45,7 +51,8 @@ $curStatusLabel = $curStatus !== '' ? $curStatus : 'Pilih Status';
 
         <!-- Header (di luar kotak) -->
         <div class="mb-4 pl-2">
-            <a href="<?= $urlKembali ?>" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-1 transition-colors">
+            <!-- SMART BACK BUTTON (href = fallback bila asal tidak diketahui) -->
+            <a href="<?= $urlKembali ?>" id="backBtn" data-back-key="<?= $e($backKey) ?>" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-1 transition-colors">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                 Kembali
             </a>
@@ -114,12 +121,12 @@ $curStatusLabel = $curStatus !== '' ? $curStatus : 'Pilih Status';
                                 <div class="dropdown-menu absolute z-50 hidden mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden origin-top transform opacity-0 scale-95 transition-all duration-150">
                                     <ul class="dropdown-list py-1 text-sm text-gray-700 max-h-60 overflow-y-auto">
                                         <li class="px-3 py-2 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors font-medium <?= $curStatus === '' ? 'bg-red-50 text-[#9f2b2b]' : '' ?>" data-value="">Pilih Status</li>
-                                        
-                                        <!-- PERBAIKAN: Sesuaikan dengan ENUM Database -->
+
+                                        <!-- Sesuai ENUM Database -->
                                         <?php foreach (['Draft', 'Berjalan', 'Selesai', 'Batal'] as $s): ?>
                                             <li class="px-3 py-2 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $curStatus === $s ? 'bg-red-50 text-[#9f2b2b] font-medium' : '' ?>" data-value="<?= $s ?>"><?= $s ?></li>
                                         <?php endforeach; ?>
-                                        
+
                                     </ul>
                                 </div>
                                 <input type="hidden" name="status" id="status" value="<?= $e($curStatus) ?>">
@@ -155,7 +162,8 @@ $curStatusLabel = $curStatus !== '' ? $curStatus : 'Pilih Status';
 
                     <!-- Tombol Aksi -->
                     <div class="flex justify-end gap-3 pt-3 border-t border-gray-100">
-                        <a href="<?= $urlKembali ?>" class="px-5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">Batal</a>
+                        <!-- Batal juga kembali ke halaman asal (data-smart-back) -->
+                        <a href="<?= $urlKembali ?>" data-smart-back class="px-5 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">Batal</a>
                         <button type="submit" id="btnSimpan"
                                 class="px-5 py-2 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-[#9f2b2b]/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                             <?= $isEdit ? 'Simpan Perubahan' : 'Simpan Project' ?>
@@ -323,6 +331,9 @@ $curStatusLabel = $curStatus !== '' ? $curStatus : 'Pilih Status';
         return true;
     }
     </script>
+
+    <!-- SMART BACK BUTTON (script bersama) -->
+    <?php $this->load->view('partials/smart_back'); ?>
 
 </body>
 </html>

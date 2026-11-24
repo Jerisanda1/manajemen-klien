@@ -138,17 +138,26 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
         </form>
 
         <!-- Tabel -->
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+        <div class="tbl-wrap overflow-x-auto">
+            <table class="tbl-project w-full text-left border-collapse">
+                <colgroup>
+                    <col>                          <!-- Nama Project (sisa ruang) -->
+                    <col style="width: 15%;">      <!-- Klien -->
+                    <col style="width: 17%;">      <!-- Deskripsi -->
+                    <col style="width: 108px;">    <!-- Mulai -->
+                    <col style="width: 108px;">    <!-- Selesai -->
+                    <col style="width: 118px;">    <!-- Status -->
+                    <col style="width: 104px;">    <!-- Aksi (tetap) -->
+                </colgroup>
                 <thead>
                     <tr class="border-b border-gray-200 bg-gray-50/50">
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nama Project</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Klien</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Deskripsi</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Mulai</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Selesai</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Status</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Aksi</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Nama Project</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Klien</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Deskripsi</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Mulai</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Selesai</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Status</th>
+                        <th class="whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider text-center col-aksi">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -170,23 +179,21 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
                     <?php else: ?>
                         <?php foreach ($projects as $p): ?>
                             <tr class="data-row border-b border-gray-100 hover:bg-gray-50/60 transition-colors group">
-                                <td class="px-5 py-4 text-sm font-bold text-gray-900 group-hover:text-[#9f2b2b] transition-colors max-w-[200px] truncate" title="<?= $e($p->nama_project) ?>"><?= $e($p->nama_project) ?></td>
-                                <td class="px-5 py-4 text-sm text-gray-700 font-medium max-w-[150px] truncate" title="<?= $e($p->nama_klien ?: '-') ?>"><?= $e($p->nama_klien ?: '-') ?></td>
-                                <td class="max-w-[220px] px-5 py-4 text-sm text-gray-600">
-                                    <p class="line-clamp-2" title="<?= $e($p->deskripsi) ?>"><?= $p->deskripsi ? $e($p->deskripsi) : '<span class="text-gray-400 italic">-</span>' ?></p>
-                                </td>
-                                <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-600 text-center"><?= $tgl($p->tanggal_mulai) ?></td>
-                                <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-600 text-center"><?= $tgl($p->tanggal_selesai) ?></td>
-                                <td class="whitespace-nowrap px-5 py-4 text-center">
+                                <td class="text-sm font-bold text-gray-900 group-hover:text-[#9f2b2b] transition-colors truncate cell-ellipsis" title="<?= $e($p->nama_project) ?>"><?= $e($p->nama_project) ?></td>
+                                <td class="text-sm text-gray-700 font-medium truncate cell-ellipsis" title="<?= $e($p->nama_klien ?: '-') ?>"><?= $e($p->nama_klien ?: '-') ?></td>
+                                <td class="text-sm text-gray-600 truncate cell-ellipsis" title="<?= $e($p->deskripsi) ?>"><?= $p->deskripsi ? $e($p->deskripsi) : '<span class="text-gray-400 italic">-</span>' ?></td>
+                                <td class="whitespace-nowrap text-sm text-gray-600 text-center"><?= $tgl($p->tanggal_mulai) ?></td>
+                                <td class="whitespace-nowrap text-sm text-gray-600 text-center"><?= $tgl($p->tanggal_selesai) ?></td>
+                                <td class="whitespace-nowrap text-center">
                                     <?= $renderBadge($p->status) ?>
                                 </td>
-                                <td class="px-5 py-4 text-center">
-                                    <div class="flex justify-center items-center gap-1.5">
-                                        <a href="<?= site_url('project/detail/' . (int) $p->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Lihat Detail">
+                                <td class="whitespace-nowrap text-center col-aksi">
+                                    <div class="flex flex-nowrap justify-center items-center gap-1">
+                                        <a href="<?= site_url('project/detail/' . (int) $p->id) ?>" class="aksi-btn bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Lihat Detail">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                         </a>
 
-                                        <a href="<?= site_url('project/edit/' . (int) $p->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
+                                        <a href="<?= site_url('project/edit/' . (int) $p->id) ?>" class="aksi-btn bg-white border border-gray-200 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                         </a>
 
@@ -194,7 +201,7 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
                                                 data-id="<?= (int) $p->id ?>"
                                                 data-nama="<?= $e($p->nama_project) ?>"
                                                 onclick="bukaModalHapus(this.dataset.id, this.dataset.nama)"
-                                                class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm" title="Hapus Project">
+                                                class="aksi-btn bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm" title="Hapus Project">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                         </button>
                                     </div>
@@ -280,6 +287,21 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fStatus !== '');
     @keyframes toastOut { from { opacity:1; transform:translateX(0); }    to { opacity:0; transform:translateX(100%); } }
     .toast-item { animation: toastIn 0.3s ease-out; }
     .toast-item.hide { animation: toastOut 0.3s ease-in forwards; }
+
+    /* Tabel project: lebar kolom diatur colgroup, kolom teks dipotong di dalam selnya */
+    .tbl-project { table-layout: fixed; min-width: 860px; }
+    .tbl-project th,
+    .tbl-project td { padding: 0.875rem 0.75rem; vertical-align: middle; }
+    .tbl-project tbody td[colspan] { padding: 3rem 1.5rem; }
+    .tbl-project th.col-aksi,
+    .tbl-project td.col-aksi { padding-left: 0.5rem; padding-right: 0.5rem; }
+
+    /* Teks terlalu panjang dipotong satu baris dengan titik-titik (...) */
+    .tbl-project .cell-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Tombol aksi: ukuran seragam, tidak ikut menyusut */
+    .aksi-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 26px; height: 26px; padding: 0; }
+    .aksi-btn svg { width: 14px; height: 14px; }
 </style>
 
 <script>

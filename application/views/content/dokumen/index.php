@@ -137,17 +137,26 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
         </form>
 
         <!-- Tabel -->
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+        <div class="tbl-wrap overflow-x-auto">
+            <table class="tbl-dokumen w-full text-left border-collapse">
+                <colgroup>
+                    <col>                          <!-- Nama Dokumen (sisa ruang) -->
+                    <col style="width: 13%;">      <!-- Nama Klien -->
+                    <col style="width: 13%;">      <!-- Project -->
+                    <col style="width: 110px;">    <!-- Mulai -->
+                    <col style="width: 110px;">    <!-- Selesai -->
+                    <col style="width: 150px;">    <!-- Status -->
+                    <col style="width: 136px;">    <!-- Aksi (tetap) -->
+                </colgroup>
                 <thead>
                     <tr class="border-b border-gray-200 bg-gray-50/50">
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nama Dokumen</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nama Klien</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Project</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Mulai</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Selesai</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Status</th>
-                        <th class="px-5 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Aksi</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Nama Dokumen</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Nama Klien</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Project</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Mulai</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Selesai</th>
+                        <th class="text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Status</th>
+                        <th class="whitespace-nowrap text-xs font-semibold text-gray-500 uppercase tracking-wider text-center col-aksi">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -184,7 +193,7 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
                             <tr class="data-row border-b border-gray-100 hover:bg-gray-50/60 transition-colors group">
 
                                 <!-- Nama Dokumen -->
-                                <td class="px-5 py-4 max-w-[260px]">
+                                <td class="overflow-hidden">
                                     <div class="flex items-center gap-2.5 min-w-0">
                                         <div class="flex-shrink-0 <?= $isOtherLocal ? 'text-gray-400' : 'text-blue-500' ?>">
                                             <?php if ($isCloud): ?>
@@ -196,34 +205,55 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
 
                                         <?php if ($isOtherLocal): ?>
                                             <span class="min-w-0 truncate text-sm font-semibold text-gray-500 cursor-not-allowed" title="Terkunci di Perangkat Lain"><?= $e($d->nama_dokumen) ?></span>
+
+                                        <?php elseif ($isCloud): ?>
+                                            <!-- Dokumen cloud: pratinjau langsung dari server di tab baru -->
+                                            <a href="<?= site_url('dokumen/preview/' . (int) $d->id) ?>" target="_blank" rel="noopener"
+                                               class="min-w-0 truncate text-sm font-semibold text-blue-600 underline underline-offset-2 decoration-blue-300 hover:text-blue-800 hover:decoration-blue-500 transition-colors"
+                                               title="Pratinjau Dokumen"><?= $e($d->nama_dokumen) ?></a>
+
                                         <?php else: ?>
-                                            <a href="<?= site_url('dokumen/detail/' . (int) $d->id) ?>" class="min-w-0 truncate text-sm font-semibold text-blue-600 underline underline-offset-2 decoration-blue-300 hover:text-blue-800 hover:decoration-blue-500 transition-colors" title="Lihat Detail"><?= $e($d->nama_dokumen) ?></a>
+                                            <!-- Dokumen lokal (perangkat ini): pratinjau dibaca dari folder lokal via TridatuFS -->
+                                            <button type="button"
+                                                class="btn-preview min-w-0 truncate text-left text-sm font-semibold text-blue-600 underline underline-offset-2 decoration-blue-300 hover:text-blue-800 hover:decoration-blue-500 transition-colors"
+                                                data-klien-id="<?= (int) ($d->client_id ?? 0) ?>"
+                                                data-klien-nama="<?= $e($d->nama_klien ?? '') ?>"
+                                                data-file-name="<?= $e($d->file_name ?? '') ?>"
+                                                data-file-hash="<?= $e($d->file_hash ?? '') ?>"
+                                                title="Pratinjau Dokumen"><?= $e($d->nama_dokumen) ?></button>
                                         <?php endif; ?>
                                     </div>
                                 </td>
 
                                 <!-- Klien -->
-                                <td class="px-5 py-4 text-sm text-gray-700 font-medium max-w-[160px] truncate" title="<?= $e($d->nama_klien) ?>"><?= $e($d->nama_klien) ?></td>
+                                <td class="text-sm text-gray-700 font-medium truncate" title="<?= $e($d->nama_klien) ?>"><?= $e($d->nama_klien) ?></td>
 
                                 <!-- Project -->
-                                <td class="px-5 py-4 text-sm text-gray-600 max-w-[160px] truncate" title="<?= $e($d->nama_project ?? '') ?>"><?= !empty($d->nama_project) ? $e($d->nama_project) : '<span class="text-gray-400 italic">-</span>' ?></td>
+                                <td class="text-sm text-gray-600 truncate" title="<?= $e($d->nama_project ?? '') ?>"><?= !empty($d->nama_project) ? $e($d->nama_project) : '<span class="text-gray-400 italic">-</span>' ?></td>
 
                                 <!-- Tanggal -->
-                                <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-600 text-center"><?= $tgl($d->tanggal_mulai ?? null) ?></td>
-                                <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-600 text-center"><?= $tgl($d->tanggal_berakhir ?? null) ?></td>
+                                <td class="whitespace-nowrap text-sm text-gray-600 text-center"><?= $tgl($d->tanggal_mulai ?? null) ?></td>
+                                <td class="whitespace-nowrap text-sm text-gray-600 text-center"><?= $tgl($d->tanggal_berakhir ?? null) ?></td>
 
                                 <!-- Status -->
-                                <td class="whitespace-nowrap px-5 py-4 text-center"><?= $renderBadgeDok($status_text) ?></td>
+                                <td class="whitespace-nowrap text-center"><?= $renderBadgeDok($status_text) ?></td>
 
                                 <!-- Aksi -->
-                                <td class="px-5 py-4 text-center">
-                                    <div class="flex justify-center items-center gap-1.5">
+                                <td class="whitespace-nowrap text-center col-aksi">
+                                    <div class="flex flex-nowrap justify-center items-center gap-1">
 
-                                        <?php if ($isCloud): ?>
-                                            <a href="<?= site_url('dokumen/unduh/' . (int) $d->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Unduh Dokumen">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                        <!-- Detail (ikon mata) -->
+                                        <?php if (!$isOtherLocal): ?>
+                                            <a href="<?= site_url('dokumen/detail/' . (int) $d->id) ?>" class="aksi-btn bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Lihat Detail">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                             </a>
-                                        <?php elseif ($isOwnLocal): ?>
+                                        <?php else: ?>
+                                            <span class="aksi-btn bg-white border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed" title="Terkunci di Perangkat Lain">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                            </span>
+                                        <?php endif; ?>
+
+                                        <?php if ($isOwnLocal): ?>
                                             <button
                                                 type="button"
                                                 data-sync-id="<?= (int) $d->id ?>"
@@ -231,29 +261,29 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
                                                 data-klien-id="<?= (int) ($d->client_id ?? 0) ?>"
                                                 data-klien-nama="<?= $e($d->nama_klien ?? '') ?>"
                                                 data-file-hash="<?= $e($d->file_hash ?? '') ?>"
-                                                class="btn-sync p-1.5 bg-white border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400 rounded-lg transition-all shadow-sm"
+                                                class="btn-sync aksi-btn bg-white border border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400 rounded-lg transition-all shadow-sm"
                                                 title="Unggah ke Cloud">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                             </button>
-                                        <?php else: ?>
-                                            <span class="p-1.5 bg-white border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed" title="Terkunci di Perangkat Lain">
+                                        <?php elseif ($isOtherLocal): ?>
+                                            <span class="aksi-btn bg-white border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed" title="Terkunci di Perangkat Lain">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                                             </span>
                                         <?php endif; ?>
 
                                         <?php if (!$isOtherLocal): ?>
-                                            <a href="<?= site_url('dokumen/edit/' . (int) $d->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
+                                            <a href="<?= site_url('dokumen/edit/' . (int) $d->id) ?>" class="aksi-btn bg-white border border-gray-200 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                             </a>
                                         <?php else: ?>
-                                            <span class="p-1.5 bg-white border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed" title="Tidak dapat diedit dari perangkat ini">
+                                            <span class="aksi-btn bg-white border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed" title="Tidak dapat diedit dari perangkat ini">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                                             </span>
                                         <?php endif; ?>
 
                                         <button
                                             type="button"
-                                            class="btn-hapus p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm"
+                                            class="btn-hapus aksi-btn bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm"
                                             data-id="<?= (int) $d->id ?>"
                                             data-nama="<?= $e($d->nama_dokumen ?? '') ?>"
                                             data-is-own-local="<?= $isOwnLocal ? '1' : '0' ?>"
@@ -348,6 +378,37 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
 <style>
     @keyframes toastIn  { from { opacity:0; transform:translateX(100%); } to { opacity:1; transform:translateX(0); } }
     @keyframes toastOut { from { opacity:1; transform:translateX(0); }    to { opacity:0; transform:translateX(100%); } }
+    /* Tabel dokumen: lebar kolom diatur colgroup, kolom teks dipotong di dalam selnya */
+    .tbl-wrap { container-type: inline-size; }
+    .tbl-dokumen { table-layout: fixed; }
+    .tbl-dokumen th,
+    .tbl-dokumen td { padding: 0.875rem 1rem; vertical-align: middle; }
+    .tbl-dokumen tbody td[colspan] { padding: 3rem 1.5rem; }
+    .tbl-dokumen th.col-aksi,
+    .tbl-dokumen td.col-aksi { padding-left: 0.5rem; padding-right: 0.5rem; }
+
+    /* Tanpa scroll samping: kolom yang kurang penting disembunyikan bertahap sesuai lebar kartu.
+       Urutan sembunyi: Mulai (4) -> Project (3) -> Selesai (5) -> Klien (2) -> Status (6) */
+    @container (max-width: 939px) {
+        .tbl-dokumen col:nth-child(4), .tbl-dokumen th:nth-child(4), .tbl-dokumen td:nth-child(4) { display: none; }
+    }
+    @container (max-width: 789px) {
+        .tbl-dokumen col:nth-child(3), .tbl-dokumen th:nth-child(3), .tbl-dokumen td:nth-child(3) { display: none; }
+    }
+    @container (max-width: 669px) {
+        .tbl-dokumen col:nth-child(5), .tbl-dokumen th:nth-child(5), .tbl-dokumen td:nth-child(5) { display: none; }
+    }
+    @container (max-width: 549px) {
+        .tbl-dokumen col:nth-child(2), .tbl-dokumen th:nth-child(2), .tbl-dokumen td:nth-child(2) { display: none; }
+    }
+    @container (max-width: 469px) {
+        .tbl-dokumen col:nth-child(6), .tbl-dokumen th:nth-child(6), .tbl-dokumen td:nth-child(6) { display: none; }
+    }
+
+    /* Tombol aksi: ukuran seragam, tidak ikut menyusut */
+    .aksi-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 26px; height: 26px; padding: 0; }
+    .aksi-btn svg { width: 14px; height: 14px; }
+
     .toast-item { animation: toastIn 0.3s ease-out; }
     .toast-item.hide { animation: toastOut 0.3s ease-in forwards; }
 </style>
@@ -587,6 +648,89 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
             } finally {
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
+            }
+        });
+    });
+
+    // --- PRATINJAU DOKUMEN LOKAL (PERANGKAT INI) ---
+    document.querySelectorAll('.btn-preview').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const klienId      = Number(this.dataset.klienId || 0);
+            const klienNama    = this.dataset.klienNama || '';
+            const fileName     = this.dataset.fileName || '';
+            const expectedHash = (this.dataset.fileHash || '').toLowerCase();
+
+            // Buka tab dulu (sinkron dengan klik) agar tidak diblokir pop-up blocker
+            const win = window.open('', '_blank');
+            if (!win) {
+                showToast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini.', 'error');
+                return;
+            }
+            win.document.title = 'Memuat dokumen...';
+
+            try {
+                if (typeof TridatuFS === 'undefined') {
+                    throw new Error('Helper TridatuFS belum berhasil dimuat.');
+                }
+                if (!fileName) {
+                    throw new Error('Informasi file tidak lengkap.');
+                }
+
+                let file = null;
+
+                // 1. Coba baca dari folder lokal yang sudah diizinkan
+                if (TridatuFS.isSupported()) {
+                    try {
+                        file = await TridatuFS.readFile({
+                            klienId: klienId,
+                            klienNama: klienNama,
+                            fileName: fileName,
+                            fileHash: expectedHash
+                        });
+                    } catch (readError) {
+                        console.warn('Tidak dapat membaca folder lokal:', readError);
+                    }
+                }
+
+                // 2. Fallback: pilih file secara manual
+                if (!file) {
+                    showToast('File tidak ditemukan di folder. Pilih file secara manual.', 'info');
+                    file = await TridatuFS.pickFile();
+                }
+
+                // Pengguna membatalkan pemilihan file
+                if (!file) { win.close(); return; }
+
+                // 3. Pastikan file sama dengan yang tercatat
+                if (expectedHash) {
+                    const actualHash = (await hitungHash(file)).toLowerCase();
+                    if (actualHash !== expectedHash) {
+                        throw new Error('File berbeda dari aslinya. Pastikan memilih file yang benar.');
+                    }
+                }
+
+                // 4. Tampilkan di viewer bawaan browser (PDF/gambar), selain itu diunduh
+                const mimeMap = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
+                const ext  = fileName.split('.').pop().toLowerCase();
+                const mime = mimeMap[ext];
+                const url  = URL.createObjectURL(new Blob([file], { type: mime || 'application/octet-stream' }));
+
+                if (mime) {
+                    win.location.href = url;
+                } else {
+                    win.close();
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    showToast('Format ini tidak bisa dipratinjau, file diunduh.', 'info');
+                }
+            } catch (err) {
+                win.close();
+                console.error('Pratinjau dokumen gagal:', err);
+                showToast(err.message || 'Gagal membuka pratinjau.', 'error');
             }
         });
     });

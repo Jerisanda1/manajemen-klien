@@ -4,6 +4,9 @@
  * @var object|null $penawaran
  * @var array $klienList, $projectList
  * @var string $nomorBaru, $from, $action, $title, $mode, $uploadErr
+ *
+ * + Smart Back Button — Kembali & Batal menuju halaman asal form dibuka
+ *   (daftar pembayaran / detail penawaran / detail project). $urlKembali jadi fallback.
  */
 $e = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
 $isEdit = !empty($penawaran);
@@ -23,9 +26,13 @@ $err = function ($f) {
 $mode      = isset($mode) ? $mode : 'template';
 $uploadErr = isset($uploadErr) ? $uploadErr : '';
 $from      = isset($from) ? $from : 'list';
+// Fallback bila asal tidak diketahui (mis. URL dibuka langsung)
 $urlKembali = $isEdit && $from === 'detail'
     ? site_url('pembayaran/detail/penawaran/' . (int) $penawaran->id)
     : site_url('pembayaran?tab=penawaran');
+
+// Kunci tetap agar asal tidak hilang saat validasi gagal (URL form bisa berubah)
+$backKey = 'penawaran-form-' . ($isEdit ? (int) $penawaran->id : 'new');
 
 $bulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 $tgl = function ($t) use ($bulan) {
@@ -80,7 +87,8 @@ $kunci = $isEdit;
         <!-- Header -->
         <div class="mb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <a href="<?= $urlKembali ?>" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-2 transition-colors">
+                <!-- SMART BACK BUTTON (href = fallback bila asal tidak diketahui) -->
+                <a href="<?= $urlKembali ?>" id="backBtn" data-back-key="<?= $e($backKey) ?>" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-2 transition-colors">
                     <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                     Kembali
                 </a>
@@ -326,7 +334,8 @@ $kunci = $isEdit;
                             Pratinjau PDF
                         </button>
 
-                        <a href="<?= $urlKembali ?>" class="w-full px-6 py-2 text-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">Batal</a>
+                        <!-- Batal juga kembali ke halaman asal (data-smart-back) -->
+                        <a href="<?= $urlKembali ?>" data-smart-back class="w-full px-6 py-2 text-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">Batal</a>
                     </div>
 
                 </div>
@@ -596,5 +605,8 @@ $kunci = $isEdit;
         if (klienVal) sinkronProject(klienVal);
     });
     </script>
+
+    <!-- SMART BACK BUTTON (script bersama) -->
+    <?php $this->load->view('partials/smart_back'); ?>
 </body>
 </html>
