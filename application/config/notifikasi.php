@@ -10,8 +10,6 @@ $config['email_smtp_pass']   = 'yabz fxzn rvbq myng';             // Gmail: App 
 $config['email_from']        = 'manajemenklien26@gmail.com';             // biasanya sama dengan email_smtp_user
 $config['email_from_name']   = 'Tridatu Solution';
 
-// ---- WhatsApp (Fonnte) ----
-//$config['fonnte_token']      = '';             // token device dari dashboard Fonnte
 
 
 

@@ -131,8 +131,9 @@ public function kirim_reminder_invoice()
     // CLI diizinkan; browser wajib menggunakan key valid
     if (!is_cli() && !$this->_key_valid()) {
         show_404();
-    }
+    } 
 
+    $this->load->library('Notifikasi');
     $br = is_cli() ? PHP_EOL : '<br>';
 
     echo "[REMINDER INVOICE]" . $br;
@@ -167,35 +168,6 @@ public function kirim_reminder_invoice()
 
         $total++;
 
-        $email = trim((string) $inv->email_pic);
-
-        if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->pembayaran_model->add_pengiriman(
-                $inv->id,
-                'email',
-                $email,
-                false,
-                'Alamat email PIC kosong atau tidak valid.',
-                1,
-                $offset
-            );
-
-            $gagal++;
-            echo "GAGAL: Email invoice {$inv->no_invoice} tidak valid." . $br;
-            continue;
-        }
-
-        // Cegah pengiriman otomatis berulang
-        if ($this->pembayaran_model->sudah_dikirim_otomatis(
-            $inv->id,
-            'email',
-            $offset
-        )) {
-            $dilewati++;
-            echo "SKIP: Invoice {$inv->no_invoice} sudah dikirim." . $br;
-            continue;
-        }
-
 
 // ==============================
 // WHATSAPP FONNTE
@@ -213,18 +185,16 @@ if ($nomorWa === '') {
     $offset
 )) {
 
-    $waktu = ($offset === 30)
-        ? '30 hari lagi'
-        : 'hari ini';
+    $waktu = ($offset === 30) ? '30 hari lagi' : 'hari ini';
 
     $pesanWa =
         "*PENGINGAT PEMBAYARAN INVOICE*\n\n" .
         "Yth. " . ($inv->nama_pic ?: 'Pelanggan') . ",\n\n" .
-        "Kami ingin mengingatkan bahwa invoice berikut akan jatuh tempo {$waktu}.\n\n" .
+        "Invoice berikut akan jatuh tempo {$waktu}.\n\n" .
         "No. Invoice: {$inv->no_invoice}\n" .
         "Perihal: {$inv->perihal}\n" .
         "Jatuh Tempo: " . date('d-m-Y', strtotime($inv->jatuh_tempo)) . "\n\n" .
-        "Mohon melakukan pembayaran sesuai jadwal yang ditentukan.\n" .
+        "Mohon melakukan pembayaran sesuai jadwal.\n" .
         "Jika pembayaran sudah dilakukan, silakan abaikan pesan ini.\n\n" .
         "Terima kasih.\nTridatu Solution";
 
@@ -242,17 +212,84 @@ if ($nomorWa === '') {
         $offset
     );
 
-    if ($waBerhasil) {
-        echo "WA BERHASIL: Invoice {$inv->no_invoice} ke {$nomorWa}." . $br;
-    } else {
-        echo "WA GAGAL: Invoice {$inv->no_invoice} - " .
+    echo $waBerhasil
+        ? "WA BERHASIL: Invoice {$inv->no_invoice} ke {$nomorWa}." . $br
+        : "WA GAGAL: Invoice {$inv->no_invoice} - " .
             ($resWa['reason'] ?? 'Alasan tidak tersedia.') . $br;
-    }
 
 } else {
 
     echo "WA SKIP: Invoice {$inv->no_invoice} sudah dikirim." . $br;
 }
+
+
+// ==============================
+// EMAIL MELALUI NOTIFIKASI
+// ==============================
+
+$email = trim((string) $inv->email_pic);
+
+// Periksa riwayat email secara independen
+if ($this->pembayaran_model->sudah_dikirim_otomatis(
+    $inv->id,
+    'email',
+    $offset
+)) {
+
+    echo "EMAIL SKIP: Invoice {$inv->no_invoice} sudah dikirim." . $br;
+
+} elseif ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+
+    $keterangan = 'Alamat email PIC kosong atau tidak valid.';
+
+    $this->pembayaran_model->add_pengiriman(
+        $inv->id,
+        'email',
+        $email,
+        false,
+        $keterangan,
+        1,
+        $offset
+    );
+
+    $gagal++;
+    echo "EMAIL GAGAL: Invoice {$inv->no_invoice} - {$keterangan}" . $br;
+
+} else {
+
+    // Gunakan format pesan dari Notifikasi.php
+    list($subject, $message) = $this->notifikasi->pesan_pengingat(
+        $inv,
+        $offset
+    );
+
+    // Gunakan satu layanan SMTP terpusat
+    list($success, $keterangan) = $this->notifikasi->email(
+        $email,
+        $subject,
+        $message
+    );
+
+    // Catat hasil pengiriman
+    $this->pembayaran_model->add_pengiriman(
+        $inv->id,
+        'email',
+        $email,
+        $success,
+        $keterangan,
+        1,
+        $offset
+    );
+
+    if ($success) {
+        $berhasil++;
+        echo "EMAIL BERHASIL: Invoice {$inv->no_invoice} ke {$email}." . $br;
+    } else {
+        $gagal++;
+        echo "EMAIL GAGAL: Invoice {$inv->no_invoice} - {$keterangan}" . $br;
+    }
+}
+
 
 
         $labelWaktu = ($offset === 30)

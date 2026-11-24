@@ -32,38 +32,52 @@ class Notifikasi
         $this->CI->load->library('email');
         $this->CI->email->clear();
         $this->CI->email->initialize([
-            'protocol'     => 'smtp',
-            'smtp_host'    => $this->c('email_smtp_host'),
-            'smtp_port'    => (int) $this->c('email_smtp_port'),
-            'smtp_user'    => $this->c('email_smtp_user'),
-            'smtp_pass'    => $this->c('email_smtp_pass'),
-            'smtp_crypto'  => $this->c('email_smtp_crypto'),
-            'smtp_timeout' => 15,
-            'mailtype'     => 'text',
-            'charset'      => 'utf-8',
-            'newline'      => "\r\n",
-            'crlf'         => "\r\n",
-            'validate' => TRUE,
+    'protocol'       => 'smtp',
+    'smtp_host'      => $this->c('email_smtp_host'),
+    'smtp_port'      => (int) $this->c('email_smtp_port'),
+    'smtp_user'      => $this->c('email_smtp_user'),
+    'smtp_pass'      => $this->c('email_smtp_pass'),
+    'smtp_crypto'    => $this->c('email_smtp_crypto'),
+    'smtp_timeout'   => 15,
+    'smtp_keepalive' => FALSE,
+    'mailtype'       => 'html',
+    'charset'        => 'utf-8',
+    'newline'        => "\r\n",
+    'crlf'           => "\r\n",
+    'validate'       => TRUE,
         ]);
         $this->CI->email->from($this->c('email_from') ?: $this->c('email_smtp_user'), $this->c('email_from_name'));
         $this->CI->email->to($ke);
         $this->CI->email->subject($subjek);
         $this->CI->email->message($isi);
-
-       if ($this->CI->email->send(FALSE)) {
+if ($this->CI->email->send(FALSE)) {
     return [TRUE, ''];
 }
 
+
 $debug = $this->CI->email->print_debugger();
 
+// Deteksi batas pengiriman Gmail
+if (
+    stripos($debug, 'Daily user sending limit exceeded') !== FALSE ||
+    stripos($debug, '550-5.4.5') !== FALSE
+) {
+    return [
+        FALSE,
+        'Email belum terkirim karena akun Gmail mencapai batas pengiriman. Silakan coba kembali dalam 1-24 jam.'
+    ];
+}
+
+// Untuk error lainnya, tetap simpan pesan diagnostik
 $err = trim(
     preg_replace('/\s+/', ' ', strip_tags($debug))
 );
 
 return [
     FALSE,
-    $err !== '' ? $err : 'Server email menolak pengiriman.'
-];}
+    $err !== '' ? $err : 'Pengiriman email gagal. Silakan coba kembali.'
+];
+    }
 
     // $hari: selisih hari ke jatuh tempo (positif = belum, 0 = hari ini, negatif = terlambat)
     public function pesan_pengingat($inv, $hari)
