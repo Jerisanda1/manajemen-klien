@@ -74,6 +74,20 @@ $renderFooter = function ($total) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $e($title) ?></title>
     <link rel="stylesheet" href="<?= base_url('assets/css/tailwind.css'); ?>">
+    <style>
+        /* Tabel daftar project: lebar kolom diatur colgroup, teks panjang dipotong dengan titik-titik (...) */
+        .tbl-klien { table-layout: fixed; min-width: 720px; }
+        .tbl-klien th,
+        .tbl-klien td { padding: 0.625rem 0.75rem; vertical-align: middle; }
+        .tbl-klien tbody td[colspan] { padding: 2rem 1rem; }
+        .tbl-klien th.col-aksi,
+        .tbl-klien td.col-aksi { padding-left: 0.5rem; padding-right: 0.5rem; }
+        .tbl-klien .cell-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Tombol aksi: ukuran seragam, tidak ikut menyusut */
+        .aksi-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 26px; height: 26px; padding: 0; }
+        .aksi-btn svg { width: 14px; height: 14px; }
+    </style>
 </head>
 <body class="bg-[#f4f6f9] font-sans text-slate-800 antialiased lg:h-screen lg:overflow-hidden">
 
@@ -232,44 +246,50 @@ $renderFooter = function ($total) {
             
             <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200">
                 <div class="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
-                    <table class="w-full text-left text-[13px]">
+                    <table class="tbl-klien w-full text-left text-[13px]">
+                        <colgroup>
+                            <col>                          <!-- Nama Project (sisa ruang) -->
+                            <col style="width: 24%;">      <!-- Deskripsi -->
+                            <col style="width: 108px;">    <!-- Mulai -->
+                            <col style="width: 108px;">    <!-- Selesai -->
+                            <col style="width: 125px;">    <!-- Status -->
+                            <col style="width: 104px;">    <!-- Aksi (tetap) -->
+                        </colgroup>
                         <thead class="sticky top-0 z-10 h-10 bg-slate-50">
                             <tr class="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-                                <th class="px-4 py-2">Nama Project</th>
-                                <th class="px-4 py-2">Deskripsi</th>
-                                <th class="px-4 py-2">Mulai</th>
-                                <th class="px-4 py-2">Selesai</th>
-                                <th class="px-4 py-2">Status</th>
-                                <th class="px-4 py-2 text-center">Aksi</th>
+                                <th>Nama Project</th>
+                                <th>Deskripsi</th>
+                                <th>Mulai</th>
+                                <th>Selesai</th>
+                                <th>Status</th>
+                                <th class="text-center col-aksi">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             <?php if (empty($projects)): ?>
                                 <tr>
-                                    <td colspan="6" class="px-4 py-8 text-center text-slate-500">Belum ada data project.</td>
+                                    <td colspan="6" class="text-center text-slate-500">Belum ada data project.</td>
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($projects as $p): ?>
                                 <tr class="transition-colors hover:bg-slate-50">
-                                    <td class="px-4 py-2 font-semibold text-[#9f2b2b] hover:underline">
-                                        <a href="<?= site_url('project/detail/'.$p->id) ?>"><?= $e($p->nama_project) ?></a>
+                                    <td class="cell-ellipsis font-semibold" title="<?= $e($p->nama_project) ?>">
+                                        <a href="<?= site_url('project/detail/'.$p->id) ?>" class="text-[#9f2b2b] hover:underline"><?= $e($p->nama_project) ?></a>
                                     </td>
-                                    <td class="px-4 py-2 text-slate-600">
-                                        <p class="line-clamp-2 max-w-[250px]" title="<?= $e($p->deskripsi ?? '') ?>">
-                                            <?= !empty($p->deskripsi) ? $e($p->deskripsi) : '<span class="text-slate-400 italic">-</span>' ?>
-                                        </p>
+                                    <td class="cell-ellipsis text-slate-600" title="<?= $e($p->deskripsi ?? '') ?>">
+                                        <?= !empty($p->deskripsi) ? $e($p->deskripsi) : '<span class="text-slate-400 italic">-</span>' ?>
                                     </td>
-                                    <td class="whitespace-nowrap px-4 py-2 text-slate-600"><?= $e($tgl($p->tanggal_mulai)) ?></td>
-                                    <td class="whitespace-nowrap px-4 py-2 text-slate-600"><?= $e($tgl($p->tanggal_selesai)) ?></td>
-                                    <td class="whitespace-nowrap px-4 py-2"><?= $renderBadge($p->status ?: '-') ?></td>
-                                    <td class="px-4 py-2 text-center">
-                                        <div class="flex justify-center items-center gap-1">
+                                    <td class="whitespace-nowrap text-slate-600"><?= $e($tgl($p->tanggal_mulai)) ?></td>
+                                    <td class="whitespace-nowrap text-slate-600"><?= $e($tgl($p->tanggal_selesai)) ?></td>
+                                    <td class="whitespace-nowrap"><?= $renderBadge($p->status ?: '-') ?></td>
+                                    <td class="whitespace-nowrap text-center col-aksi">
+                                        <div class="flex flex-nowrap justify-center items-center gap-1">
                                             <!-- Tombol Detail -->
-                                            <a href="<?= site_url('project/detail/'.$p->id) ?>" class="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all shadow-sm" title="Lihat Detail">
+                                            <a href="<?= site_url('project/detail/'.$p->id) ?>" class="aksi-btn bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Lihat Detail">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                             </a>
                                             <!-- Tombol Edit -->
-                                            <a href="<?= site_url('project/edit/'.$p->id) ?>" class="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-all shadow-sm" title="Edit Data">
+                                            <a href="<?= site_url('project/edit/'.$p->id) ?>" class="aksi-btn bg-white border border-slate-200 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                             </a>
                                             <!-- Tombol Hapus (FIX: pakai data-* + this.dataset) -->
@@ -277,7 +297,7 @@ $renderFooter = function ($total) {
                                                     data-id="<?= (int) $p->id ?>"
                                                     data-nama="<?= $e($p->nama_project) ?>"
                                                     onclick="bukaModalHapusProject(this.dataset.id, this.dataset.nama)"
-                                                    class="p-1.5 bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm"
+                                                    class="aksi-btn bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm"
                                                     title="Hapus Project">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                             </button>

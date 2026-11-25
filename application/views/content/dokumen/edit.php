@@ -1,9 +1,26 @@
+<?php
+/**
+ * Form Edit Dokumen Kerja Sama
+ * + Smart Back Button — Kembali & Batal menuju halaman asal form dibuka
+ *   (daftar dokumen / detail dokumen / detail project / detail klien).
+ *   $urlKembali jadi fallback.
+ */
+$e = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
+
+$from = isset($from) ? $from : 'list';
+
+// Fallback bila asal tidak diketahui (mis. URL dibuka langsung)
+$urlKembali = site_url($from === 'detail' ? 'dokumen/detail/' . (int) $doc->id : 'dokumen');
+
+// Kunci tetap agar asal tidak hilang saat URL berubah (mis. setelah update gagal)
+$backKey = 'dokumen-form-' . (int) $doc->id;
+?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $title ?></title>
+    <title><?= $e($title) ?></title>
     <link rel="stylesheet" href="<?= base_url('assets/css/tailwind.css'); ?>">
     <style>
         .custom-dropdown.drop-up .dropdown-menu { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 4px; }
@@ -18,7 +35,8 @@
 
         <!-- Header -->
         <div class="shrink-0 mb-4">
-            <a href="<?= site_url('dokumen') ?>" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-1.5 transition-colors">
+            <!-- SMART BACK BUTTON (href = fallback bila asal tidak diketahui) -->
+            <a href="<?= $urlKembali ?>" id="backBtn" data-back-key="<?= $e($backKey) ?>" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-1.5 transition-colors">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                 Kembali
             </a>
@@ -34,7 +52,7 @@
 
         <form action="<?= site_url('dokumen/update') ?>" method="POST" enctype="multipart/form-data" id="formDokumen" class="flex-1 flex flex-col min-h-0">
 
-            <input type="hidden" name="id" value="<?= $doc->id ?>">
+            <input type="hidden" name="id" value="<?= (int) $doc->id ?>">
             <input type="hidden" name="dokumen_csrf_token" value="<?= htmlspecialchars($documentCsrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="device_id" id="device_id" value="<?= htmlspecialchars($currentDeviceId, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="file_name_local" id="fileNameLocal" value="">
@@ -83,7 +101,7 @@
                         <div class="w-full lg:w-1/2">
                             <label class="block text-base font-bold text-gray-800 mb-3">File dokumen</label>
                             <p class="text-sm text-gray-500 mb-2.5 truncate">
-                                File saat ini: <span class="font-semibold text-gray-700"><?= htmlspecialchars($doc->file_name) ?></span>
+                                File saat ini: <span class="font-semibold text-gray-700"><?= $e($doc->file_name) ?></span>
                                 <span class="text-gray-400">· Biarkan kosong jika tidak diganti</span>
                             </p>
 
@@ -115,7 +133,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Nama dokumen <span class="text-red-500">*</span></label>
-                            <input type="text" name="nama_dokumen" value="<?= htmlspecialchars($doc->nama_dokumen) ?>" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b]" required>
+                            <input type="text" name="nama_dokumen" value="<?= $e($doc->nama_dokumen) ?>" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b]" required>
                         </div>
 
                         <!-- Klien -->
@@ -123,7 +141,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Klien <span class="text-red-500">*</span></label>
                             <div class="relative custom-dropdown" data-target="client_id">
                                 <button type="button" class="dropdown-btn flex items-center justify-between w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm hover:border-gray-400 focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b] transition-all cursor-pointer">
-                                    <span class="dropdown-text truncate text-gray-900"><?= htmlspecialchars($doc->nama_klien) ?></span>
+                                    <span class="dropdown-text truncate text-gray-900"><?= $e($doc->nama_klien) ?></span>
                                     <svg class="w-4 h-4 text-gray-500 pointer-events-none transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                 </button>
                                 <div class="dropdown-menu absolute z-50 hidden mt-1 w-full bg-white border border-gray-100 rounded-lg shadow-xl overflow-hidden transform opacity-0 scale-95">
@@ -136,17 +154,17 @@
                                     <ul class="dropdown-list py-1 text-sm text-gray-700 max-h-56 overflow-y-auto">
                                         <li class="px-4 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors font-medium" data-value="">Pilih klien</li>
                                         <?php foreach($klien as $k): ?>
-                                            <li class="px-4 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $doc->client_id == $k->id ? 'bg-red-50 text-[#9f2b2b] font-bold' : '' ?>" data-value="<?= $k->id ?>"><?= htmlspecialchars($k->nama_klien) ?></li>
+                                            <li class="px-4 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $doc->client_id == $k->id ? 'bg-red-50 text-[#9f2b2b] font-bold' : '' ?>" data-value="<?= (int) $k->id ?>"><?= $e($k->nama_klien) ?></li>
                                         <?php endforeach; ?>
                                     </ul>
                                 </div>
-                                <input type="hidden" name="client_id" id="client_id" value="<?= $doc->client_id ?>">
+                                <input type="hidden" name="client_id" id="client_id" value="<?= (int) $doc->client_id ?>">
                             </div>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Tanggal Mulai Berlaku <span class="text-red-500">*</span></label>
-                            <input type="date" name="tanggal_mulai" value="<?= $doc->tanggal_mulai ?>" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b]" required>
+                            <input type="date" name="tanggal_mulai" value="<?= $e($doc->tanggal_mulai) ?>" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b]" required>
                         </div>
 
                         <!-- Jenis Dokumen -->
@@ -154,7 +172,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Jenis dokumen <span class="text-red-500">*</span></label>
                             <div class="relative custom-dropdown" data-target="jenis_dokumen">
                                 <button type="button" class="dropdown-btn flex items-center justify-between w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm hover:border-gray-400 focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b] transition-all cursor-pointer">
-                                    <span class="dropdown-text truncate text-gray-900"><?= htmlspecialchars($doc->jenis_dokumen) ?></span>
+                                    <span class="dropdown-text truncate text-gray-900"><?= $e($doc->jenis_dokumen) ?></span>
                                     <svg class="w-4 h-4 text-gray-500 pointer-events-none transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                 </button>
                                 <div class="dropdown-menu absolute z-50 hidden mt-1 w-full bg-white border border-gray-100 rounded-lg shadow-xl overflow-hidden transform opacity-0 scale-95">
@@ -167,11 +185,11 @@
                                     <ul class="dropdown-list py-1 text-sm text-gray-700 max-h-56 overflow-y-auto">
                                         <li class="px-4 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors font-medium" data-value="">Pilih jenis</li>
                                         <?php foreach($jenis_dokumen as $j): ?>
-                                            <li class="px-4 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $doc->jenis_dokumen == $j->name ? 'bg-red-50 text-[#9f2b2b] font-bold' : '' ?>" data-value="<?= htmlspecialchars($j->name) ?>"><?= htmlspecialchars($j->name) ?></li>
+                                            <li class="px-4 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors <?= $doc->jenis_dokumen == $j->name ? 'bg-red-50 text-[#9f2b2b] font-bold' : '' ?>" data-value="<?= $e($j->name) ?>"><?= $e($j->name) ?></li>
                                         <?php endforeach; ?>
                                     </ul>
                                 </div>
-                                <input type="hidden" name="jenis_dokumen" id="jenis_dokumen" value="<?= htmlspecialchars($doc->jenis_dokumen) ?>">
+                                <input type="hidden" name="jenis_dokumen" id="jenis_dokumen" value="<?= $e($doc->jenis_dokumen) ?>">
                             </div>
                         </div>
 
@@ -180,7 +198,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Project <span class="text-red-500">*</span></label>
                             <div class="relative custom-dropdown" data-target="project_id">
                                 <button type="button" class="dropdown-btn flex items-center justify-between w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm hover:border-gray-400 focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b] transition-all cursor-pointer">
-                                    <span class="dropdown-text truncate text-gray-900"><?= htmlspecialchars($doc->nama_project) ?></span>
+                                    <span class="dropdown-text truncate text-gray-900"><?= $e($doc->nama_project) ?></span>
                                     <svg class="w-4 h-4 text-gray-500 pointer-events-none transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                 </button>
                                 <div class="dropdown-menu absolute z-50 hidden mt-1 w-full bg-white border border-gray-100 rounded-lg shadow-xl overflow-hidden transform opacity-0 scale-95">
@@ -192,16 +210,16 @@
                                     </div>
                                     <ul class="dropdown-list py-1 text-sm text-gray-700 max-h-56 overflow-y-auto">
                                         <li class="px-4 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors font-medium" data-value="">Pilih project</li>
-                                        <li class="px-4 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors bg-red-50 text-[#9f2b2b] font-bold" data-value="<?= $doc->project_id ?>"><?= htmlspecialchars($doc->nama_project) ?></li>
+                                        <li class="px-4 py-2.5 hover:bg-red-50 hover:text-[#9f2b2b] cursor-pointer transition-colors bg-red-50 text-[#9f2b2b] font-bold" data-value="<?= (int) $doc->project_id ?>"><?= $e($doc->nama_project) ?></li>
                                     </ul>
                                 </div>
-                                <input type="hidden" name="project_id" id="project_id" value="<?= $doc->project_id ?>">
+                                <input type="hidden" name="project_id" id="project_id" value="<?= (int) $doc->project_id ?>">
                             </div>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Tanggal Berakhir <span class="text-red-500">*</span></label>
-                            <input type="date" name="tanggal_berakhir" value="<?= $doc->tanggal_berakhir ?>" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b]" required>
+                            <input type="date" name="tanggal_berakhir" value="<?= $e($doc->tanggal_berakhir) ?>" class="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b]" required>
                         </div>
                     </div>
                 </div>
@@ -210,7 +228,8 @@
 
             <!-- Tombol Aksi -->
             <div class="shrink-0 flex justify-end gap-3 pt-3 md:pt-4 mt-1 border-t border-gray-200">
-                <a href="<?= site_url('dokumen') ?>" class="px-6 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">Batal</a>
+                <!-- Batal juga kembali ke halaman asal (data-smart-back) -->
+                <a href="<?= $urlKembali ?>" data-smart-back class="px-6 py-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">Batal</a>
                 <button type="submit" id="btnSimpan" class="px-6 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-[#9f2b2b]/20 disabled:opacity-50">Simpan Perubahan</button>
             </div>
 
@@ -419,7 +438,7 @@
             const list = dd.querySelector('.dropdown-list');
             const search = dd.querySelector('.dropdown-search');
 
-            if (clientId == '<?= $doc->client_id ?>') return;
+            if (clientId == '<?= (int) $doc->client_id ?>') return;
 
             setDropdownValue('project_id', '', 'Memuat project...');
             list.innerHTML = '<li class="px-4 py-2.5 text-gray-400 italic cursor-default">Memuat...</li>';
@@ -462,7 +481,7 @@
             }
         });
 
-        let currentStorage = '<?= $doc->storage_type ?>';
+        let currentStorage = '<?= $e($doc->storage_type) ?>';
 
         function toggleStorage(type) {
             currentStorage = type;
@@ -480,7 +499,7 @@
             const btnSimpan = document.getElementById('btnSimpan');
 
             // KONDISI 1: Tetap di Local, tapi TIDAK memilih file baru (Hanya edit data)
-            if (!fileInput.files[0] && '<?= $doc->storage_type ?>' === 'local') {
+            if (!fileInput.files[0] && '<?= $e($doc->storage_type) ?>' === 'local') {
                 btnSimpan.textContent = 'Menyimpan Data...';
                 btnSimpan.disabled = true;
 
@@ -532,7 +551,7 @@
                 btnSimpan.textContent = 'Menyimpan ke Folder...';
                 const resAgent = await fetch(`http://localhost:8080/save?filename=${encodeURIComponent(file.name)}`, {
                     method: 'POST',
-                    body: file 
+                    body: file
                 });
 
                 const dataAgent = await resAgent.json();
@@ -541,8 +560,8 @@
                 // 3. Jika sukses, simpan metadatanya ke Database
                 btnSimpan.textContent = 'Menyimpan Data...';
                 const formData = new FormData(this);
-                formData.delete('file_dokumen'); 
-                formData.set('storage_type', 'local'); 
+                formData.delete('file_dokumen');
+                formData.set('storage_type', 'local');
 
                 const res = await fetch(this.action, {
                     method: 'POST',
@@ -565,5 +584,9 @@
             }
         });
     </script>
+
+    <!-- SMART BACK BUTTON (script bersama) -->
+    <?php $this->load->view('partials/smart_back'); ?>
+
 </body>
 </html>

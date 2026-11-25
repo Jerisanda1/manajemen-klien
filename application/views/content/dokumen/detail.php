@@ -1,4 +1,11 @@
 <?php
+/**
+ * Halaman Detail Dokumen
+ * + Smart Back Button — Kembali menuju halaman asal detail dibuka
+ *   (daftar dokumen / detail project / detail klien). $urlKembali jadi fallback.
+ */
+$urlKembali = site_url('dokumen');
+
 $isLocal = ($doc->storage_type === 'local');
 $isOwnLocal = ($isLocal && $doc->device_id === $currentDeviceId);
 $isOtherLocal = ($isLocal && !$isOwnLocal);
@@ -36,7 +43,8 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
 
         <!-- Header -->
         <div class="shrink-0">
-            <a href="<?= site_url('dokumen') ?>" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-3 transition-colors">
+            <!-- SMART BACK BUTTON (href = fallback bila asal tidak diketahui) -->
+            <a href="<?= $urlKembali ?>" id="backBtn" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-3 transition-colors">
                 <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                 Kembali
             </a>
@@ -533,5 +541,9 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
         }
     }
     </script>
+
+    <!-- SMART BACK BUTTON (script bersama) -->
+    <?php $this->load->view('partials/smart_back'); ?>
+
 </body>
 </html>

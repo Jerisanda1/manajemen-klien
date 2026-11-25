@@ -108,11 +108,14 @@ class Project_model extends CI_Model
 
     // =========================================
     // DOKUMEN BERDASARKAN PROJECT
+    // Selain data dasar, ikut diambil info penyimpanan
+    // (storage_type, device_id, file_name, file_hash) untuk ikon lokasi,
+    // pratinjau lokal, sinkron ke server, dan hapus file lokal.
     // =========================================
     public function get_dokumen_by_project($project_id)
     {
         return $this->db
-            ->select('id, nama_dokumen AS nama, jenis_dokumen AS jenis, tanggal_berakhir AS sampai')
+            ->select('id, nama_dokumen AS nama, jenis_dokumen AS jenis, tanggal_berakhir AS sampai, storage_type, device_id, file_name, file_hash')
             ->where('project_id', (int) $project_id)
             ->order_by('id', 'DESC')
             ->get('documents')

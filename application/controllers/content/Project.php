@@ -71,6 +71,7 @@ class Project extends MY_Controller
         }
 
         // Mengambil dokumen berdasarkan project_id
+        // Setiap baris memuat: id, nama, jenis, sampai, storage_type, device_id, file_name, file_hash
         $dokumen = $this->Project_model->get_dokumen_by_project($id);
 
         // Mengambil penawaran berdasarkan project_id
@@ -81,11 +82,14 @@ class Project extends MY_Controller
 
         // Memuat halaman detail project
         $this->load->view('content/project/detail', [
-            'title'      => 'Detail Project',
-            'project'    => $project,
-            'dokumen'    => $dokumen,
-            'penawaran'   => $penawaran,
-            'invoice'    => $invoice,
+            'title'             => 'Detail Project',
+            'project'           => $project,
+            'dokumen'           => $dokumen,
+            'penawaran'         => $penawaran,
+            'invoice'           => $invoice,
+            // Dipakai tabel Dokumen Kerja Sama (pratinjau lokal, sinkron ke server, hapus)
+            'documentCsrfToken' => $this->_get_document_csrf_token(),
+            'currentDeviceId'   => $this->_get_current_device_id(),
         ]);
     }
 
@@ -314,5 +318,40 @@ class Project extends MY_Controller
         }
 
         redirect('project/detail/' . (int) $id);
+    }
+
+    // =========================================
+    // HELPER MODUL DOKUMEN (token CSRF & identitas perangkat)
+    // Memakai kunci session yang sama dengan controller Dokumen,
+    // sehingga token dan perangkat konsisten di kedua halaman.
+    // =========================================
+    private function _get_document_csrf_token()
+    {
+        $token = $this->session->userdata('dokumen_csrf_token');
+        if (!$token) {
+            $token = bin2hex(random_bytes(32));
+            $this->session->set_userdata('dokumen_csrf_token', $token);
+        }
+        return $token;
+    }
+
+    private function _get_current_device_id()
+    {
+        $deviceId = $this->session->userdata('dokumen_device_id');
+        if (!$deviceId) {
+            $cookieDeviceId = (string) $this->input->cookie('tridatu_device_id', TRUE);
+            if ($this->_is_valid_device_id($cookieDeviceId)) {
+                $deviceId = strtolower($cookieDeviceId);
+            } else {
+                return '';
+            }
+            $this->session->set_userdata('dokumen_device_id', $deviceId);
+        }
+        return $deviceId;
+    }
+
+    private function _is_valid_device_id($deviceId)
+    {
+        return preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/i', (string) $deviceId) === 1;
     }
 }
