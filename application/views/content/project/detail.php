@@ -3,7 +3,7 @@
  * Detail Project — Halaman scroll (min-h-screen).
  * Pagination di tiap tabel (client-side).
  * Custom dropdown untuk Status Project.
- * + Notifikasi Toast & Modal Hapus Kustom.
+ * + Notifikasi Toast & Modal Hapus Kustom (project, dokumen, penawaran, invoice).
  * + Smart Back Button — kembali ke halaman asal (lihat partials/smart_back.php).
  * Data dokumen, penawaran, dan invoice diambil dari database.
  *
@@ -502,16 +502,16 @@ $statusDokumen = function ($tanggalBerakhir) {
                                                    class="aksi-btn bg-white border border-slate-200 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                                 </a>
-                                                <form action="<?= site_url('pembayaran/hapus') ?>" method="POST" class="m-0 flex" onsubmit="return confirm('Yakin ingin menghapus penawaran ini?')">
-                                                    <?php if ($this->config->item('csrf_protection')): ?>
-                                                        <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
-                                                    <?php endif; ?>
-                                                    <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
-                                                    <input type="hidden" name="tab" value="penawaran">
-                                                    <button type="submit" class="aksi-btn bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm" title="Hapus Penawaran">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                    </button>
-                                                </form>
+                                                <!-- Hapus (modal kustom) -->
+                                                <button type="button"
+                                                        class="btn-hapus-pembayaran aksi-btn bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm"
+                                                        data-id="<?= (int) $p['id'] ?>"
+                                                        data-nama="<?= $e($p['no']) ?>"
+                                                        data-tab="penawaran"
+                                                        data-label="Penawaran"
+                                                        title="Hapus Penawaran">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -586,16 +586,16 @@ $statusDokumen = function ($tanggalBerakhir) {
                                                    class="aksi-btn bg-white border border-slate-200 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                                 </a>
-                                                <form action="<?= site_url('pembayaran/hapus') ?>" method="POST" class="m-0 flex" onsubmit="return confirm('Yakin ingin menghapus invoice ini?')">
-                                                    <?php if ($this->config->item('csrf_protection')): ?>
-                                                        <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
-                                                    <?php endif; ?>
-                                                    <input type="hidden" name="id" value="<?= (int) $i['id'] ?>">
-                                                    <input type="hidden" name="tab" value="invoice">
-                                                    <button type="submit" class="aksi-btn bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm" title="Hapus Invoice">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                    </button>
-                                                </form>
+                                                <!-- Hapus (modal kustom) -->
+                                                <button type="button"
+                                                        class="btn-hapus-pembayaran aksi-btn bg-white border border-slate-200 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-lg transition-all shadow-sm"
+                                                        data-id="<?= (int) $i['id'] ?>"
+                                                        data-nama="<?= $e($i['no']) ?>"
+                                                        data-tab="invoice"
+                                                        data-label="Invoice"
+                                                        title="Hapus Invoice">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -694,6 +694,41 @@ $statusDokumen = function ($tanggalBerakhir) {
             <button type="button" onclick="tutupModalHapusDok()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors w-full text-sm">Batal</button>
             <button type="button" onclick="eksekusiHapusDok()" class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all shadow-md shadow-red-500/30 w-full text-sm">Ya, Hapus</button>
         </div>
+    </div>
+</div>
+
+<!-- MODAL HAPUS PENAWARAN / INVOICE -->
+<div id="modalHapusPembayaran" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onclick="tutupModalHapusPembayaran()"></div>
+
+    <div id="modalHapusPembayaranContent"
+         class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-95 opacity-0 transition-all duration-300 z-10">
+
+        <div class="flex items-center justify-center w-16 h-16 mx-auto bg-red-50 rounded-full mb-5">
+            <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.667.192 3 1.732 3z"/>
+            </svg>
+        </div>
+
+        <h3 class="text-xl font-bold text-center text-gray-900 mb-2">Hapus <span id="labelHapusPembayaran">Penawaran</span>?</h3>
+
+        <p class="text-center text-gray-500 mb-6 text-sm">
+            Apakah Anda yakin ingin menghapus <span id="labelHapusPembayaran2" class="lowercase">penawaran</span> <br>
+            <strong id="namaHapusPembayaran" class="text-gray-900 text-base"></strong>?<br>
+            <span class="text-xs text-red-500 mt-3 block bg-red-50 py-1.5 px-2 rounded-lg">Tindakan ini tidak dapat dibatalkan.</span>
+        </p>
+
+        <form method="post" action="<?= site_url('pembayaran/hapus') ?>" id="formHapusPembayaran" class="flex justify-center gap-3" onsubmit="disableHapusPembayaran()">
+            <?php if ($this->config->item('csrf_protection')): ?>
+                <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+            <?php endif; ?>
+            <input type="hidden" name="id" id="inputHapusPembayaranId">
+            <input type="hidden" name="tab" id="inputHapusPembayaranTab">
+
+            <button type="button" onclick="tutupModalHapusPembayaran()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors w-full text-sm">Batal</button>
+            <button type="submit" id="btnHapusPembayaran" class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-all shadow-md shadow-red-500/30 w-full text-sm disabled:opacity-50">Ya, Hapus</button>
+        </form>
     </div>
 </div>
 
@@ -1268,6 +1303,56 @@ async function eksekusiHapusDok() {
         showToast(err.message || 'Dokumen gagal dihapus.', 'error');
     }
 }
+
+// =========================================
+// 5b. HAPUS PENAWARAN / INVOICE
+// =========================================
+const modalPembayaran        = document.getElementById('modalHapusPembayaran');
+const modalPembayaranContent = document.getElementById('modalHapusPembayaranContent');
+
+document.querySelectorAll('.btn-hapus-pembayaran').forEach(btn => {
+    btn.addEventListener('click', function () {
+        document.getElementById('inputHapusPembayaranId').value  = this.dataset.id;
+        document.getElementById('inputHapusPembayaranTab').value = this.dataset.tab;
+        document.getElementById('labelHapusPembayaran').textContent  = this.dataset.label;
+        document.getElementById('labelHapusPembayaran2').textContent = this.dataset.label;
+        document.getElementById('namaHapusPembayaran').textContent   = this.dataset.nama;
+
+        const submitBtn = document.getElementById('btnHapusPembayaran');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Ya, Hapus';
+
+        modalPembayaran.classList.remove('hidden');
+        modalPembayaran.classList.add('flex');
+        setTimeout(() => {
+            modalPembayaranContent.classList.remove('scale-95', 'opacity-0');
+            modalPembayaranContent.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    });
+});
+
+function tutupModalHapusPembayaran() {
+    modalPembayaranContent.classList.remove('scale-100', 'opacity-100');
+    modalPembayaranContent.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        modalPembayaran.classList.add('hidden');
+        modalPembayaran.classList.remove('flex');
+    }, 300);
+}
+
+// Cegah klik ganda saat menghapus
+function disableHapusPembayaran() {
+    const submitBtn = document.getElementById('btnHapusPembayaran');
+    submitBtn.textContent = 'Menghapus...';
+    submitBtn.disabled = true;
+    return true;
+}
+
+document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && !modalPembayaran.classList.contains('hidden')) {
+        tutupModalHapusPembayaran();
+    }
+});
 
 // =========================================
 // 6. INISIALISASI
