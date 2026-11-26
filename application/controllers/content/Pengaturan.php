@@ -17,7 +17,8 @@ class Pengaturan extends MY_Controller {
             'content'  => 'content/pengaturan/index',
             'settings' => $this->pengaturan_model->get_settings(),
             'types'    => $this->pengaturan_model->get_all_types(),
-            'user'     => $this->pengaturan_model->get_user($user_id)
+            'user'     => $this->pengaturan_model->get_user($user_id),
+            'reminder_rules'  => $this->pengaturan_model->get_all_reminder_rules()
         ];
         $this->load->view('main', $data);
     }
@@ -46,9 +47,10 @@ class Pengaturan extends MY_Controller {
                 $update_data['logo'] = 'uploads/settings/logo/' . $up['file_name'];
                 
                 // Hapus logo lama
-                $old = $this->pengaturan_model->get_settings();
-                if ($old->logo && file_exists(FCPATH . $old->logo)) @unlink(FCPATH . $old->logo);
-            } else {
+                //$old = $this->pengaturan_model->get_settings();
+                //if ($old->logo && file_exists(FCPATH . $old->logo)) @unlink(FCPATH . $old->logo);
+            } 
+            else {
                 $this->session->set_flashdata('error', 'Gagal upload logo: ' . strip_tags($this->upload->display_errors()));
                 redirect('pengaturan');
             }
@@ -58,6 +60,38 @@ class Pengaturan extends MY_Controller {
         $this->session->set_flashdata('success', 'Informasi perusahaan berhasil disimpan!');
         redirect('pengaturan');
     }
+
+    // Proses simpan rekening bank dan penanggung jawab
+// Proses Simpan Rekening Bank dan Penanggung Jawab
+public function update_billing()
+{
+    $update_data = [
+        'nama_bank' => trim($this->input->post('nama_bank', TRUE)),
+        'nama_cabang' => trim($this->input->post('nama_cabang', TRUE)),
+        'swift_code' => trim($this->input->post('swift_code', TRUE)),
+        'nomor_rekening' => trim($this->input->post('nomor_rekening', TRUE)),
+        'nama_pemilik_rekening' => trim($this->input->post('nama_pemilik_rekening', TRUE)),
+        'nama_penanggung_jawab' => trim($this->input->post('nama_penanggung_jawab', TRUE)),
+        'jabatan_penanggung_jawab' => trim($this->input->post('jabatan_penanggung_jawab', TRUE)),
+    ];
+
+    $tersimpan = $this->pengaturan_model->update_settings($update_data);
+
+    if ($tersimpan) {
+        $this->session->set_flashdata(
+            'success',
+            'Informasi rekening dan penanggung jawab berhasil diperbarui!'
+        );
+    } else {
+        $this->session->set_flashdata(
+            'error',
+            'Gagal menyimpan informasi rekening.'
+        );
+    }
+
+    redirect('pengaturan');
+}
+
 
     // Proses Ubah Username & Password
     public function update_account() {
@@ -99,59 +133,105 @@ class Pengaturan extends MY_Controller {
     }
 
     // Proses Simpan Kop Surat & Tanda Tangan
-    public function update_assets() {
-        $update_data = [];
-        $files = ['kop_surat', 'ttd'];
-        $old_data = $this->pengaturan_model->get_settings();
 
-        foreach ($files as $file) {
-            if (!empty($_FILES[$file]['name'])) {
-                
-                // Jika file-nya 'ttd', simpan di folder 'tanda_tangan'
-                $folder_name = ($file === 'ttd') ? 'tanda_tangan' : $file;
-                
-                $config['upload_path']   = FCPATH . 'uploads/settings/' . $folder_name . '/';
-                $config['allowed_types'] = 'jpg|jpeg|png';
-                $config['max_size']      = 2048;
-                $config['encrypt_name']  = TRUE;
-                
-                if (!is_dir($config['upload_path'])) mkdir($config['upload_path'], 0755, TRUE);
-                $this->load->library('upload', $config);
+public function update_assets()
+{
+    $update_data = [];
+    $files = ['kop_surat', 'ttd'];
 
-                if ($this->upload->do_upload($file)) {
-                    $up = $this->upload->data();
-                    $update_data[$file] = 'uploads/settings/' . $folder_name . '/' . $up['file_name'];
-                    
-                    if ($old_data->$file && file_exists(FCPATH . $old_data->$file)) {
-                        @unlink(FCPATH . $old_data->$file);
-                    }
-                } else {
-                    $this->session->set_flashdata('error', 'Gagal upload ' . $file . ': ' . strip_tags($this->upload->display_errors()));
-                    redirect('pengaturan');
-                }
-            }
+    foreach ($files as $file) {
+        if (empty($_FILES[$file]['name'])) {
+            continue;
         }
 
-        if (!empty($update_data)) {
-            $this->pengaturan_model->update_settings($update_data);
-            $this->session->set_flashdata('success', 'Aset dokumen berhasil diperbarui!');
+        $folder_name = ($file === 'ttd')
+            ? 'tanda_tangan'
+            : 'kop_surat';
+
+        $upload_path = FCPATH . 'uploads/settings/' . $folder_name . '/';
+
+        if (!is_dir($upload_path)) {
+            mkdir($upload_path, 0755, TRUE);
         }
-        redirect('pengaturan');
+
+        $config = [
+            'upload_path'   => $upload_path,
+            'allowed_types' => 'jpg|jpeg|png',
+            'max_size'      => 2048,
+            'encrypt_name'  => TRUE,
+        ];
+
+        if (!$this->load->is_loaded('upload')) {
+            $this->load->library('upload');
+        }
+
+        // Inisialisasi ulang untuk setiap jenis file.
+        $this->upload->initialize($config);
+
+        if (!$this->upload->do_upload($file)) {
+            $this->session->set_flashdata(
+                'error',
+                'Gagal upload ' . $file . ': ' .
+                strip_tags($this->upload->display_errors())
+            );
+
+            redirect('pengaturan');
+            return;
+        }
+
+        $up = $this->upload->data();
+
+        $update_data[$file] =
+            'uploads/settings/' . $folder_name . '/' . $up['file_name'];
     }
+
+    if (!empty($update_data)) {
+        $tersimpan = $this->pengaturan_model->update_settings($update_data);
+
+        if ($tersimpan) {
+            $this->session->set_flashdata(
+                'success',
+                'Aset dokumen berhasil diperbarui!'
+            );
+        } else {
+            $this->session->set_flashdata(
+                'error',
+                'Gagal memperbarui data aset.'
+            );
+        }
+    }
+
+    redirect('pengaturan');
+}
 
     // Hapus Kop Surat / TTD / Logo
-    public function hapus_asset($type) {
-        if (in_array($type, ['kop_surat', 'ttd', 'logo'])) {
-            $old_data = $this->pengaturan_model->get_settings();
-            
-            if ($old_data->$type && file_exists(FCPATH . $old_data->$type)) {
-                @unlink(FCPATH . $old_data->$type);
-            }
-            $this->pengaturan_model->update_settings([$type => NULL]);
-            $this->session->set_flashdata('success', 'File berhasil dihapus!');
-        }
-        redirect('pengaturan');
+   
+public function hapus_asset($type)
+{
+    if (!in_array($type, ['kop_surat', 'ttd', 'logo'], TRUE)) {
+        show_404();
     }
+
+    // Hanya hapus referensi dari database.
+    // File fisik dipertahankan untuk kebutuhan snapshot invoice lama.
+    $tersimpan = $this->pengaturan_model->update_settings([
+        $type => NULL
+    ]);
+
+    if ($tersimpan) {
+        $this->session->set_flashdata(
+            'success',
+            'Referensi file berhasil dihapus dari pengaturan aktif.'
+        );
+    } else {
+        $this->session->set_flashdata(
+            'error',
+            'Gagal memperbarui pengaturan aset.'
+        );
+    }
+
+    redirect('pengaturan');
+}
 
     // === AJAX: Kelola Jenis Dokumen ===
     public function simpan_jenis() {
@@ -173,4 +253,212 @@ class Pengaturan extends MY_Controller {
         $this->session->set_flashdata('success', 'Jenis dokumen berhasil dihapus!');
         redirect('pengaturan');
     }
+
+
+
+    /* =========================================
+     * 5. KELOLA REMINDER INVOICE
+     * ========================================= */
+
+    // Tambah jadwal reminder
+    public function simpan_reminder()
+    {
+        if ($this->input->method(TRUE) !== 'POST') {
+            show_404();
+        }
+
+        $offset = $this->input->post('offset_hari');
+        $label  = trim($this->input->post('label', TRUE));
+
+        if ($offset === NULL || $offset === '' || !is_numeric($offset)
+            || (string)(int)$offset !== (string)$offset) {
+            $this->session->set_flashdata(
+                'error',
+                'Jumlah hari reminder tidak valid.'
+            );
+            redirect('pengaturan');
+            return;
+        }
+
+        $offset = (int) $offset;
+
+        if ($label === '') {
+            $this->session->set_flashdata(
+                'error',
+                'Nama jadwal reminder wajib diisi.'
+            );
+            redirect('pengaturan');
+            return;
+        }
+
+        $email = $this->input->post('kirim_email') ? 1 : 0;
+        $wa    = $this->input->post('kirim_whatsapp') ? 1 : 0;
+
+        if (!$email && !$wa) {
+            $this->session->set_flashdata(
+                'error',
+                'Pilih minimal satu saluran pengiriman.'
+            );
+            redirect('pengaturan');
+            return;
+        }
+
+        if ($this->pengaturan_model->reminder_offset_exists($offset)) {
+            $this->session->set_flashdata(
+                'error',
+                'Jadwal pada waktu tersebut sudah tersedia.'
+            );
+            redirect('pengaturan');
+            return;
+        }
+
+        $data = [
+            'offset_hari'    => $offset,
+            'label'          => $label,
+            'aktif'          => 1,
+            'kirim_email'    => $email,
+            'kirim_whatsapp' => $wa
+        ];
+
+        $tersimpan = $this->pengaturan_model
+                          ->insert_reminder_rule($data);
+
+        $this->session->set_flashdata(
+            $tersimpan ? 'success' : 'error',
+            $tersimpan
+                ? 'Jadwal reminder berhasil ditambahkan.'
+                : 'Gagal menambahkan jadwal reminder.'
+        );
+
+        redirect('pengaturan');
+    }
+
+
+    // Edit jadwal reminder
+    public function update_reminder($id)
+    {
+        if ($this->input->method(TRUE) !== 'POST') {
+            show_404();
+        }
+
+        $rule = $this->pengaturan_model->get_reminder_rule($id);
+
+        if (!$rule) {
+            show_404();
+        }
+
+        $offset = $this->input->post('offset_hari');
+        $label  = trim($this->input->post('label', TRUE));
+
+        if ($offset === NULL || $offset === '' || !is_numeric($offset)
+            || (string)(int)$offset !== (string)$offset
+            || $label === '') {
+            $this->session->set_flashdata(
+                'error',
+                'Data jadwal reminder tidak valid.'
+            );
+            redirect('pengaturan');
+            return;
+        }
+
+        $offset = (int) $offset;
+
+        $email = $this->input->post('kirim_email') ? 1 : 0;
+        $wa    = $this->input->post('kirim_whatsapp') ? 1 : 0;
+
+        if (!$email && !$wa) {
+            $this->session->set_flashdata(
+                'error',
+                'Pilih minimal satu saluran pengiriman.'
+            );
+            redirect('pengaturan');
+            return;
+        }
+
+        if ($this->pengaturan_model
+                 ->reminder_offset_exists($offset, $id)) {
+            $this->session->set_flashdata(
+                'error',
+                'Jadwal pada waktu tersebut sudah digunakan.'
+            );
+            redirect('pengaturan');
+            return;
+        }
+
+        $data = [
+            'offset_hari'    => $offset,
+            'label'          => $label,
+            'kirim_email'    => $email,
+            'kirim_whatsapp' => $wa
+        ];
+
+        $tersimpan = $this->pengaturan_model
+                          ->update_reminder_rule($id, $data);
+
+        $this->session->set_flashdata(
+            $tersimpan ? 'success' : 'error',
+            $tersimpan
+                ? 'Jadwal reminder berhasil diperbarui.'
+                : 'Gagal memperbarui jadwal reminder.'
+        );
+
+        redirect('pengaturan');
+    }
+
+
+    // Aktifkan / nonaktifkan jadwal
+    public function toggle_reminder($id)
+    {
+        if ($this->input->method(TRUE) !== 'POST') {
+            show_404();
+        }
+
+        $rule = $this->pengaturan_model->get_reminder_rule($id);
+
+        if (!$rule) {
+            show_404();
+        }
+
+        $status = $rule->aktif ? 0 : 1;
+
+        $tersimpan = $this->pengaturan_model
+                          ->toggle_reminder_rule($id, $status);
+
+        $this->session->set_flashdata(
+            $tersimpan ? 'success' : 'error',
+            $tersimpan
+                ? 'Status reminder berhasil diperbarui.'
+                : 'Gagal memperbarui status reminder.'
+        );
+
+        redirect('pengaturan');
+    }
+
+
+    // Hapus jadwal reminder
+    public function hapus_reminder($id)
+    {
+        if ($this->input->method(TRUE) !== 'POST') {
+            show_404();
+        }
+
+        $rule = $this->pengaturan_model->get_reminder_rule($id);
+
+        if (!$rule) {
+            show_404();
+        }
+
+        $terhapus = $this->pengaturan_model
+                         ->delete_reminder_rule($id);
+
+        $this->session->set_flashdata(
+            $terhapus ? 'success' : 'error',
+            $terhapus
+                ? 'Jadwal reminder berhasil dihapus.'
+                : 'Gagal menghapus jadwal reminder.'
+        );
+
+        redirect('pengaturan');
+    }
+
 }

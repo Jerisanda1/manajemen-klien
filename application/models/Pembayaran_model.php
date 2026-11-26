@@ -135,24 +135,6 @@ public function get_project_nama($id)
         return $this->db->where('penawaran_id', (int) $id)->order_by('id', 'ASC')->get('penawaran_riwayat')->result();
     }
 
-    /* ---------- HAPUS ---------- */
-public function hapus()
-{
-    if ($this->input->method() !== 'post') redirect('pembayaran');
-
-    $tab = (string) $this->input->post('tab', TRUE);
-    if (!$this->Pembayaran_model->valid_tab($tab)) redirect('pembayaran');
-
-    // Proses hapus data
-    $this->Pembayaran_model->delete($tab, $this->input->post('id', TRUE));
-
-    // Kirim pesan sukses
-    $this->session->set_flashdata('success', ($tab === 'invoice' ? 'Invoice' : 'Penawaran') . ' berhasil dihapus.');
-
-    // Kembali ke halaman pembayaran (tanpa halaman putih)
-    redirect('pembayaran?tab=' . $tab);
-}
-
 public function get_penawaran_disetujui()
 {
     return $this->db->select('d.id, d.no_penawaran, d.perihal, d.isi_surat, d.klien_id, d.project_id, d.dibuat_lewat, k.nama_klien, p.nama_project')
@@ -290,4 +272,188 @@ public function sudah_dikirim_otomatis($id, $saluran, $offset)
         'berhasil'    => 1,
     ])->count_all_results('invoice_pengiriman') > 0;
 }
+
+
+/* ==========================================
+   PROFORMA INVOICE DINAMIS
+========================================== */
+
+/**
+ * Mengambil template aktif untuk klien.
+ * Template global dan template khusus klien.
+ */
+public function get_template_invoice_options($client_id)
+{
+    return $this->db
+        ->where('document_type', 'Proforma Invoice')
+        ->where('is_active', 1)
+        ->group_start()
+            ->where('client_id IS NULL', NULL, FALSE)
+            ->or_where('client_id', (int) $client_id)
+        ->group_end()
+        ->order_by('is_default', 'DESC')
+        ->get('document_templates')
+        ->result();
+}
+
+/**
+ * Mengambil template default.
+ * Template khusus klien diprioritaskan.
+ */
+
+public function get_default_template_invoice($client_id)
+{
+    // Prioritaskan template default khusus klien.
+    $khusus = $this->db
+        ->where('client_id', (int) $client_id)
+        ->where('document_type', 'Proforma Invoice')
+        ->where('is_default', 1)
+        ->where('is_active', 1)
+        ->get('document_templates')
+        ->row();
+
+    if ($khusus) {
+        return $khusus;
+    }
+
+    // Jika tidak ada, gunakan template default global.
+    return $this->db
+        ->where('client_id IS NULL', NULL, FALSE)
+        ->where('document_type', 'Proforma Invoice')
+        ->where('is_default', 1)
+        ->where('is_active', 1)
+        ->get('document_templates')
+        ->row();
+}
+
+/**
+ * Mengambil rincian item invoice.
+ */
+public function get_invoice_details($invoice_id)
+{
+    return $this->db
+        ->select('
+            id,
+            invoice_id,
+            nama_item,
+            nama_item AS description,
+            deskripsi,
+            kuantitas,
+            kuantitas AS quantity,
+            satuan,
+            satuan AS unit,
+            harga_satuan,
+            harga_satuan AS unit_price,
+            subtotal,
+            subtotal AS line_total,
+            urutan
+        ', FALSE)
+        ->where('invoice_id', (int) $invoice_id)
+        ->order_by('urutan', 'ASC')
+        ->order_by('id', 'ASC')
+        ->get('invoice_details')
+        ->result();
+}
+
+/**
+ * Mengambil rincian pajak invoice.
+ */
+public function get_invoice_taxes($invoice_id)
+{
+    return $this->db
+        ->select("
+            id,
+            invoice_id,
+            nama_pajak,
+            nama_pajak AS tax_name,
+            jenis,
+            CASE
+                WHEN persentase = 0 THEN 'fixed'
+                ELSE 'percentage'
+            END AS tax_type,
+            persentase,
+            persentase AS tax_rate,
+            nilai,
+            nilai AS tax_amount,
+            dasar_perhitungan,
+            urutan
+        ", FALSE)
+        ->where('invoice_id', (int) $invoice_id)
+        ->order_by('urutan', 'ASC')
+        ->order_by('id', 'ASC')
+        ->get('invoice_taxes')
+        ->result();
+}
+
+/**
+ * Menyimpan invoice beserta item dan pajak.
+ * Semua disimpan dalam satu transaksi.
+ */
+public function insert_invoice_lengkap($header, $items, $taxes)
+{
+    $this->db->trans_begin();
+
+    $this->db->insert('invoice', $header);
+    $invoice_id = $this->db->insert_id();
+
+    if (!$invoice_id) {
+        $this->db->trans_rollback();
+        return false;
+    }
+
+    foreach ($items as $item) {
+        $item['invoice_id'] = $invoice_id;
+        $this->db->insert('invoice_details', $item);
+    }
+
+    foreach ($taxes as $tax) {
+        $tax['invoice_id'] = $invoice_id;
+        $this->db->insert('invoice_taxes', $tax);
+    }
+
+    if ($this->db->trans_status() === false) {
+        $this->db->trans_rollback();
+        return false;
+    }
+
+    $this->db->trans_commit();
+
+    return $invoice_id;
+}
+
+/**
+ * Mengganti seluruh item dan pajak invoice.
+ */
+public function replace_invoice_details($invoice_id, $items, $taxes)
+{
+    $this->db->trans_begin();
+
+    $this->db
+        ->where('invoice_id', (int) $invoice_id)
+        ->delete('invoice_details');
+
+    $this->db
+        ->where('invoice_id', (int) $invoice_id)
+        ->delete('invoice_taxes');
+
+    foreach ($items as $item) {
+        $item['invoice_id'] = (int) $invoice_id;
+        $this->db->insert('invoice_details', $item);
+    }
+
+    foreach ($taxes as $tax) {
+        $tax['invoice_id'] = (int) $invoice_id;
+        $this->db->insert('invoice_taxes', $tax);
+    }
+
+    if ($this->db->trans_status() === false) {
+        $this->db->trans_rollback();
+        return false;
+    }
+
+    $this->db->trans_commit();
+
+    return true;
+}
+
 }

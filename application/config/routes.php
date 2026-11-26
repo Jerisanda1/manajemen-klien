@@ -113,4 +113,17 @@ $route['pengaturan/hapus_asset/(:any)'] = 'content/pengaturan/hapus_asset/$1';
 $route['pengaturan/simpan_jenis'] = 'content/pengaturan/simpan_jenis';
 $route['pengaturan/hapus_jenis/(:num)'] = 'content/pengaturan/hapus_jenis/$1';
 $route['pengaturan/update_account'] = 'content/pengaturan/update_account';
+$route['pengaturan/update_billing'] = 'content/pengaturan/update_billing';
+$route['pengaturan/simpan_reminder'] = 'content/pengaturan/simpan_reminder';
+$route['pengaturan/update_reminder/(:num)'] = 'content/pengaturan/update_reminder/$1';
+$route['pengaturan/toggle_reminder/(:num)'] = 'content/pengaturan/toggle_reminder/$1';
+$route['pengaturan/hapus_reminder/(:num)'] = 'content/pengaturan/hapus_reminder/$1';
 
+
+$route['template-dokumen'] = 'content/template_dokumen/index';
+$route['template-dokumen/tambah'] = 'content/template_dokumen/tambah';
+$route['template-dokumen/simpan'] = 'content/template_dokumen/simpan';
+$route['template-dokumen/edit/(:num)'] = 'content/template_dokumen/edit/$1';
+$route['template-dokumen/update'] = 'content/template_dokumen/update';
+$route['template-dokumen/status/(:num)'] = 'content/template_dokumen/status/$1';
+$route['template-dokumen/default/(:num)'] = 'content/template_dokumen/default/$1';

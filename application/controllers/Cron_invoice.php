@@ -14,8 +14,10 @@ class Cron_invoice extends CI_Controller
         }
 
         $this->load->model('Pembayaran_model');
+        $this->load->model('Pengaturan_model');
         $this->load->library('notifikasi');
         $this->load->helper('fonnte');
+
         $this->config->load('notifikasi', TRUE);
         $this->config->load('fonnte');
     }
@@ -28,8 +30,6 @@ class Cron_invoice extends CI_Controller
 
         $dry = ($mode === 'dry');
 
-        // Reminder pertama: rentang H-30 sampai H-1
-        // Reminder kedua: tepat hari H
         $emailKirim = 0;
         $emailGagal = 0;
         $waKirim = 0;
@@ -39,141 +39,192 @@ class Cron_invoice extends CI_Controller
         echo '[' . date('Y-m-d H:i:s') . '] Pengingat invoice'
             . ($dry ? ' (DRY RUN)' : '') . "\n";
 
-        foreach ($this->Pembayaran_model->get_invoice_belum_bayar() as $inv) {
+        // Ambil jadwal reminder dari Pengaturan
+        $rules = $this->Pengaturan_model->get_all_reminder_rules();
+
+        // Ambil hanya jadwal yang aktif
+        $rulesAktif = [];
+
+        foreach ($rules as $rule) {
+            if ((int) $rule->aktif === 1) {
+                $rulesAktif[] = $rule;
+            }
+        }
+
+        if (empty($rulesAktif)) {
+            echo "Tidak ada jadwal reminder yang aktif.\n";
+            return;
+        }
+
+        // Ambil seluruh invoice yang belum dibayar
+        $invoices = $this->Pembayaran_model->get_invoice_belum_bayar();
+
+        // Ambil seluruh invoice yang belum dibayar
+$invoices = $this->Pembayaran_model->get_invoice_belum_bayar();
+
+// DEBUG: Periksa jumlah invoice dan jadwal aktif
+echo "Total invoice belum dibayar: " . count($invoices) . "\n";
+echo "Total jadwal aktif: " . count($rulesAktif) . "\n";
+
+// Mulai proses invoice
+
+        foreach ($invoices as $inv) {
 
             // Hitung selisih hari dengan tanggal jatuh tempo
-            $hariJatuhTempo = strtotime(date('Y-m-d', strtotime($inv->jatuh_tempo)));
-            $hariIni = strtotime(date('Y-m-d'));
-            $hari = (int) (($hariJatuhTempo - $hariIni) / 86400);
+            $tanggalJatuhTempo = strtotime(
+                date('Y-m-d', strtotime($inv->jatuh_tempo))
+            );
 
-            // Lewati invoice di luar rentang H-30 sampai H-0
-            if ($hari > 30 || $hari < 0) {
-                continue;
-            }
+            $tanggalHariIni = strtotime(date('Y-m-d'));
 
-            // Tentukan tahap reminder
-            if ($hari === 0) {
-                $offsetReminder = 0;
-                $labelTahap = 'hari H';
-            } else {
-                // H-30 sampai H-1 menggunakan satu penanda reminder
-                $offsetReminder = 30;
-                $labelTahap = 'rentang H-30';
-            }
+            $hari = (int) round(
+                ($tanggalJatuhTempo - $tanggalHariIni) / 86400
+            );
 
-            // Template pesan sesuai sisa hari aktual
-            list($subjek, $isi) = $this->notifikasi->pesan_pengingat($inv, $hari);
+            // Cari jadwal yang cocok dengan selisih hari invoice
+            foreach ($rulesAktif as $rule) {
 
-            // Kontak PIC
-            $email = trim((string) $inv->email_pic);
-            $hp = preg_replace('/\D/', '', (string) $inv->hp_pic);
+                $offsetReminder = (int) $rule->offset_hari;
 
-            // =========================
-            // PENGIRIMAN EMAIL
-            // =========================
+                // Hanya proses jika jadwal cocok
+                if ($hari !== $offsetReminder) {
+                    continue;
+                }
 
-            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $labelTahap = $rule->label;
 
-                echo "- {$inv->no_invoice}: email PIC kosong/tidak valid\n";
-                $lewat++;
+                // Buat pesan berdasarkan sisa hari aktual
+                list($subjek, $isi) =
+                    $this->notifikasi->pesan_pengingat($inv, $hari);
 
-            } elseif (!$this->Pembayaran_model->sudah_dikirim_otomatis(
-                $inv->id,
-                'email',
-                $offsetReminder
-            )) {
+                // Kontak PIC
+                $email = trim((string) $inv->email_pic);
+                $hp = preg_replace('/\D/', '', (string) $inv->hp_pic);
 
-                if ($dry) {
+                echo "\nInvoice: {$inv->no_invoice}"
+                    . " | Jadwal: {$labelTahap}"
+                    . " | Selisih hari: {$hari}\n";
 
-                    echo "- {$inv->no_invoice}: AKAN dikirim lewat email ke {$email} ({$labelTahap})\n";
+                // =========================
+                // PENGIRIMAN EMAIL
+                // =========================
 
-                } else {
+                if ((int) $rule->kirim_email === 1) {
 
-                    list($ok, $ket) = $this->notifikasi->email(
-                        $email,
-                        $subjek,
-                        $isi
-                    );
+                    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
-                    $tersimpan = $this->Pembayaran_model->add_pengiriman(
+                        echo "- Email PIC kosong/tidak valid\n";
+                        $lewat++;
+
+                    } elseif (!$this->Pembayaran_model->sudah_dikirim_otomatis(
                         $inv->id,
                         'email',
-                        $email,
-                        $ok,
-                        $ket,
-                        1,
                         $offsetReminder
-                    );
+                    )) {
 
-                    if (!$tersimpan) {
-                        log_message(
-                            'error',
-                            'Gagal menyimpan riwayat email invoice ' . $inv->no_invoice
-                        );
-                    }
+                        if ($dry) {
 
-                    if ($ok) {
-                        echo "- {$inv->no_invoice}: EMAIL terkirim ke {$email}\n";
-                        $emailKirim++;
+                            echo "- AKAN dikirim melalui EMAIL ke {$email}\n";
+
+                        } else {
+
+                            list($ok, $ket) = $this->notifikasi->email(
+                                $email,
+                                $subjek,
+                                $isi
+                            );
+
+                            $tersimpan = $this->Pembayaran_model->add_pengiriman(
+                                $inv->id,
+                                'email',
+                                $email,
+                                $ok,
+                                $ket,
+                                1,
+                                $offsetReminder
+                            );
+
+                            if (!$tersimpan) {
+                                log_message(
+                                    'error',
+                                    'Gagal menyimpan riwayat email invoice '
+                                    . $inv->no_invoice
+                                );
+                            }
+
+                            if ($ok) {
+                                echo "- EMAIL berhasil dikirim\n";
+                                $emailKirim++;
+                            } else {
+                                echo "- EMAIL gagal: {$ket}\n";
+                                $emailGagal++;
+                            }
+                        }
                     } else {
-                        echo "- {$inv->no_invoice}: EMAIL GAGAL ({$ket})\n";
-                        $emailGagal++;
+                        echo "- EMAIL sudah pernah dikirim untuk jadwal ini\n";
                     }
                 }
-            }
 
-            // =========================
-            // PENGIRIMAN WHATSAPP
-            // =========================
+                // =========================
+                // PENGIRIMAN WHATSAPP
+                // =========================
 
-            if ($hp === '') {
+                if ((int) $rule->kirim_whatsapp === 1) {
 
-                echo "- {$inv->no_invoice}: nomor WhatsApp PIC kosong\n";
-                $lewat++;
+                    if ($hp === '') {
 
-            } elseif (!$this->Pembayaran_model->sudah_dikirim_otomatis(
-                $inv->id,
-                'whatsapp',
-                $offsetReminder
-            )) {
+                        echo "- Nomor WhatsApp PIC kosong\n";
+                        $lewat++;
 
-                if ($dry) {
-
-                    echo "- {$inv->no_invoice}: AKAN dikirim lewat WhatsApp ke {$hp} ({$labelTahap})\n";
-
-                } else {
-
-                    // Ubah isi HTML menjadi teks untuk WhatsApp
-                    $pesanWA = $this->_html_to_text($isi);
-
-                    $hasil = kirim_wa_fonnte($hp, $pesanWA);
-
-                    $ok = !empty($hasil['status']);
-                    $ket = isset($hasil['reason']) ? $hasil['reason'] : '';
-
-                    $tersimpan = $this->Pembayaran_model->add_pengiriman(
+                    } elseif (!$this->Pembayaran_model->sudah_dikirim_otomatis(
                         $inv->id,
                         'whatsapp',
-                        $hp,
-                        $ok,
-                        $ket,
-                        1,
                         $offsetReminder
-                    );
+                    )) {
 
-                    if (!$tersimpan) {
-                        log_message(
-                            'error',
-                            'Gagal menyimpan riwayat WhatsApp invoice ' . $inv->no_invoice
-                        );
-                    }
+                        if ($dry) {
 
-                    if ($ok) {
-                        echo "- {$inv->no_invoice}: WHATSAPP terkirim ke {$hp}\n";
-                        $waKirim++;
+                            echo "- AKAN dikirim melalui WHATSAPP ke {$hp}\n";
+
+                        } else {
+
+                            $pesanWA = $this->_html_to_text($isi);
+
+                            $hasil = kirim_wa_fonnte($hp, $pesanWA);
+
+                            $ok = !empty($hasil['status']);
+                            $ket = isset($hasil['reason'])
+                                ? $hasil['reason']
+                                : '';
+
+                            $tersimpan = $this->Pembayaran_model->add_pengiriman(
+                                $inv->id,
+                                'whatsapp',
+                                $hp,
+                                $ok,
+                                $ket,
+                                1,
+                                $offsetReminder
+                            );
+
+                            if (!$tersimpan) {
+                                log_message(
+                                    'error',
+                                    'Gagal menyimpan riwayat WhatsApp invoice '
+                                    . $inv->no_invoice
+                                );
+                            }
+
+                            if ($ok) {
+                                echo "- WHATSAPP berhasil dikirim\n";
+                                $waKirim++;
+                            } else {
+                                echo "- WHATSAPP gagal: {$ket}\n";
+                                $waGagal++;
+                            }
+                        }
                     } else {
-                        echo "- {$inv->no_invoice}: WHATSAPP GAGAL ({$ket})\n";
-                        $waGagal++;
+                        echo "- WHATSAPP sudah pernah dikirim untuk jadwal ini\n";
                     }
                 }
             }
@@ -182,18 +233,19 @@ class Cron_invoice extends CI_Controller
         echo "\n";
         echo "====================================\n";
         echo "EMAIL berhasil : {$emailKirim}\n";
-        echo "EMAIL gagal   : {$emailGagal}\n";
-        echo "WA berhasil   : {$waKirim}\n";
-        echo "WA gagal      : {$waGagal}\n";
-        echo "Dilewati      : {$lewat}\n";
+        echo "EMAIL gagal    : {$emailGagal}\n";
+        echo "WA berhasil    : {$waKirim}\n";
+        echo "WA gagal       : {$waGagal}\n";
+        echo "Dilewati       : {$lewat}\n";
         echo "Selesai.\n";
     }
 
     // Mengubah HTML menjadi teks biasa untuk WhatsApp
     private function _html_to_text($html)
     {
+        // Ubah elemen blok menjadi baris baru
         $html = preg_replace(
-            '/<br\s*\/?>|<\/p>|<\/div>|<\/li>|<\/tr>/i',
+            '/<\s*br\s*\/?>|<\/\s*(p|div|li|tr|h[1-6])\s*>/i',
             "\n",
             $html
         );
