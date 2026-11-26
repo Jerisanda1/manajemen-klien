@@ -216,6 +216,7 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
                                             <!-- Dokumen lokal (perangkat ini): pratinjau dibaca dari folder lokal via TridatuFS -->
                                             <button type="button"
                                                 class="btn-preview min-w-0 truncate text-left text-sm font-semibold text-blue-600 underline underline-offset-2 decoration-blue-300 hover:text-blue-800 hover:decoration-blue-500 transition-colors"
+                                                data-document-id="<?= (int) $d->id ?>"
                                                 data-klien-id="<?= (int) ($d->client_id ?? 0) ?>"
                                                 data-klien-nama="<?= $e($d->nama_klien ?? '') ?>"
                                                 data-file-name="<?= $e($d->file_name ?? '') ?>"
@@ -413,7 +414,7 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
     .toast-item.hide { animation: toastOut 0.3s ease-in forwards; }
 </style>
 
-<script src="<?= base_url('assets/js/tridatu-fs.js') ?>"></script>
+<script src="<?= base_url('assets/js/tridatu-fs.js?v=' . filemtime(FCPATH . 'assets/js/tridatu-fs.js')) ?>"></script>
 <script>
     // ==========================================
     // CUSTOM DROPDOWN FILTER (JENIS, KLIEN, PROJECT)
@@ -590,6 +591,7 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
                 if (TridatuFS.isSupported()) {
                     try {
                         file = await TridatuFS.readFile({
+                            documentId: id,
                             klienId: klienId,
                             klienNama: klienNama,
                             fileName: fileName,
@@ -652,6 +654,30 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
         });
     });
 
+    function tampilkanPratinjauLokal(file, win, fileName) {
+        const mimeMap = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
+        const ext = fileName.split('.').pop().toLowerCase();
+        const mime = mimeMap[ext];
+        const url = URL.createObjectURL(new Blob([file], { type: mime || 'application/octet-stream' }));
+
+        if (mime) {
+            if (win) {
+                win.location.href = url;
+            } else {
+                window.location.href = url;
+            }
+        } else {
+            if (win) win.close();
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            showToast('Format ini tidak bisa dipratinjau, file diunduh.', 'info');
+        }
+    }
+
     // --- PRATINJAU DOKUMEN LOKAL (PERANGKAT INI) ---
     document.querySelectorAll('.btn-preview').forEach(btn => {
         btn.addEventListener('click', async function () {
@@ -659,14 +685,8 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
             const klienNama    = this.dataset.klienNama || '';
             const fileName     = this.dataset.fileName || '';
             const expectedHash = (this.dataset.fileHash || '').toLowerCase();
-
-            // Buka tab dulu (sinkron dengan klik) agar tidak diblokir pop-up blocker
-            const win = window.open('', '_blank');
-            if (!win) {
-                showToast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini.', 'error');
-                return;
-            }
-            win.document.title = 'Memuat dokumen...';
+            const documentId   = Number(this.dataset.documentId || 0);
+            let win = null;
 
             try {
                 if (typeof TridatuFS === 'undefined') {
@@ -676,32 +696,52 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
                     throw new Error('Informasi file tidak lengkap.');
                 }
 
+                const manualSelection = !TridatuFS.isSupported();
                 let file = null;
-
-                // 1. Coba baca dari folder lokal yang sudah diizinkan
-                if (TridatuFS.isSupported()) {
+                if (manualSelection) {
+                    showToast('Pilih file dokumen untuk ditampilkan.', 'info');
+                    file = await TridatuFS.pickFile();
+                    if (!file) return;
+                    win = window.open('', '_blank');
+                    if (win) {
+                        win.document.title = 'Memuat dokumen...';
+                    }
+                } else {
+                    // Minta izin browser untuk handle tersimpan sebelum mencoba membaca file.
+                    const access = await TridatuFS.requestFolderAccess(documentId);
                     try {
-                        file = await TridatuFS.readFile({
-                            klienId: klienId,
-                            klienNama: klienNama,
-                            fileName: fileName,
-                            fileHash: expectedHash
-                        });
+                        if (access.permission === 'granted') {
+                            file = await TridatuFS.readFile({
+                                documentId: documentId,
+                                klienId: klienId,
+                                klienNama: klienNama,
+                                fileName: fileName,
+                                fileHash: expectedHash
+                            });
+                        }
                     } catch (readError) {
                         console.warn('Tidak dapat membaca folder lokal:', readError);
                     }
+
+                    // Jika folder atau file tidak ditemukan, buka pemilih folder bawaan browser.
+                    if (!file) {
+                        const root = await TridatuFS.getFolderHandle(documentId, true);
+                        if (root) {
+                            file = await TridatuFS.readFile({
+                                documentId: documentId,
+                                klienId: klienId,
+                                klienNama: klienNama,
+                                fileName: fileName,
+                                fileHash: expectedHash
+                            });
+                        }
+                    }
                 }
 
-                // 2. Fallback: pilih file secara manual
                 if (!file) {
-                    showToast('File tidak ditemukan di folder. Pilih file secara manual.', 'info');
-                    file = await TridatuFS.pickFile();
+                    throw new Error('File lokal tidak dapat diakses. Pastikan memilih folder utama yang benar atau pilih file secara manual.');
                 }
 
-                // Pengguna membatalkan pemilihan file
-                if (!file) { win.close(); return; }
-
-                // 3. Pastikan file sama dengan yang tercatat
                 if (expectedHash) {
                     const actualHash = (await hitungHash(file)).toLowerCase();
                     if (actualHash !== expectedHash) {
@@ -709,26 +749,18 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
                     }
                 }
 
-                // 4. Tampilkan di viewer bawaan browser (PDF/gambar), selain itu diunduh
-                const mimeMap = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
-                const ext  = fileName.split('.').pop().toLowerCase();
-                const mime = mimeMap[ext];
-                const url  = URL.createObjectURL(new Blob([file], { type: mime || 'application/octet-stream' }));
-
-                if (mime) {
-                    win.location.href = url;
-                } else {
-                    win.close();
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    showToast('Format ini tidak bisa dipratinjau, file diunduh.', 'info');
+                if (!manualSelection && !win) {
+                    win = window.open('', '_blank');
                 }
+                if (win && !manualSelection) {
+                    win.document.title = 'Memuat dokumen...';
+                } else if (!win) {
+                    showToast('Browser memblokir tab baru. Dokumen akan dibuka di tab ini.', 'info');
+                }
+
+                tampilkanPratinjauLokal(file, win, fileName);
             } catch (err) {
-                win.close();
+                if (win) win.close();
                 console.error('Pratinjau dokumen gagal:', err);
                 showToast(err.message || 'Gagal membuka pratinjau.', 'error');
             }
@@ -804,6 +836,7 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
                 try {
                     if (typeof TridatuFS !== 'undefined' && TridatuFS.isSupported()) {
                         const deleteResult = await TridatuFS.deleteFile({
+                            documentId: hapusId,
                             klienId: hapusMeta.klienId,
                             klienNama: hapusMeta.klienNama,
                             fileName: hapusMeta.fileName,

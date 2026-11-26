@@ -3,7 +3,7 @@
  *
  * Arsitektur:
  *  Chromium (Chrome/Edge/Opera):
- *    - 1× folder picker → simpan handle di IndexedDB
+ *    - Folder picker per dokumen → simpan handle di IndexedDB
  *    - File disimpan di: {folder}/{klienId}_{namaKlien}/{hash8}_{fileName}
  *  Firefox / Safari:
  *    - Fallback download ke folder Downloads
@@ -21,6 +21,7 @@ window.TridatuFS = (function () {
     const DB_VERSION = 1;
     const STORE = 'handles';
     const FOLDER_KEY = 'docs_folder';
+    const DOCUMENT_FOLDER_PREFIX = 'document_folder_';
 
     const SUPPORTED = typeof window.showDirectoryPicker === 'function';
 
@@ -90,24 +91,92 @@ window.TridatuFS = (function () {
     }
 
     // ==========================================================
-    // Folder handle root (1× pilih untuk semua dokumen)
+    // Folder handle per dokumen
     // ==========================================================
-    async function getFolderHandle(forceNew = false) {
+    function documentFolderKey(documentId) {
+        return DOCUMENT_FOLDER_PREFIX + String(documentId);
+    }
+
+    async function getStoredHandle(documentId = null) {
+        if (documentId !== null && documentId !== undefined && String(documentId) !== '') {
+            const key = documentFolderKey(documentId);
+            const handle = await idbGet(key);
+            if (handle) return { handle, key, legacy: false };
+
+            const legacyHandle = await idbGet(FOLDER_KEY);
+            return { handle: legacyHandle, key, legacy: !!legacyHandle };
+        }
+
+        return { handle: await idbGet(FOLDER_KEY), key: FOLDER_KEY, legacy: false };
+    }
+
+    async function getFolderHandle(documentId = null, forceNew = false) {
         if (!SUPPORTED) return null;
 
         if (!forceNew) {
-            const saved = await idbGet(FOLDER_KEY);
-            if (saved) {
-                const ok = await ensurePermission(saved, 'readwrite');
-                if (ok) return saved;
-                // Permission hilang → minta pilih ulang
+            const stored = await getStoredHandle(documentId);
+            if (!stored.handle) return null;
+
+            const ok = await ensurePermission(stored.handle, 'readwrite');
+            if (!ok) return null;
+            if (stored.legacy && documentId !== null && documentId !== undefined) {
+                await idbSet(stored.key, stored.handle);
             }
+            return stored.handle;
         }
 
         try {
             const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
-            await idbSet(FOLDER_KEY, handle);
+            const key = documentId !== null && documentId !== undefined
+                ? documentFolderKey(documentId)
+                : FOLDER_KEY;
+            await idbSet(key, handle);
             return handle;
+        } catch (err) {
+            if (err.name === 'AbortError') return null;
+            throw err;
+        }
+    }
+
+    async function getStoredFolderAccess(documentId = null) {
+        if (!SUPPORTED) {
+            return { handle: null, permission: 'unsupported' };
+        }
+
+        const stored = await getStoredHandle(documentId);
+        if (!stored.handle) {
+            return { handle: null, permission: 'missing' };
+        }
+
+        const permission = await stored.handle.queryPermission({ mode: 'readwrite' });
+        return { handle: stored.handle, permission };
+    }
+
+    async function requestFolderAccess(documentId = null) {
+        if (!SUPPORTED) {
+            return { handle: null, permission: 'unsupported' };
+        }
+
+        const stored = await getStoredHandle(documentId);
+        if (!stored.handle) {
+            return { handle: null, permission: 'missing' };
+        }
+
+        const granted = await ensurePermission(stored.handle, 'readwrite');
+        if (granted && stored.legacy && documentId !== null && documentId !== undefined) {
+            await idbSet(stored.key, stored.handle);
+        }
+        return {
+            handle: granted ? stored.handle : null,
+            permission: granted ? 'granted' : 'denied'
+        };
+    }
+
+    async function selectFolder() {
+        if (!SUPPORTED) return null;
+
+        try {
+            return await window.showDirectoryPicker({ mode: 'readwrite' });
         } catch (err) {
             if (err.name === 'AbortError') return null;
             throw err;
@@ -116,6 +185,11 @@ window.TridatuFS = (function () {
 
     async function clearFolderHandle() {
         await idbDelete(FOLDER_KEY);
+    }
+
+    async function clearDocumentFolderHandle(documentId) {
+        if (documentId === null || documentId === undefined || String(documentId) === '') return;
+        await idbDelete(documentFolderKey(documentId));
     }
 
     // ==========================================================
@@ -165,6 +239,7 @@ window.TridatuFS = (function () {
      * Simpan file dokumen.
      *
      * @param {object} opts
+     * @param {number|string} opts.documentId - ID dokumen untuk menyimpan handle folder
      * @param {number} opts.klienId     - ID klien (untuk nama folder)
      * @param {string} opts.klienNama   - Nama klien (untuk nama folder)
      * @param {string} opts.fileName    - Nama file asli
@@ -173,14 +248,17 @@ window.TridatuFS = (function () {
      *
      * @returns {Promise<{ok:boolean, mode:'folder'|'download', savedName?:string, msg?:string}>}
      */
-    async function saveFile({ klienId, klienNama, fileName, fileHash, blob }) {
+    async function saveFile({ documentId, root: rootHandle = null, klienId, klienNama, fileName, fileHash, blob }) {
         if (!SUPPORTED) {
             triggerDownload(blob, fileName);
             return { ok: true, mode: 'download', savedName: fileName };
         }
 
-        const root = await getFolderHandle();
+        const root = rootHandle || await getFolderHandle(documentId);
         if (!root) return { ok: false, mode: 'folder', msg: 'Folder tidak dipilih.' };
+        if (documentId === null || documentId === undefined || String(documentId) === '') {
+            return { ok: false, mode: 'folder', msg: 'ID dokumen tidak tersedia untuk menyimpan hubungan folder.' };
+        }
 
         try {
             const klienFolder = await getKlienFolder(root, klienId, klienNama, true);
@@ -189,6 +267,7 @@ window.TridatuFS = (function () {
             const w = await fh.createWritable();
             await w.write(blob);
             await w.close();
+            await idbSet(documentFolderKey(documentId), root);
             return { ok: true, mode: 'folder', savedName };
         } catch (err) {
             return { ok: false, mode: 'folder', msg: err.message };
@@ -207,11 +286,11 @@ window.TridatuFS = (function () {
      *
      * @returns {Promise<File|null>}
      */
-    async function readFile({ klienId, klienNama, fileName, fileHash }) {
+    async function readFile({ documentId, klienId, klienNama, fileName, fileHash }) {
         if (!SUPPORTED) return null;
-        const root = await getFolderHandle();
-        if (!root) return null;
         try {
+            const root = await getFolderHandle(documentId);
+            if (!root) return null;
             const klienFolder = await getKlienFolder(root, klienId, klienNama, false);
             const savedName = buildSavedName(fileName, fileHash);
             const fh = await klienFolder.getFileHandle(savedName, { create: false });
@@ -233,17 +312,21 @@ window.TridatuFS = (function () {
      *
      * @returns {Promise<{ok:boolean, mode:'folder'|'download', msg?:string}>}
      */
-    async function deleteFile({ klienId, klienNama, fileName, fileHash }) {
+    async function deleteFile({ documentId, klienId, klienNama, fileName, fileHash }) {
         if (!SUPPORTED) return { ok: true, mode: 'download' };
-        const root = await getFolderHandle();
+        const root = await getFolderHandle(documentId);
         if (!root) return { ok: false, mode: 'folder', msg: 'Folder tidak dipilih.' };
         try {
             const klienFolder = await getKlienFolder(root, klienId, klienNama, false);
             const savedName = buildSavedName(fileName, fileHash);
             await klienFolder.removeEntry(savedName);
+            await clearDocumentFolderHandle(documentId);
             return { ok: true, mode: 'folder' };
         } catch (err) {
-            if (err.name === 'NotFoundError') return { ok: true, mode: 'folder' };
+            if (err.name === 'NotFoundError') {
+                await clearDocumentFolderHandle(documentId);
+                return { ok: true, mode: 'folder' };
+            }
             return { ok: false, mode: 'folder', msg: err.message };
         }
     }
@@ -318,7 +401,11 @@ window.TridatuFS = (function () {
     return {
         isSupported,
         getFolderHandle,
+        getStoredFolderAccess,
+        requestFolderAccess,
+        selectFolder,
         clearFolderHandle,
+        clearDocumentFolderHandle,
         saveFile,
         readFile,
         deleteFile,

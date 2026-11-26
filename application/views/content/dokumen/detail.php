@@ -178,14 +178,19 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
                         <!-- Content (diisi JS) -->
                         <div id="localPreviewContent" class="hidden w-full h-full flex items-center justify-center"></div>
 
-                        <!-- Error (file hilang / folder belum dipilih) -->
+                        <!-- Folder lokal mungkin memerlukan izin ulang setelah Chrome dibuka kembali -->
                         <div id="localPreviewError" class="hidden bg-white w-full max-w-sm aspect-[1/1.4] shadow-2xl rounded p-8 flex-col items-center justify-center text-center">
                             <svg class="w-16 h-16 text-red-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                            <p class="text-gray-600 font-bold">File Tidak Ditemukan</p>
-                            <p class="text-sm text-gray-500 mt-2 mb-4">File mungkin dihapus atau folder belum dipilih.</p>
-                            <button type="button" id="btnPilihFolder" class="px-4 py-2 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors">
-                                Pilih Folder
-                            </button>
+                            <p class="text-gray-600 font-bold">Folder atau File Belum Dapat Diakses</p>
+                            <p class="text-sm text-gray-500 mt-2 mb-4">Izinkan akses folder yang tersimpan. Jika folder dipindah atau tidak ditemukan, pilih kembali folder utama yang sama. File lokal tidak otomatis tersimpan di server.</p>
+                            <div class="flex flex-wrap justify-center gap-2">
+                                <button type="button" id="btnIzinFolder" class="px-4 py-2 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors">
+                                    Izinkan Akses Folder
+                                </button>
+                                <button type="button" id="btnPilihFolder" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+                                    Pilih Folder Utama
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Locked (FF/Safari) -->
@@ -230,7 +235,7 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
         .toast-item.hide { animation: toastOut 0.3s ease-in forwards; }
     </style>
 
-    <script src="<?= base_url('assets/js/tridatu-fs.js') ?>"></script>
+    <script src="<?= base_url('assets/js/tridatu-fs.js?v=' . filemtime(FCPATH . 'assets/js/tridatu-fs.js')) ?>"></script>
     <script>
     // =====================================================
     // DATA DARI SERVER
@@ -332,17 +337,18 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
     }
 
     async function loadLocalPreview() {
-        if (!IS_OWN_LOCAL) return;
+        if (!IS_OWN_LOCAL) return false;
 
         // FF/Safari: dikunci
         if (!TridatuFS.isSupported()) {
             showPreviewState('locked');
-            return;
+            return false;
         }
 
         showPreviewState('loading');
         try {
             const file = await TridatuFS.readFile({
+                documentId: DOC.id,
                 klienId:   DOC.klienId,
                 klienNama: DOC.klienNama,
                 fileName:  DOC.fileName,
@@ -351,7 +357,7 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
 
             if (!file) {
                 showPreviewState('error');
-                return;
+                return false;
             }
 
             revokeBlobUrl();
@@ -377,23 +383,67 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
                 contentDiv.innerHTML = `<div class="bg-white w-full max-w-sm aspect-[1/1.4] shadow-2xl rounded p-8 flex flex-col items-center justify-center text-center"><p class="text-gray-500 font-medium">Pratinjau tidak tersedia untuk format ${DOC.ext.toUpperCase()}.</p></div>`;
             }
             showPreviewState('content');
+            return true;
         } catch (err) {
             console.error('Preview error:', err);
             showPreviewState('error');
+            return false;
         }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
         loadLocalPreview();
 
-        // Tombol "Pilih Folder" untuk retry
+        // Tombol pemulihan akses folder
         const btnPilihFolder = document.getElementById('btnPilihFolder');
+        const btnIzinFolder = document.getElementById('btnIzinFolder');
+        if (btnIzinFolder) {
+            btnIzinFolder.addEventListener('click', async () => {
+                btnIzinFolder.disabled = true;
+                btnIzinFolder.textContent = 'Meminta izin...';
+                try {
+                    const access = await TridatuFS.requestFolderAccess(DOC.id);
+                    if (access.permission !== 'granted') {
+                        const message = access.permission === 'missing'
+                            ? 'Folder belum terhubung. Pilih folder utama untuk menghubungkan kembali.'
+                            : 'Izin folder belum diberikan. Coba izinkan akses atau pilih ulang folder.';
+                        showToast(message, 'info');
+                        return;
+                    }
+
+                    showPreviewState('loading');
+                    const found = await loadLocalPreview();
+                    if (!found) {
+                        showToast('Izin berhasil, tetapi file belum ditemukan. Pastikan folder utama benar atau pilih ulang folder.', 'error');
+                    }
+                } catch (err) {
+                    console.error('Gagal meminta izin folder:', err);
+                    showToast('Izin folder gagal diminta: ' + (err.message || 'terjadi kesalahan.'), 'error');
+                } finally {
+                    btnIzinFolder.disabled = false;
+                    btnIzinFolder.textContent = 'Izinkan Akses Folder';
+                }
+            });
+        }
+
         if (btnPilihFolder) {
             btnPilihFolder.addEventListener('click', async () => {
-                const h = await TridatuFS.getFolderHandle(true);
-                if (h) {
-                    showPreviewState('loading');
-                    loadLocalPreview();
+                btnPilihFolder.disabled = true;
+                btnPilihFolder.textContent = 'Memeriksa folder...';
+                try {
+                    const h = await TridatuFS.getFolderHandle(DOC.id, true);
+                    if (h) {
+                        showPreviewState('loading');
+                        await loadLocalPreview();
+                    } else {
+                        showPreviewState('error');
+                    }
+                } catch (err) {
+                    console.error('Gagal menghubungkan ulang folder:', err);
+                    showToast('Folder gagal dihubungkan: ' + (err.message || 'terjadi kesalahan.'), 'error');
+                } finally {
+                    btnPilihFolder.disabled = false;
+                    btnPilihFolder.textContent = 'Pilih Folder Utama';
                 }
             });
         }
@@ -417,6 +467,7 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
             if (TridatuFS.isSupported()) {
                 // Coba baca dari folder
                 const fromFolder = await TridatuFS.readFile({
+                    documentId: DOC.id,
                     klienId:   DOC.klienId,
                     klienNama: DOC.klienNama,
                     fileName:  DOC.fileName,
@@ -518,6 +569,7 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
             if (IS_OWN_LOCAL) {
                 if (TridatuFS.isSupported()) {
                     const del = await TridatuFS.deleteFile({
+                        documentId: DOC.id,
                         klienId:   DOC.klienId,
                         klienNama: DOC.klienNama,
                         fileName:  DOC.fileName,

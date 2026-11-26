@@ -342,6 +342,7 @@ $statusDokumen = function ($tanggalBerakhir) {
                                                 <!-- Dokumen lokal (perangkat ini): pratinjau dibaca dari folder lokal via TridatuFS -->
                                                 <button type="button"
                                                     class="btn-preview-dok min-w-0 truncate cell-ellipsis text-left font-semibold text-blue-600 hover:underline"
+                                                    data-document-id="<?= (int) $d['id'] ?>"
                                                     data-klien-id="<?= (int) ($project->klien_id ?? 0) ?>"
                                                     data-klien-nama="<?= $e($project->nama_klien ?? '') ?>"
                                                     data-file-name="<?= $e($d['file_name'] ?? '') ?>"
@@ -378,6 +379,7 @@ $statusDokumen = function ($tanggalBerakhir) {
                                                 <button
                                                     type="button"
                                                     data-sync-id="<?= (int) $d['id'] ?>"
+                                                    data-document-id="<?= (int) $d['id'] ?>"
                                                     data-sync-name="<?= $e($d['file_name'] ?? '') ?>"
                                                     data-klien-id="<?= (int) ($project->klien_id ?? 0) ?>"
                                                     data-klien-nama="<?= $e($project->nama_klien ?? '') ?>"
@@ -766,7 +768,7 @@ $statusDokumen = function ($tanggalBerakhir) {
     .aksi-btn svg { width: 14px; height: 14px; }
 </style>
 
-<script src="<?= base_url('assets/js/tridatu-fs.js') ?>"></script>
+<script src="<?= base_url('assets/js/tridatu-fs.js?v=' . filemtime(FCPATH . 'assets/js/tridatu-fs.js'))?>"></script>
 <script>
 // =========================================
 // 1. TOAST
@@ -1031,18 +1033,12 @@ async function hitungHash(blob) {
 // --- PRATINJAU DOKUMEN LOKAL (PERANGKAT INI) ---
 document.querySelectorAll('.btn-preview-dok').forEach(btn => {
     btn.addEventListener('click', async function () {
+        const documentId   = Number(this.dataset.documentId || 0);
         const klienId      = Number(this.dataset.klienId || 0);
         const klienNama    = this.dataset.klienNama || '';
         const fileName     = this.dataset.fileName || '';
         const expectedHash = (this.dataset.fileHash || '').toLowerCase();
-
-        // Buka tab dulu (sinkron dengan klik) agar tidak diblokir pop-up blocker
-        const win = window.open('', '_blank');
-        if (!win) {
-            showToast('Pop-up diblokir browser. Izinkan pop-up untuk situs ini.', 'error');
-            return;
-        }
-        win.document.title = 'Memuat dokumen...';
+        let win = null;
 
         try {
             if (typeof TridatuFS === 'undefined') {
@@ -1053,31 +1049,40 @@ document.querySelectorAll('.btn-preview-dok').forEach(btn => {
             }
 
             let file = null;
-
-            // 1. Coba baca dari folder lokal yang sudah diizinkan
             if (TridatuFS.isSupported()) {
+                const access = await TridatuFS.requestFolderAccess(documentId);
                 try {
-                    file = await TridatuFS.readFile({
-                        klienId: klienId,
-                        klienNama: klienNama,
-                        fileName: fileName,
-                        fileHash: expectedHash
-                    });
+                    if (access.permission === 'granted') {
+                        file = await TridatuFS.readFile({
+                            documentId: documentId,
+                            klienId: klienId,
+                            klienNama: klienNama,
+                            fileName: fileName,
+                            fileHash: expectedHash
+                        });
+                    }
                 } catch (readError) {
                     console.warn('Tidak dapat membaca folder lokal:', readError);
                 }
+
+                if (!file) {
+                    const root = await TridatuFS.getFolderHandle(documentId, true);
+                    if (root) {
+                        file = await TridatuFS.readFile({
+                            documentId: documentId,
+                            klienId: klienId,
+                            klienNama: klienNama,
+                            fileName: fileName,
+                            fileHash: expectedHash
+                        });
+                    }
+                }
             }
 
-            // 2. Fallback: pilih file secara manual
             if (!file) {
-                showToast('File tidak ditemukan di folder. Pilih file secara manual.', 'info');
-                file = await TridatuFS.pickFile();
+                throw new Error('File lokal tidak dapat diakses. Pastikan memilih folder utama yang benar.');
             }
 
-            // Pengguna membatalkan pemilihan file
-            if (!file) { win.close(); return; }
-
-            // 3. Pastikan file sama dengan yang tercatat
             if (expectedHash) {
                 const actualHash = (await hitungHash(file)).toLowerCase();
                 if (actualHash !== expectedHash) {
@@ -1085,16 +1090,26 @@ document.querySelectorAll('.btn-preview-dok').forEach(btn => {
                 }
             }
 
-            // 4. Tampilkan di viewer bawaan browser (PDF/gambar), selain itu diunduh
+            win = window.open('', '_blank');
+            if (win) {
+                win.document.title = 'Memuat dokumen...';
+            } else {
+                showToast('Browser memblokir tab baru. Dokumen akan dibuka di tab ini.', 'info');
+            }
+
             const mimeMap = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
             const ext  = fileName.split('.').pop().toLowerCase();
             const mime = mimeMap[ext];
             const url  = URL.createObjectURL(new Blob([file], { type: mime || 'application/octet-stream' }));
 
             if (mime) {
-                win.location.href = url;
+                if (win) {
+                    win.location.href = url;
+                } else {
+                    window.location.href = url;
+                }
             } else {
-                win.close();
+                if (win) win.close();
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = fileName;
@@ -1104,7 +1119,7 @@ document.querySelectorAll('.btn-preview-dok').forEach(btn => {
                 showToast('Format ini tidak bisa dipratinjau, file diunduh.', 'info');
             }
         } catch (err) {
-            win.close();
+            if (win) win.close();
             console.error('Pratinjau dokumen gagal:', err);
             showToast(err.message || 'Gagal membuka pratinjau.', 'error');
         }
@@ -1141,6 +1156,7 @@ document.querySelectorAll('.btn-sync-dok').forEach(btn => {
             if (TridatuFS.isSupported()) {
                 try {
                     file = await TridatuFS.readFile({
+                        documentId: Number(id || 0),
                         klienId: klienId,
                         klienNama: klienNama,
                         fileName: fileName,
@@ -1272,6 +1288,7 @@ async function eksekusiHapusDok() {
             try {
                 if (typeof TridatuFS !== 'undefined' && TridatuFS.isSupported()) {
                     const deleteResult = await TridatuFS.deleteFile({
+                        documentId: hapusDokId,
                         klienId: hapusDokMeta.klienId,
                         klienNama: hapusDokMeta.klienNama,
                         fileName: hapusDokMeta.fileName,

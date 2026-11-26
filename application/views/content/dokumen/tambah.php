@@ -66,6 +66,12 @@
                             <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             <span>Browser Anda belum mendukung pemilihan folder. File akan diunduh ke folder <strong>Downloads</strong>.</span>
                         </div>
+                        <div id="localFolderAccess" class="hidden mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                            <p id="localFolderStatus" class="text-xs text-blue-800">Pilih folder tujuan khusus untuk dokumen ini.</p>
+                            <button type="button" id="chooseLocalFolder" class="mt-2 px-3 py-1.5 rounded-lg bg-white border border-blue-300 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50">
+                                Pilih Folder untuk Dokumen Ini
+                            </button>
+                        </div>
                     </div>
 
                     <div class="w-full lg:w-1/2">
@@ -195,7 +201,7 @@
         </form>
     </div>
 
-    <script src="<?= base_url('assets/js/tridatu-fs.js') ?>"></script>
+    <script src="<?= base_url('assets/js/tridatu-fs.js?v=' . filemtime(FCPATH . 'assets/js/tridatu-fs.js')) ?>"></script>
     <script>
     // =====================================================
     // DEVICE ID
@@ -439,6 +445,29 @@
     // STORAGE TOGGLE
     // =====================================================
     let currentStorage = 'cloud';
+
+    const localFolderPanel = document.getElementById('localFolderAccess');
+    const localFolderStatus = document.getElementById('localFolderStatus');
+    const chooseLocalFolderButton = document.getElementById('chooseLocalFolder');
+    let selectedLocalFolderHandle = null;
+
+    async function refreshLocalFolderAccess() {
+        if (!selectedLocalFolderHandle) {
+            localFolderStatus.textContent = 'Pilih folder tujuan khusus untuk dokumen ini.';
+            return;
+        }
+
+        try {
+            const permission = await selectedLocalFolderHandle.queryPermission({ mode: 'readwrite' });
+            localFolderStatus.textContent = permission === 'granted'
+                ? 'Folder dipilih untuk dokumen ini. Folder lain tetap tersimpan pada dokumennya masing-masing.'
+                : 'Izin folder perlu diberikan kembali. Pilih folder tujuan untuk dokumen ini.';
+        } catch (err) {
+            console.error('Gagal memeriksa akses folder:', err);
+            localFolderStatus.textContent = 'Akses folder tidak dapat diperiksa. Pilih folder tujuan untuk dokumen ini.';
+        }
+    }
+
     function toggleStorage(type) {
         currentStorage = type;
         document.getElementById('dropzoneText').textContent = type === 'local'
@@ -446,7 +475,41 @@
                 ? 'Tarik file ke sini atau pilih dari perangkat (Disimpan lokal)'
                 : 'Tarik file ke sini atau pilih dari perangkat (Akan diunduh ke Downloads)')
             : 'Tarik file ke sini atau pilih dari perangkat';
+
+        if (type === 'local' && TridatuFS.isSupported()) {
+            localFolderPanel.classList.remove('hidden');
+            refreshLocalFolderAccess();
+        } else {
+            localFolderPanel.classList.add('hidden');
+        }
     }
+
+    chooseLocalFolderButton.addEventListener('click', async function() {
+        chooseLocalFolderButton.disabled = true;
+        localFolderStatus.textContent = 'Membuka pemilih folder...';
+
+        try {
+            const handle = await TridatuFS.selectFolder();
+            if (!handle) {
+                localFolderStatus.textContent = 'Pemilihan folder dibatalkan. Klik tombol untuk mencoba lagi.';
+                return;
+            }
+
+            const permission = await handle.queryPermission({ mode: 'readwrite' });
+            if (permission !== 'granted') {
+                localFolderStatus.textContent = 'Izin belum diberikan. Klik tombol dan pilih folder yang sama kembali.';
+                return;
+            }
+
+            selectedLocalFolderHandle = handle;
+            localFolderStatus.textContent = 'Folder dipilih khusus untuk dokumen ini. Pilih file lalu simpan dokumen.';
+        } catch (err) {
+            console.error('Gagal memilih folder:', err);
+            localFolderStatus.textContent = 'Folder gagal dipilih: ' + (err.message || 'terjadi kesalahan.');
+        } finally {
+            chooseLocalFolderButton.disabled = false;
+        }
+    });
 
     // =====================================================
     // DETEKSI DUKUNGAN BROWSER
@@ -494,15 +557,30 @@
             const clientDD = document.querySelector('.custom-dropdown[data-target="client_id"]');
             const clientNama = clientDD.querySelector('.dropdown-text').textContent.trim();
 
-            // 1. Minta folder (Chromium) — batal = abort tanpa POST
+            // 1. Pastikan akses folder sudah aktif sebelum metadata disimpan.
+            let localRoot = null;
             if (TridatuFS.isSupported()) {
-                btn.textContent = 'Meminta akses folder...';
-                const handle = await TridatuFS.getFolderHandle();
-                if (!handle) {
+                btn.textContent = 'Memeriksa akses folder...';
+                if (!selectedLocalFolderHandle) {
+                    localFolderPanel.classList.remove('hidden');
+                    localFolderStatus.textContent = 'Pilih folder tujuan khusus untuk dokumen ini sebelum menyimpan.';
                     btn.textContent = 'Simpan Dokumen';
                     btn.disabled = false;
                     return;
                 }
+
+                let permission = await selectedLocalFolderHandle.queryPermission({ mode: 'readwrite' });
+                if (permission !== 'granted') {
+                    permission = await selectedLocalFolderHandle.requestPermission({ mode: 'readwrite' });
+                }
+                if (permission !== 'granted') {
+                    localFolderPanel.classList.remove('hidden');
+                    localFolderStatus.textContent = 'Izin folder belum diberikan. Pilih folder tujuan untuk dokumen ini.';
+                    btn.textContent = 'Simpan Dokumen';
+                    btn.disabled = false;
+                    return;
+                }
+                localRoot = selectedLocalFolderHandle;
             }
 
             // 2. POST metadata
@@ -525,6 +603,8 @@
 
             try {
                 const saveRes = await TridatuFS.saveFile({
+                    documentId: data.id,
+                    root: localRoot,
                     klienId: clientId,
                     klienNama: clientNama,
                     fileName: file.name,

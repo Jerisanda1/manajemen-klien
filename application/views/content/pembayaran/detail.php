@@ -4,11 +4,18 @@
  * @var object $penawaran
  * @var array $riwayat
  * @var array $statusList
+ *
+ * + Smart Back Button — Kembali menuju halaman asal detail dibuka
+ *   (daftar pembayaran / detail project / detail invoice).
+ *   $urlKembali jadi fallback.
  */
 
 $e = function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 };
+
+// Fallback bila asal tidak diketahui (mis. URL dibuka langsung)
+$urlKembali = site_url('pembayaran?tab=penawaran');
 
 $bulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 $tgl = function ($tanggal) use ($bulan) {
@@ -74,7 +81,9 @@ $successMessage = $this->session->flashdata('success');
 
         <!-- Header: susunan tetap seperti halaman Detail Penawaran sebelumnya -->
         <div class="shrink-0">
-            <a href="<?= site_url('pembayaran?tab=penawaran') ?>"
+            <!-- SMART BACK BUTTON (href = fallback bila asal tidak diketahui) -->
+            <a href="<?= $urlKembali ?>"
+               id="backBtn"
                class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-3 transition-colors">
                 <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
@@ -363,5 +372,9 @@ $successMessage = $this->session->flashdata('success');
             }, 300);
         }
     </script>
+
+    <!-- SMART BACK BUTTON (script bersama) -->
+    <?php $this->load->view('partials/smart_back'); ?>
+
 </body>
 </html>
