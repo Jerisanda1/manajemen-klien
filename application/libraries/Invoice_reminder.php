@@ -34,7 +34,7 @@ class Invoice_reminder
 
         echo '[' . date('Y-m-d H:i:s') . '] Pengingat invoice'
             . ($dry ? ' (DRY RUN)' : '') . "\n";
-        echo "Jadwal aktif: satu pengingat sesuai hari per klien.\n";
+        echo "Jadwal aktif: satu pengingat per klien, dikirim saat sisa hari masuk rentang 0 s/d H-N.\n";
 
         foreach ($invoices as $invoice) {
             $dueDate = strtotime(date('Y-m-d', strtotime($invoice->jatuh_tempo)));
@@ -42,14 +42,19 @@ class Invoice_reminder
             $daysLeft = (int) round(($dueDate - $today) / 86400);
             $offset = (int) $invoice->reminder_days_before;
 
-            if ($offset < 1 || $offset > 365 || $daysLeft !== $offset) {
+            // Kirim jika sisa hari berada di rentang 0..offset (bukan harus pas H-offset).
+            // Pengiriman hanya sekali per invoice karena dicek lewat sudah_dikirim_otomatis().
+            if ($offset < 1 || $offset > 365 || $daysLeft < 0 || $daysLeft > $offset) {
+                if ($dry) {
+                    echo "Lewati {$invoice->no_invoice}: sisa hari={$daysLeft}, rentang=0-{$offset}\n";
+                }
                 continue;
             }
 
             list($subject, $message) =
                 $this->CI->notifikasi->pesan_pengingat($invoice, $daysLeft);
 
-            echo "\nInvoice: {$invoice->no_invoice} | Pengingat H-{$offset}\n";
+            echo "\nInvoice: {$invoice->no_invoice} | Sisa {$daysLeft} hari (rentang H-{$offset})\n";
 
             if ($channels['email']) {
                 $email = trim((string) $invoice->email_pic);
