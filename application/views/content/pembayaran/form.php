@@ -4,9 +4,6 @@
  * @var object|null $penawaran
  * @var array $klienList, $projectList
  * @var string $nomorBaru, $from, $action, $title, $mode, $uploadErr
- *
- * + Smart Back Button — Kembali & Batal menuju halaman asal form dibuka
- *   (daftar pembayaran / detail penawaran / detail project). $urlKembali jadi fallback.
  */
 $e = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
 $isEdit = !empty($penawaran);
@@ -26,12 +23,10 @@ $err = function ($f) {
 $mode      = isset($mode) ? $mode : 'template';
 $uploadErr = isset($uploadErr) ? $uploadErr : '';
 $from      = isset($from) ? $from : 'list';
-// Fallback bila asal tidak diketahui (mis. URL dibuka langsung)
 $urlKembali = $isEdit && $from === 'detail'
     ? site_url('pembayaran/detail/penawaran/' . (int) $penawaran->id)
     : site_url('pembayaran?tab=penawaran');
 
-// Kunci tetap agar asal tidak hilang saat validasi gagal (URL form bisa berubah)
 $backKey = 'penawaran-form-' . ($isEdit ? (int) $penawaran->id : 'new');
 
 $bulan = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -117,7 +112,6 @@ foreach ($projectList as $p) {
 
 $adaFile  = $isEdit && !empty($penawaran->file_path);
 $fileNama = $adaFile ? $penawaran->file_nama : '';
-$fileUrl  = $adaFile ? site_url('pembayaran/berkas/' . (int) $penawaran->id) : '';
 $kunci = $isEdit;
 ?>
 <!DOCTYPE html>
@@ -142,7 +136,6 @@ $kunci = $isEdit;
         <!-- Header -->
         <div class="mb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <!-- SMART BACK BUTTON (href = fallback bila asal tidak diketahui) -->
                 <a href="<?= $urlKembali ?>" id="backBtn" data-back-key="<?= $e($backKey) ?>" class="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 mb-2 transition-colors">
                     <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
                     Kembali
@@ -169,34 +162,7 @@ $kunci = $isEdit;
                 <!-- KIRI -->
                 <div class="space-y-4">
                     
-                    <!-- Card 1: Cara Pembuatan -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 md:p-6">
-                        <h3 class="text-lg font-bold text-gray-900 mb-4">Cara Pembuatan</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <label class="cursor-pointer">
-                                <input type="radio" name="mode" value="template" class="peer sr-only" <?= $mode === 'template' ? 'checked' : '' ?> <?= $kunci ? 'disabled' : '' ?> onchange="toggleMode('template')">
-                                <div class="p-4 border rounded-xl peer-checked:border-blue-500 peer-checked:bg-blue-50 transition-all hover:bg-gray-50 h-full <?= $kunci && $mode !== 'template' ? 'opacity-50 cursor-not-allowed' : '' ?>">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                        <span class="font-bold text-sm text-gray-900">Template Baku</span>
-                                    </div>
-                                    <p class="text-xs text-gray-500 leading-relaxed">Isi data klien, rincian pekerjaan dan harga; dokumen penawaran disusun otomatis.</p>
-                                </div>
-                            </label>
-                            <label class="cursor-pointer">
-                                <input type="radio" name="mode" value="unggah" class="peer sr-only" <?= $mode === 'unggah' ? 'checked' : '' ?> <?= $kunci ? 'disabled' : '' ?> onchange="toggleMode('unggah')">
-                                <div class="p-4 border rounded-xl peer-checked:border-[#9f2b2b] peer-checked:bg-red-50 transition-all hover:bg-gray-50 h-full <?= $kunci && $mode !== 'unggah' ? 'opacity-50 cursor-not-allowed' : '' ?>">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                        <span class="font-bold text-sm text-gray-900">Unggah Manual</span>
-                                    </div>
-                                    <p class="text-xs text-gray-500 leading-relaxed">Pakai file penawaran yang sudah dibuat sendiri (PDF atau Word).</p>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Card 2: Data Penawaran -->
+                    <!-- Card 1: Data Penawaran -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 md:p-6">
                         <h3 class="text-lg font-bold text-gray-900 mb-5">Data penawaran</h3>
                         
@@ -351,59 +317,21 @@ $kunci = $isEdit;
                                 </div>
                             </div>
 
-                            <!-- Checkboxes -->
-                            <div class="field-template md:col-span-2 <?= $mode !== 'template' ? 'hidden' : '' ?>">
-                                <div class="flex gap-6 mt-2">
-                                    <label class="inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" name="sertakan_kop" value="1" class="w-5 h-5 text-[#9f2b2b] rounded border-gray-300 focus:ring-[#9f2b2b]" <?= $kop ? 'checked' : '' ?>>
-                                        <span class="ml-2 text-sm text-gray-700 font-medium">Sertakan kop surat</span>
-                                    </label>
-                                    <label class="inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" name="sertakan_ttd" value="1" class="w-5 h-5 text-[#9f2b2b] rounded border-gray-300 focus:ring-[#9f2b2b]" <?= $ttd ? 'checked' : '' ?>>
-                                        <span class="ml-2 text-sm text-gray-700 font-medium">Sertakan tanda tangan</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-
-                <!-- KANAN -->
-                <div class="space-y-4">
-                    
-                    <!-- Info Template -->
-                    <div class="field-template <?= $mode !== 'template' ? 'hidden' : '' ?> bg-white rounded-xl shadow-sm border border-gray-200 p-5 md:p-6">
-                        <h3 class="text-lg font-bold text-gray-900 mb-4"><?= $isEdit ? 'Info penawaran' : 'Dibuat otomatis' ?></h3>
-                        <div class="flex justify-between items-center py-1.5 text-sm">
-                            <span class="text-gray-500">Nomor</span>
-                            <span class="font-medium text-gray-900"><?= $e($nomor) ?></span>
-                        </div>
-                        <div class="flex justify-between items-center py-1.5 text-sm">
-                            <span class="text-gray-500">Tanggal</span>
-                            <span class="font-medium text-gray-900"><?= $tgl($tanggal) ?></span>
-                        </div>
-                        <div class="flex justify-between items-center py-1.5 text-sm">
-                            <span class="text-gray-500"><?= $isEdit ? 'Status' : 'Status awal' ?></span>
-                            <span class="bg-gray-100 text-gray-600 border border-gray-200 px-3 py-0.5 rounded-full text-xs font-semibold"><?= $e($status) ?></span>
-                        </div>
-                        <div class="border-t border-gray-100 mt-3 pt-3 text-xs text-gray-500 leading-relaxed">
-                            Nomor dan tanggal terkunci saat disimpan. Status bisa diubah di halaman detail.
                         </div>
                     </div>
 
-                    <!-- File Upload -->
+                    <!-- Card 2: File Upload -->
                     <div class="field-unggah <?= $mode !== 'unggah' ? 'hidden' : '' ?> bg-white rounded-xl shadow-sm border border-gray-200 p-5 md:p-6">
                         <h3 class="text-lg font-bold text-gray-900 mb-4">File Penawaran <span class="text-red-500">*</span></h3>
                         
-                        <div id="dropzone" class="border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer relative">
+                        <div id="dropzone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 flex flex-col items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer relative">
                             <input type="file" name="berkas" id="berkas" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".pdf,.doc,.docx">
-                            <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            <svg class="w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                             <p class="text-sm text-gray-600 font-medium text-center mb-2">Tarik file ke sini atau pilih dari perangkat</p>
-                            <span class="px-3 py-1.5 bg-white border border-gray-300 rounded text-xs font-medium text-gray-700 shadow-sm">Pilih file</span>
+                            <span class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-gray-700 shadow-sm">Pilih File (PDF/DOC/DOCX)</span>
                         </div>
                         
-                        <div id="filePreview" class="<?= $adaFile ? '' : 'hidden' ?> border border-gray-300 rounded-xl p-4 bg-white flex items-center justify-between">
+                        <div id="filePreview" class="<?= $adaFile ? '' : 'hidden' ?> border border-gray-300 rounded-xl p-4 bg-white flex items-center justify-between mt-4">
                             <div class="flex items-center gap-3">
                                 <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                 <div>
@@ -419,42 +347,111 @@ $kunci = $isEdit;
                         <p class="text-xs text-red-500 mt-2 <?= $uploadErr ? '' : 'hidden' ?>" id="dzErr"><?= $e($uploadErr) ?></p>
                         <p class="text-xs text-gray-500 mt-2">PDF, DOC, atau DOCX. Maksimal 5 MB.</p>
                     </div>
+                </div>
 
-                    <!-- Info Unggah (Ringkasan) -->
-                    <div class="field-unggah <?= $mode !== 'unggah' ? 'hidden' : '' ?> bg-white rounded-xl shadow-sm border border-gray-200 p-5 md:p-6">
-                        <h3 class="text-lg font-bold text-gray-900 mb-4">Ringkasan</h3>
-                        <div class="flex justify-between items-center py-1.5 text-sm">
-                            <span class="text-gray-500">Asal dokumen</span>
-                            <span class="font-medium text-gray-900">Unggahan</span>
+                <!-- KANAN -->
+                <div class="space-y-0">
+                    
+                    <!-- Card Gabungan (Nyambung) -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
+                        
+                        <!-- Section: Cara Pembuatan -->
+                        <div class="p-5 md:p-6 border-b border-gray-100">
+                            <h3 class="text-lg font-bold text-gray-900 mb-4">Cara Pembuatan</h3>
+                            <div class="grid grid-cols-1 gap-3">
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="mode" value="template" class="peer sr-only" <?= $mode === 'template' ? 'checked' : '' ?> <?= $kunci ? 'disabled' : '' ?> onchange="toggleMode('template')">
+                                    <div class="p-4 border rounded-xl peer-checked:border-blue-500 peer-checked:bg-blue-50 transition-all hover:bg-gray-50 h-full <?= $kunci && $mode !== 'template' ? 'opacity-50 cursor-not-allowed' : '' ?>">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                            <span class="font-bold text-sm text-gray-900">Template Baku</span>
+                                        </div>
+                                        <p class="text-xs text-gray-500 leading-relaxed">Isi data klien, rincian pekerjaan dan harga; dokumen penawaran disusun otomatis.</p>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="mode" value="unggah" class="peer sr-only" <?= $mode === 'unggah' ? 'checked' : '' ?> <?= $kunci ? 'disabled' : '' ?> onchange="toggleMode('unggah')">
+                                    <div class="p-4 border rounded-xl peer-checked:border-[#9f2b2b] peer-checked:bg-red-50 transition-all hover:bg-gray-50 h-full <?= $kunci && $mode !== 'unggah' ? 'opacity-50 cursor-not-allowed' : '' ?>">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                            <span class="font-bold text-sm text-gray-900">Unggah Manual</span>
+                                        </div>
+                                        <p class="text-xs text-gray-500 leading-relaxed">Pakai file penawaran yang sudah dibuat sendiri (PDF atau Word).</p>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
-                        <div class="flex justify-between items-center py-1.5 text-sm">
-                            <span class="text-gray-500"><?= $isEdit ? 'Status' : 'Status awal' ?></span>
-                            <span class="bg-gray-100 text-gray-600 border border-gray-200 px-3 py-0.5 rounded-full text-xs font-semibold"><?= $e($status) ?></span>
+
+                        <!-- Section: Info Template -->
+                        <div class="field-template <?= $mode !== 'template' ? 'hidden' : '' ?> p-5 md:p-6 border-b border-gray-100">
+                            <h3 class="text-lg font-bold text-gray-900 mb-4"><?= $isEdit ? 'Info penawaran' : 'Dibuat otomatis' ?></h3>
+                            <div class="flex justify-between items-center py-1.5 text-sm">
+                                <span class="text-gray-500">Nomor</span>
+                                <span class="font-medium text-gray-900"><?= $e($nomor) ?></span>
+                            </div>
+                            <div class="flex justify-between items-center py-1.5 text-sm">
+                                <span class="text-gray-500">Tanggal</span>
+                                <span class="font-medium text-gray-900"><?= $tgl($tanggal) ?></span>
+                            </div>
+                            <div class="flex justify-between items-center py-1.5 text-sm">
+                                <span class="text-gray-500"><?= $isEdit ? 'Status' : 'Status awal' ?></span>
+                                <span class="bg-gray-100 text-gray-600 border border-gray-200 px-3 py-0.5 rounded-full text-xs font-semibold"><?= $e($status) ?></span>
+                            </div>
+                            <div class="border-t border-gray-100 mt-3 pt-3 text-xs text-gray-500 leading-relaxed">
+                                Nomor dan tanggal terkunci saat disimpan. Status bisa diubah di halaman detail.
+                            </div>
                         </div>
-                        <div class="border-t border-gray-100 mt-3 pt-3 text-xs text-gray-500 leading-relaxed">
-                            Kop surat dan tanda tangan otomatis tidak dipakai, karena dokumen sudah jadi. Status bisa diubah di halaman detail.
+
+                        <!-- Section: Info Unggah -->
+                        <div class="field-unggah <?= $mode !== 'unggah' ? 'hidden' : '' ?> p-5 md:p-6 border-b border-gray-100">
+                            <h3 class="text-lg font-bold text-gray-900 mb-4">Ringkasan</h3>
+                            <div class="flex justify-between items-center py-1.5 text-sm">
+                                <span class="text-gray-500">Asal dokumen</span>
+                                <span class="font-medium text-gray-900">Unggahan</span>
+                            </div>
+                            <div class="flex justify-between items-center py-1.5 text-sm">
+                                <span class="text-gray-500"><?= $isEdit ? 'Status' : 'Status awal' ?></span>
+                                <span class="bg-gray-100 text-gray-600 border border-gray-200 px-3 py-0.5 rounded-full text-xs font-semibold"><?= $e($status) ?></span>
+                            </div>
+                            <div class="border-t border-gray-100 mt-3 pt-3 text-xs text-gray-500 leading-relaxed">
+                                Kop surat dan tanda tangan otomatis tidak dipakai, karena dokumen sudah jadi. Status bisa diubah di halaman detail.
+                            </div>
                         </div>
+
+                        <!-- Section: Checkboxes (Pindahan dari Kiri) -->
+                        <div class="field-template <?= $mode !== 'template' ? 'hidden' : '' ?> p-5 md:p-6 border-b border-gray-100 bg-gray-50/50">
+                            <label class="block text-xs font-medium text-gray-700 mb-3 uppercase tracking-wider">Opsi Tambahan</label>
+                            <div class="flex flex-col gap-3">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="sertakan_kop" value="1" class="w-5 h-5 text-[#9f2b2b] rounded border-gray-300 focus:ring-[#9f2b2b]" <?= $kop ? 'checked' : '' ?>>
+                                    <span class="ml-2 text-sm text-gray-700 font-medium">Sertakan kop surat</span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="sertakan_ttd" value="1" class="w-5 h-5 text-[#9f2b2b] rounded border-gray-300 focus:ring-[#9f2b2b]" <?= $ttd ? 'checked' : '' ?>>
+                                    <span class="ml-2 text-sm text-gray-700 font-medium">Sertakan tanda tangan</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Section: Tombol Aksi -->
+                        <div class="p-5 md:p-6 flex flex-col gap-3">
+                            <button type="submit" class="w-full px-6 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-[#9f2b2b]/20">
+                                <?= $isEdit ? 'Simpan Perubahan' : 'Simpan Penawaran' ?>
+                            </button>
+
+                            <button type="submit" class="field-template <?= $mode !== 'template' ? 'hidden' : '' ?> w-full px-6 py-2.5 bg-gray-100 border border-gray-300 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                                    formaction="<?= site_url('pembayaran/pratinjau') ?>" formtarget="_blank"
+                                    formenctype="application/x-www-form-urlencoded" formnovalidate>
+                                Pratinjau PDF
+                            </button>
+                            <button type="button" class="field-unggah <?= $mode !== 'unggah' ? 'hidden' : '' ?> w-full px-6 py-2.5 bg-gray-100 border border-gray-300 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors" id="btnPrevFile">
+                                Pratinjau PDF
+                            </button>
+
+                            <a href="<?= $urlKembali ?>" data-smart-back class="w-full px-6 py-2 text-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">Batal</a>
+                        </div>
+
                     </div>
-
-                    <!-- Tombol Aksi -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 md:p-6 flex flex-col gap-3">
-                        <button type="submit" class="w-full px-6 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-medium rounded-lg transition-colors shadow-md shadow-[#9f2b2b]/20">
-                            <?= $isEdit ? 'Simpan Perubahan' : 'Simpan Penawaran' ?>
-                        </button>
-
-                        <button type="submit" class="field-template <?= $mode !== 'template' ? 'hidden' : '' ?> w-full px-6 py-2.5 bg-gray-100 border border-gray-300 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
-                                formaction="<?= site_url('pembayaran/pratinjau') ?>" formtarget="_blank"
-                                formenctype="application/x-www-form-urlencoded" formnovalidate>
-                            Pratinjau PDF
-                        </button>
-                        <button type="button" class="field-unggah <?= $mode !== 'unggah' ? 'hidden' : '' ?> w-full px-6 py-2.5 bg-gray-100 border border-gray-300 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors" id="btnPrevFile">
-                            Pratinjau PDF
-                        </button>
-
-                        <!-- Batal juga kembali ke halaman asal (data-smart-back) -->
-                        <a href="<?= $urlKembali ?>" data-smart-back class="w-full px-6 py-2 text-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">Batal</a>
-                    </div>
-
                 </div>
             </div>
         </form>
@@ -561,7 +558,6 @@ $kunci = $isEdit;
             fName.textContent = f.name;
             fSize.textContent = ukuran(f.size);
         } else if (fName.textContent !== 'Belum ada file') {
-            // ada file lama
             dropzone.classList.add('hidden');
             filePreview.classList.remove('hidden');
         } else {
@@ -700,7 +696,6 @@ $kunci = $isEdit;
             if (!li || li.dataset.value === undefined) return;
             setDropdownValue(dd.dataset.target, li.dataset.value, li.textContent.trim());
             
-            // Auto fill PIC if Klien changes
             if (dd.dataset.target === 'klien_id') {
                 document.getElementById('pic').value = li.dataset.pic || '';
                 sinkronProject(li.dataset.value);
@@ -777,9 +772,7 @@ $kunci = $isEdit;
             list.appendChild(li);
         });
         
-        // maintain previous selected value if possible
         const currentProj = document.getElementById('project_id').value;
-        const label = document.querySelector('.custom-dropdown[data-target="project_id"] .dropdown-text');
         if (currentProj) {
             const match = filtered.find(p => String(p.id) === String(currentProj));
             if (match) {
@@ -790,7 +783,6 @@ $kunci = $isEdit;
         setDropdownValue('project_id', '', 'Pilih Project');
     }
 
-    // init on load
     document.addEventListener('DOMContentLoaded', () => {
         const klienVal = document.getElementById('klien_id').value;
         if (klienVal) sinkronProject(klienVal);

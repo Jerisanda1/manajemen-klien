@@ -24,20 +24,13 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Aset & Dokumen
                 </button>
-<button onclick="switchTab('reminder')" id="btn-tab-reminder"
-    class="tab-btn flex items-center gap-2 py-4 text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-800 font-medium transition-colors whitespace-nowrap focus:outline-none">
-
-    <svg class="w-4 h-4" fill="none" stroke="currentColor"
-        viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z">
-        </path>
-    </svg>
-
-    Reminder
-</button>
-
+                <button onclick="switchTab('reminder')" id="btn-tab-reminder"
+                    class="tab-btn flex items-center gap-2 py-4 text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-800 font-medium transition-colors whitespace-nowrap focus:outline-none">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Reminder
+                </button>
             </nav>
         </div>
 
@@ -53,7 +46,6 @@
                     </div>
 
                     <form action="<?= site_url('pengaturan/update_account') ?>" method="POST" class="space-y-6">
-                        <!-- CSRF Token -->
                         <?php if ($this->config->item('csrf_protection')): ?>
                             <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
                         <?php endif; ?>
@@ -94,9 +86,7 @@
                         <p class="text-sm text-gray-500 mt-1">Identitas Tridatu yang dipakai pada dokumen penawaran dan invoice.</p>
                     </div>
                     
-
                     <form action="<?= site_url('pengaturan/update_info') ?>" method="POST" enctype="multipart/form-data">
-                        <!-- CSRF Token -->
                         <?php if ($this->config->item('csrf_protection')): ?>
                             <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
                         <?php endif; ?>
@@ -150,107 +140,64 @@
                     </form>
                 </div>
 
+                <!-- CARD REKENING BANK & PENANGGUNG JAWAB -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 mt-6">
+                    <div class="mb-6 border-b border-slate-100 pb-5">
+                        <h3 class="text-xl font-bold text-gray-900">Informasi Rekening & Penanggung Jawab</h3>
+                        <p class="text-sm text-gray-500 mt-1">Informasi ini digunakan otomatis pada dokumen Proforma Invoice.</p>
+                    </div>
 
-<!-- CARD REKENING BANK & PENANGGUNG JAWAB -->
-<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 mt-6">
+                    <form action="<?= site_url('pengaturan/update_billing') ?>" method="POST">
+                        <?php if ($this->config->item('csrf_protection')): ?>
+                            <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                        <?php endif; ?>
 
-    <div class="mb-6 border-b border-slate-100 pb-5">
-        <h3 class="text-xl font-bold text-gray-900">
-            Informasi Rekening & Penanggung Jawab
-        </h3>
-        <p class="text-sm text-gray-500 mt-1">
-            Informasi ini digunakan otomatis pada dokumen Proforma Invoice.
-        </p>
-    </div>
+                        <h4 class="font-semibold text-gray-800 mb-4">Rekening Bank</h4>
 
-    <form action="<?= site_url('pengaturan/update_billing') ?>" method="POST">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-7">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nama Bank</label>
+                                <input type="text" name="nama_bank" value="<?= htmlspecialchars($settings->nama_bank ?? '', ENT_QUOTES, 'UTF-8') ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Nama bank">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cabang</label>
+                                <input type="text" name="nama_cabang" value="<?= htmlspecialchars($settings->nama_cabang ?? '', ENT_QUOTES, 'UTF-8') ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Nama cabang">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">SWIFT Code</label>
+                                <input type="text" name="swift_code" value="<?= htmlspecialchars($settings->swift_code ?? '', ENT_QUOTES, 'UTF-8') ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="SWIFT Code">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Rekening</label>
+                                <input type="text" name="nomor_rekening" value="<?= htmlspecialchars($settings->nomor_rekening ?? '', ENT_QUOTES, 'UTF-8') ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Nomor rekening">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nama Pemilik Rekening</label>
+                                <input type="text" name="nama_pemilik_rekening" value="<?= htmlspecialchars($settings->nama_pemilik_rekening ?? '', ENT_QUOTES, 'UTF-8') ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Nama pemilik rekening">
+                            </div>
+                        </div>
 
-        <?php if ($this->config->item('csrf_protection')): ?>
-            <input type="hidden"
-                name="<?= $this->security->get_csrf_token_name() ?>"
-                value="<?= $this->security->get_csrf_hash() ?>">
-        <?php endif; ?>
+                        <div class="border-t border-slate-100 pt-6">
+                            <h4 class="font-semibold text-gray-800 mb-4">Penanggung Jawab Dokumen</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Nama Direktur / Penanggung Jawab</label>
+                                    <input type="text" name="nama_penanggung_jawab" value="<?= htmlspecialchars($settings->nama_penanggung_jawab ?? '', ENT_QUOTES, 'UTF-8') ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Nama penanggung jawab">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Jabatan</label>
+                                    <input type="text" name="jabatan_penanggung_jawab" value="<?= htmlspecialchars($settings->jabatan_penanggung_jawab ?? '', ENT_QUOTES, 'UTF-8') ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Contoh: Direktur">
+                                </div>
+                            </div>
+                        </div>
 
-        <h4 class="font-semibold text-gray-800 mb-4">Rekening Bank</h4>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-7">
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Nama Bank</label>
-                <input type="text" name="nama_bank"
-                    value="<?= htmlspecialchars($settings->nama_bank ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    placeholder="Nama bank">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Cabang</label>
-                <input type="text" name="nama_cabang"
-                    value="<?= htmlspecialchars($settings->nama_cabang ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    placeholder="Nama cabang">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">SWIFT Code</label>
-                <input type="text" name="swift_code"
-                    value="<?= htmlspecialchars($settings->swift_code ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    placeholder="SWIFT Code">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Nomor Rekening</label>
-                <input type="text" name="nomor_rekening"
-                    value="<?= htmlspecialchars($settings->nomor_rekening ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    placeholder="Nomor rekening">
-            </div>
-
-            <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Nama Pemilik Rekening</label>
-                <input type="text" name="nama_pemilik_rekening"
-                    value="<?= htmlspecialchars($settings->nama_pemilik_rekening ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                    class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    placeholder="Nama pemilik rekening">
-            </div>
-
-        </div>
-
-        <div class="border-t border-slate-100 pt-6">
-            <h4 class="font-semibold text-gray-800 mb-4">Penanggung Jawab Dokumen</h4>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Nama Direktur / Penanggung Jawab</label>
-                    <input type="text" name="nama_penanggung_jawab"
-                        value="<?= htmlspecialchars($settings->nama_penanggung_jawab ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                        placeholder="Nama penanggung jawab">
+                        <div class="flex justify-end pt-6 mt-6 border-t border-slate-100">
+                            <button type="submit" class="px-6 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+                                Simpan Rekening & Penanggung Jawab
+                            </button>
+                        </div>
+                    </form>
                 </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Jabatan</label>
-                    <input type="text" name="jabatan_penanggung_jawab"
-                        value="<?= htmlspecialchars($settings->jabatan_penanggung_jawab ?? '', ENT_QUOTES, 'UTF-8') ?>"
-                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                        placeholder="Contoh: Direktur">
-                </div>
-
-            </div>
-        </div>
-
-        <div class="flex justify-end pt-6 mt-6 border-t border-slate-100">
-            <button type="submit"
-                class="px-6 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
-                Simpan Rekening & Penanggung Jawab
-            </button>
-        </div>
-
-    </form>
-</div>
-
             </div>
 
             <!-- TAB 3: ASET & DOKUMEN -->
@@ -264,7 +211,6 @@
                     </div>
 
                     <form action="<?= site_url('pengaturan/update_assets') ?>" method="POST" enctype="multipart/form-data">
-                        <!-- CSRF Token -->
                         <?php if ($this->config->item('csrf_protection')): ?>
                             <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
                         <?php endif; ?>
@@ -328,7 +274,6 @@
                                     <?php endif; ?>
                                 </div>
                             </div>
-
                         </div>
                         <div class="flex justify-end pt-4 border-t border-slate-100">
                             <button type="submit" class="px-6 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
@@ -338,8 +283,7 @@
                     </form>
                 </div>
 
-
-<!-- Card Jenis Dokumen -->
+                <!-- Card Jenis Dokumen -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
                     <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-5">
                         <div>
@@ -378,11 +322,12 @@
                         </div>
                     </div>
                 </div>
-
             </div>
 
             <!-- TAB REMINDER -->
             <div id="tab-reminder" class="tab-content hidden animate-fade-in space-y-6">
+                
+                <!-- Akun Pengirim -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
                     <div class="mb-6 border-b border-slate-100 pb-5">
                         <h3 class="text-xl font-bold text-gray-900">Akun Pengirim Reminder</h3>
@@ -499,424 +444,270 @@
                     </form>
                 </div>
 
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
-        <div class="mb-6 border-b border-slate-100 pb-5">
-            <h3 class="text-xl font-bold text-gray-900">Jadwal Pengingat per Klien</h3>
-            <p class="text-sm text-gray-500 mt-1">
-                Tentukan berapa hari sebelum jatuh tempo invoice, berakhirnya dokumen,
-                atau selesainya project setiap klien akan diingatkan.
-            </p>
-        </div>
-
-        <?php if (empty($reminder_clients)): ?>
-            <div class="p-8 text-center border border-dashed border-slate-300 rounded-xl">
-                <p class="text-sm font-medium text-slate-600">Belum ada data klien.</p>
-            </div>
-        <?php else: ?>
-            <div class="space-y-3">
-                <?php foreach ($reminder_clients as $client): ?>
-                    <form action="<?= site_url('pengaturan/update_reminder_klien') ?>"
-                          method="POST"
-                          class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px_auto] gap-4 items-end rounded-xl border border-slate-200 p-4">
-                        <?php if ($this->config->item('csrf_protection')): ?>
-                            <input type="hidden"
-                                   name="<?= $this->security->get_csrf_token_name() ?>"
-                                   value="<?= $this->security->get_csrf_hash() ?>">
-                        <?php endif; ?>
-                        <input type="hidden" name="client_id" value="<?= (int) $client->id ?>">
-
+                <!-- Tabel Jadwal Pengingat per Klien (MODERN) -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <!-- Header & Search -->
+                    <div class="p-6 md:p-8 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <p class="font-semibold text-gray-900"><?= html_escape($client->nama_klien) ?></p>
-                            <p class="text-xs text-gray-500 mt-1">PIC: <?= html_escape($client->nama_pic ?: '-') ?></p>
+                            <h3 class="text-xl font-bold text-gray-900">Jadwal Pengingat per Klien</h3>
+                            <p class="text-sm text-gray-500 mt-1">
+                                Tentukan berapa hari sebelum jatuh tempo invoice, berakhirnya dokumen,
+                                atau selesainya project setiap klien akan diingatkan.
+                            </p>
                         </div>
-
-                        <div>
-                            <label for="reminder-days-<?= (int) $client->id ?>"
-                                   class="block text-xs font-medium text-gray-700 mb-1.5">
-                                Hari sebelum tanggal acuan
-                            </label>
-                            <input type="number"
-                                   id="reminder-days-<?= (int) $client->id ?>"
-                                   name="reminder_days_before"
-                                   min="1"
-                                   max="365"
-                                   value="<?= (int) ($client->reminder_days_before ?: 30) ?>"
-                                   class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b]"
-                                   required>
-                        </div>
-
-                        <button type="submit"
-                                class="px-4 py-2 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-semibold rounded-lg transition-colors">
-                            Simpan
-                        </button>
-                    </form>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
-
-    <!-- CARD INFORMASI -->
-    <div class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
-
-        <div class="mb-6 border-b border-slate-100 pb-5">
-            <h3 class="text-xl font-bold text-gray-900">
-                Saluran Pengingat Invoice
-            </h3>
-
-            <p class="text-sm text-gray-500 mt-1">
-                Atur hari pengingat setiap klien pada daftar di atas.
-                Aturan aktif di bawah ini hanya menentukan saluran Email dan WhatsApp;
-                offset hari global tidak lagi menentukan waktu pengiriman.
-            </p>
-        </div>
-
-        <!-- FORM TAMBAH JADWAL -->
-        <form action="<?= site_url('pengaturan/simpan_reminder') ?>"
-              method="POST"
-              class="space-y-5">
-
-            <?php if ($this->config->item('csrf_protection')): ?>
-                <input type="hidden"
-                    name="<?= $this->security->get_csrf_token_name() ?>"
-                    value="<?= $this->security->get_csrf_hash() ?>">
-            <?php endif; ?>
-
-            <h4 class="font-semibold text-gray-800">
-            Tambah Preferensi Saluran
-            </h4>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Jenis Waktu
-                    </label>
-
-                    <select id="reminder-direction"
-                            class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
-
-                        <option value="before">Sebelum jatuh tempo</option>
-                        <option value="after">Setelah jatuh tempo</option>
-                        <option value="today">Hari jatuh tempo</option>
-
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Jumlah Hari
-                    </label>
-
-                    <input type="number"
-                           id="reminder-days"
-                           min="0"
-                           value="7"
-                           class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                           required>
-                </div>
-
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Nama Jadwal
-                    </label>
-
-                    <input type="text"
-                           name="label"
-                           id="reminder-label"
-                           placeholder="Contoh: Pengingat 7 hari sebelum jatuh tempo"
-                           class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                           required>
-                </div>
-
-            </div>
-
-            <input type="hidden"
-                   name="offset_hari"
-                   id="reminder-offset"
-                   value="7">
-
-            <div class="border-t border-slate-100 pt-5">
-
-                <label class="block text-sm font-semibold text-gray-800 mb-3">
-                    Saluran Pengiriman
-                </label>
-
-                <div class="flex flex-wrap gap-6">
-
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox"
-                               name="kirim_email"
-                               value="1"
-                               checked
-                               class="w-4 h-4 accent-[#9f2b2b]">
-                        Email
-                    </label>
-
-                    <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox"
-                               name="kirim_whatsapp"
-                               value="1"
-                               checked
-                               class="w-4 h-4 accent-[#9f2b2b]">
-                        WhatsApp
-                    </label>
-
-                </div>
-
-                <p class="text-xs text-gray-400 mt-2">
-                    Minimal pilih satu saluran pengiriman.
-                </p>
-
-            </div>
-
-            <div class="flex justify-end pt-4 border-t border-slate-100">
-
-                <button type="submit"
-                    class="px-6 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
-
-                    + Tambah Jadwal
-
-                </button>
-
-            </div>
-
-        </form>
-    </div>
-
-
-    <!-- CARD DAFTAR JADWAL -->
-    <div class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
-
-        <div class="mb-6 border-b border-slate-100 pb-5">
-            <h3 class="text-xl font-bold text-gray-900">
-                Daftar Jadwal Reminder
-            </h3>
-
-            <p class="text-sm text-gray-500 mt-1">
-                Kelola jadwal pengiriman pengingat yang sudah dibuat.
-            </p>
-        </div>
-
-        <?php if (empty($reminder_rules)): ?>
-
-            <div class="p-8 text-center border border-dashed border-slate-300 rounded-xl">
-                <p class="text-sm font-medium text-slate-600">
-                    Belum ada jadwal reminder.
-                </p>
-
-                <p class="text-xs text-slate-400 mt-1">
-                    Tambahkan jadwal pertama melalui formulir di atas.
-                </p>
-            </div>
-
-        <?php else: ?>
-
-            <div class="space-y-4">
-
-                <?php foreach ($reminder_rules as $rule): ?>
-
-                    <div class="border border-slate-200 rounded-xl p-4">
-
-                        <!-- INFORMASI JADWAL -->
-                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-
-                            <div>
-                                <div class="flex items-center gap-2 flex-wrap">
-
-                                    <h4 class="font-semibold text-gray-900">
-                                        <?= html_escape($rule->label) ?>
-                                    </h4>
-
-                                    <?php if ($rule->aktif): ?>
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700">
-                                            Aktif
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-500">
-                                            Nonaktif
-                                        </span>
-                                    <?php endif; ?>
-
-                                </div>
-
-                                <p class="text-sm text-gray-500 mt-1">
-                                    <?php if ($rule->offset_hari > 0): ?>
-                                        <?= $rule->offset_hari ?> hari sebelum jatuh tempo
-                                    <?php elseif ($rule->offset_hari < 0): ?>
-                                        <?= abs($rule->offset_hari) ?> hari setelah jatuh tempo
-                                    <?php else: ?>
-                                        Hari jatuh tempo
-                                    <?php endif; ?>
-                                </p>
-
-                                <div class="flex gap-2 mt-2">
-
-                                    <?php if ($rule->kirim_email): ?>
-                                        <span class="text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-md">
-                                            Email
-                                        </span>
-                                    <?php endif; ?>
-
-                                    <?php if ($rule->kirim_whatsapp): ?>
-                                        <span class="text-xs text-green-700 bg-green-50 px-2 py-1 rounded-md">
-                                            WhatsApp
-                                        </span>
-                                    <?php endif; ?>
-
-                                </div>
+                        <div class="relative w-full md:w-72 shrink-0">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             </div>
-
-                            <!-- AKSI -->
-                            <div class="flex flex-wrap gap-2">
-
-                                <form action="<?= site_url('pengaturan/toggle_reminder/'.$rule->id) ?>"
-                                      method="POST">
-
-                                    <?php if ($this->config->item('csrf_protection')): ?>
-                                        <input type="hidden"
-                                            name="<?= $this->security->get_csrf_token_name() ?>"
-                                            value="<?= $this->security->get_csrf_hash() ?>">
-                                    <?php endif; ?>
-
-                                    <button type="submit"
-                                        class="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50">
-
-                                        <?= $rule->aktif ? 'Nonaktifkan' : 'Aktifkan' ?>
-
-                                    </button>
-                                </form>
-
-                                <button type="button"
-                                    onclick="toggleEditReminder(<?= (int)$rule->id ?>)"
-                                    class="px-3 py-2 text-xs font-semibold rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50">
-
-                                    Edit
-
-                                </button>
-
-                                <form action="<?= site_url('pengaturan/hapus_reminder/'.$rule->id) ?>"
-                                      method="POST"
-                                      onsubmit="return confirm('Yakin ingin menghapus jadwal ini?')">
-
-                                    <?php if ($this->config->item('csrf_protection')): ?>
-                                        <input type="hidden"
-                                            name="<?= $this->security->get_csrf_token_name() ?>"
-                                            value="<?= $this->security->get_csrf_hash() ?>">
-                                    <?php endif; ?>
-
-                                    <button type="submit"
-                                        class="px-3 py-2 text-xs font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50">
-
-                                        Hapus
-
-                                    </button>
-                                </form>
-
-                            </div>
-
+                            <input type="text" id="searchKlienReminder" placeholder="Cari klien atau PIC..." 
+                                class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b] transition-all outline-none">
                         </div>
-
-
-                        <!-- FORM EDIT -->
-                        <div id="edit-reminder-<?= (int)$rule->id ?>"
-                             class="hidden mt-5 pt-5 border-t border-slate-100">
-
-                            <form action="<?= site_url('pengaturan/update_reminder/'.$rule->id) ?>"
-                                  method="POST"
-                                  class="space-y-4">
-
-                                <?php if ($this->config->item('csrf_protection')): ?>
-                                    <input type="hidden"
-                                        name="<?= $this->security->get_csrf_token_name() ?>"
-                                        value="<?= $this->security->get_csrf_hash() ?>">
-                                <?php endif; ?>
-
-                                <h5 class="font-semibold text-gray-800">
-                                    Edit Jadwal Reminder
-                                </h5>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                                        Nama Jadwal
-                                    </label>
-
-                                    <input type="text"
-                                        name="label"
-                                        value="<?= html_escape($rule->label) ?>"
-                                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                                        required>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                                        Offset Hari
-                                    </label>
-
-                                    <input type="number"
-                                        name="offset_hari"
-                                        value="<?= (int)$rule->offset_hari ?>"
-                                        class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                                        required>
-                                    <p class="text-xs text-gray-400 mt-1">
-                                        Positif = sebelum, 0 = hari H, negatif = setelah jatuh tempo.
-                                    </p>
-                                </div>
-
-                                <div class="flex flex-wrap gap-5">
-
-                                    <label class="flex items-center gap-2 text-sm">
-                                        <input type="checkbox"
-                                            name="kirim_email"
-                                            value="1"
-                                            <?= $rule->kirim_email ? 'checked' : '' ?>>
-                                        Email
-                                    </label>
-
-                                    <label class="flex items-center gap-2 text-sm">
-                                        <input type="checkbox"
-                                            name="kirim_whatsapp"
-                                            value="1"
-                                            <?= $rule->kirim_whatsapp ? 'checked' : '' ?>>
-                                        WhatsApp
-                                    </label>
-
-                                </div>
-
-                                <div class="flex gap-2 justify-end">
-
-                                    <button type="button"
-                                        onclick="toggleEditReminder(<?= (int)$rule->id ?>)"
-                                        class="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-100 text-slate-600">
-
-                                        Batal
-
-                                    </button>
-
-                                    <button type="submit"
-                                        class="px-4 py-2 text-sm font-semibold rounded-lg bg-[#9f2b2b] text-white">
-
-                                        Simpan Perubahan
-
-                                    </button>
-
-                                </div>
-
-                            </form>
-
-                        </div>
-
                     </div>
 
-                <?php endforeach; ?>
+                    <!-- Content Tabel -->
+                    <div class="p-0">
+                        <?php if (empty($reminder_clients)): ?>
+                            <div class="p-10 text-center">
+                                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-3">
+                                    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                                </div>
+                                <p class="text-sm font-medium text-slate-600">Belum ada data klien.</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
+                                        <tr>
+                                            <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Klien</th>
+                                            <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">PIC</th>
+                                            <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-1/3">Waktu Pengingat</th>
+                                            <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100" id="tbodyReminderKlien">
+                                        <?php foreach ($reminder_clients as $client): ?>
+                                            <tr class="hover:bg-slate-50/80 transition-colors searchable-row group">
+                                                <td class="px-6 py-4">
+                                                    <!-- Form disembunyikan, dihubungkan via atribut form -->
+                                                    <form id="form-reminder-<?= (int) $client->id ?>" action="<?= site_url('pengaturan/update_reminder_klien') ?>" method="POST" class="hidden">
+                                                        <?php if ($this->config->item('csrf_protection')): ?>
+                                                            <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                                                        <?php endif; ?>
+                                                        <input type="hidden" name="client_id" value="<?= (int) $client->id ?>">
+                                                    </form>
+                                                    <div class="font-bold text-gray-900 client-name"><?= html_escape($client->nama_klien) ?></div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <div class="text-sm text-gray-600 client-pic"><?= html_escape($client->nama_pic ?: '-') ?></div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="relative w-24">
+                                                            <input type="number" form="form-reminder-<?= (int) $client->id ?>" name="reminder_days_before" min="1" max="365" value="<?= (int) ($client->reminder_days_before ?: 30) ?>" required
+                                                                class="w-full pl-3 pr-10 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-gray-900 text-center focus:border-[#9f2b2b] focus:ring-2 focus:ring-[#9f2b2b]/20 transition-all outline-none">
+                                                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                                <span class="text-xs font-medium text-gray-400">Hari</span>
+                                                            </div>
+                                                        </div>
+                                                        <span class="text-sm text-gray-500">sebelum tanggal acuan</span>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4 text-right">
+                                                    <button type="submit" form="form-reminder-<?= (int) $client->id ?>" 
+                                                        class="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-[#9f2b2b] text-slate-600 hover:text-white text-xs font-bold rounded-lg transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-[#9f2b2b]/50">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                                        Simpan
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        
+                                        <!-- Empty State for Search -->
+                                        <tr id="searchEmptyRow" class="hidden">
+                                            <td colspan="4" class="px-6 py-12 text-center">
+                                                <p class="text-sm font-medium text-slate-500">Klien tidak ditemukan.</p>
+                                                <p class="text-xs text-slate-400 mt-1">Coba gunakan kata kunci lain.</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Card Informasi Saluran Pengingat -->
+                <div class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+                    <div class="mb-6 border-b border-slate-100 pb-5">
+                        <h3 class="text-xl font-bold text-gray-900">Saluran Pengingat Invoice</h3>
+                        <p class="text-sm text-gray-500 mt-1">
+                            Atur hari pengingat setiap klien pada daftar di atas.
+                            Aturan aktif di bawah ini hanya menentukan saluran Email dan WhatsApp;
+                            offset hari global tidak lagi menentukan waktu pengiriman.
+                        </p>
+                    </div>
+
+                    <form action="<?= site_url('pengaturan/simpan_reminder') ?>" method="POST" class="space-y-5">
+                        <?php if ($this->config->item('csrf_protection')): ?>
+                            <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                        <?php endif; ?>
+
+                        <h4 class="font-semibold text-gray-800">Tambah Preferensi Saluran</h4>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Waktu</label>
+                                <select id="reminder-direction" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                                    <option value="before">Sebelum jatuh tempo</option>
+                                    <option value="after">Setelah jatuh tempo</option>
+                                    <option value="today">Hari jatuh tempo</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Jumlah Hari</label>
+                                <input type="number" id="reminder-days" min="0" value="7" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" required>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nama Jadwal</label>
+                                <input type="text" name="label" id="reminder-label" placeholder="Contoh: Pengingat 7 hari sebelum jatuh tempo" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" required>
+                            </div>
+                        </div>
+
+                        <input type="hidden" name="offset_hari" id="reminder-offset" value="7">
+
+                        <div class="border-t border-slate-100 pt-5">
+                            <label class="block text-sm font-semibold text-gray-800 mb-3">Saluran Pengiriman</label>
+                            <div class="flex flex-wrap gap-6">
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="kirim_email" value="1" checked class="w-4 h-4 accent-[#9f2b2b]">
+                                    Email
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" name="kirim_whatsapp" value="1" checked class="w-4 h-4 accent-[#9f2b2b]">
+                                    WhatsApp
+                                </label>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2">Minimal pilih satu saluran pengiriman.</p>
+                        </div>
+
+                        <div class="flex justify-end pt-4 border-t border-slate-100">
+                            <button type="submit" class="px-6 py-2.5 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+                                + Tambah Jadwal
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Card Daftar Jadwal -->
+                <div class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+                    <div class="mb-6 border-b border-slate-100 pb-5">
+                        <h3 class="text-xl font-bold text-gray-900">Daftar Jadwal Reminder</h3>
+                        <p class="text-sm text-gray-500 mt-1">Kelola jadwal pengiriman pengingat yang sudah dibuat.</p>
+                    </div>
+
+                    <?php if (empty($reminder_rules)): ?>
+                        <div class="p-8 text-center border border-dashed border-slate-300 rounded-xl">
+                            <p class="text-sm font-medium text-slate-600">Belum ada jadwal reminder.</p>
+                            <p class="text-xs text-slate-400 mt-1">Tambahkan jadwal pertama melalui formulir di atas.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="space-y-4">
+                            <?php foreach ($reminder_rules as $rule): ?>
+                                <div class="border border-slate-200 rounded-xl p-4">
+                                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <h4 class="font-semibold text-gray-900"><?= html_escape($rule->label) ?></h4>
+                                                <?php if ($rule->aktif): ?>
+                                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700">Aktif</span>
+                                                <?php else: ?>
+                                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-500">Nonaktif</span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <p class="text-sm text-gray-500 mt-1">
+                                                <?php if ($rule->offset_hari > 0): ?>
+                                                    <?= $rule->offset_hari ?> hari sebelum jatuh tempo
+                                                <?php elseif ($rule->offset_hari < 0): ?>
+                                                    <?= abs($rule->offset_hari) ?> hari setelah jatuh tempo
+                                                <?php else: ?>
+                                                    Hari jatuh tempo
+                                                <?php endif; ?>
+                                            </p>
+                                            <div class="flex gap-2 mt-2">
+                                                <?php if ($rule->kirim_email): ?>
+                                                    <span class="text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-md">Email</span>
+                                                <?php endif; ?>
+                                                <?php if ($rule->kirim_whatsapp): ?>
+                                                    <span class="text-xs text-green-700 bg-green-50 px-2 py-1 rounded-md">WhatsApp</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <form action="<?= site_url('pengaturan/toggle_reminder/'.$rule->id) ?>" method="POST">
+                                                <?php if ($this->config->item('csrf_protection')): ?>
+                                                    <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                                                <?php endif; ?>
+                                                <button type="submit" class="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50">
+                                                    <?= $rule->aktif ? 'Nonaktifkan' : 'Aktifkan' ?>
+                                                </button>
+                                            </form>
+                                            <button type="button" onclick="toggleEditReminder(<?= (int)$rule->id ?>)" class="px-3 py-2 text-xs font-semibold rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50">
+                                                Edit
+                                            </button>
+                                            <form action="<?= site_url('pengaturan/hapus_reminder/'.$rule->id) ?>" method="POST" onsubmit="return confirm('Yakin ingin menghapus jadwal ini?')">
+                                                <?php if ($this->config->item('csrf_protection')): ?>
+                                                    <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                                                <?php endif; ?>
+                                                <button type="submit" class="px-3 py-2 text-xs font-semibold rounded-lg border border-red-200 text-red-600 hover:bg-red-50">
+                                                    Hapus
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <!-- FORM EDIT -->
+                                    <div id="edit-reminder-<?= (int)$rule->id ?>" class="hidden mt-5 pt-5 border-t border-slate-100">
+                                        <form action="<?= site_url('pengaturan/update_reminder/'.$rule->id) ?>" method="POST" class="space-y-4">
+                                            <?php if ($this->config->item('csrf_protection')): ?>
+                                                <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                                            <?php endif; ?>
+                                            <h5 class="font-semibold text-gray-800">Edit Jadwal Reminder</h5>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Nama Jadwal</label>
+                                                <input type="text" name="label" value="<?= html_escape($rule->label) ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" required>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Offset Hari</label>
+                                                <input type="number" name="offset_hari" value="<?= (int)$rule->offset_hari ?>" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" required>
+                                                <p class="text-xs text-gray-400 mt-1">Positif = sebelum, 0 = hari H, negatif = setelah jatuh tempo.</p>
+                                            </div>
+                                            <div class="flex flex-wrap gap-5">
+                                                <label class="flex items-center gap-2 text-sm">
+                                                    <input type="checkbox" name="kirim_email" value="1" <?= $rule->kirim_email ? 'checked' : '' ?>>
+                                                    Email
+                                                </label>
+                                                <label class="flex items-center gap-2 text-sm">
+                                                    <input type="checkbox" name="kirim_whatsapp" value="1" <?= $rule->kirim_whatsapp ? 'checked' : '' ?>>
+                                                    WhatsApp
+                                                </label>
+                                            </div>
+                                            <div class="flex gap-2 justify-end">
+                                                <button type="button" onclick="toggleEditReminder(<?= (int)$rule->id ?>)" class="px-4 py-2 text-sm font-semibold rounded-lg bg-slate-100 text-slate-600">
+                                                    Batal
+                                                </button>
+                                                <button type="submit" class="px-4 py-2 text-sm font-semibold rounded-lg bg-[#9f2b2b] text-white">
+                                                    Simpan Perubahan
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
 
             </div>
-
-        <?php endif; ?>
-
-    </div>
-
-</div>
-
 
         </div>
     </div>
@@ -932,7 +723,6 @@
         <h3 class="text-xl font-bold text-gray-900 mb-4" id="modalJenisTitle">Tambah Jenis Dokumen</h3>
         
         <form id="formJenis" onsubmit="simpanJenis(event)">
-            <!-- CSRF Token disisipkan di sini -->
             <?php if ($this->config->item('csrf_protection')): ?>
                 <input type="hidden" id="csrf_name" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
             <?php endif; ?>
@@ -956,11 +746,9 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
     
-    /* Sembunyikan scrollbar di tab nav jika kepanjangan di layar kecil */
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-    /* Animasi Toast */
     @keyframes toastIn  { from { opacity:0; transform:translateX(100%); } to { opacity:1; transform:translateX(0); } }
     @keyframes toastOut { from { opacity:1; transform:translateX(0); }    to { opacity:0; transform:translateX(100%); } }
     .toast-item { animation: toastIn 0.3s ease-out; }
@@ -1102,7 +890,6 @@
         formData.append('id', jenisId.value);
         formData.append('name', jenisName.value);
 
-        // Tambahkan token CSRF ke FormData jika ada
         const csrfInput = document.getElementById('csrf_name');
         if (csrfInput) {
             formData.append(csrfInput.name, csrfInput.value);
@@ -1137,78 +924,86 @@
             ? fragmentTab
             : (savedTab === 'pengirim' ? 'reminder' : savedTab);
         switchTab(activeTab);
+        
+        // Fitur Pencarian Klien di Tab Reminder
+        const searchInput = document.getElementById('searchKlienReminder');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase();
+                const rows = document.querySelectorAll('.searchable-row');
+                let hasVisible = false;
+
+                rows.forEach(row => {
+                    const name = row.querySelector('.client-name').innerText.toLowerCase();
+                    const pic = row.querySelector('.client-pic').innerText.toLowerCase();
+                    const match = name.includes(query) || pic.includes(query);
+                    row.style.display = match ? '' : 'none';
+                    if (match) hasVisible = true;
+                });
+
+                const emptyRow = document.getElementById('searchEmptyRow');
+                if (emptyRow) {
+                    emptyRow.classList.toggle('hidden', hasVisible || rows.length === 0);
+                }
+            });
+        }
     });
 
-
-// =========================================
-// REMINDER INVOICE
-// =========================================
-
-// Membuka dan menutup form edit
-function toggleEditReminder(id) {
-    const form = document.getElementById('edit-reminder-' + id);
-
-    if (form) {
-        form.classList.toggle('hidden');
-    }
-}
-
-
-// Menghitung offset berdasarkan pilihan waktu
-function updateReminderOffset() {
-
-    const direction = document.getElementById('reminder-direction');
-    const days = document.getElementById('reminder-days');
-    const offset = document.getElementById('reminder-offset');
-    const label = document.getElementById('reminder-label');
-
-    if (!direction || !days || !offset || !label) return;
-
-    let jumlahHari = parseInt(days.value, 10);
-
-    if (isNaN(jumlahHari) || jumlahHari < 0) {
-        jumlahHari = 0;
+    // =========================================
+    // REMINDER INVOICE (Global)
+    // =========================================
+    function toggleEditReminder(id) {
+        const form = document.getElementById('edit-reminder-' + id);
+        if (form) {
+            form.classList.toggle('hidden');
+        }
     }
 
-    let hasil = 0;
+    function updateReminderOffset() {
+        const direction = document.getElementById('reminder-direction');
+        const days = document.getElementById('reminder-days');
+        const offset = document.getElementById('reminder-offset');
+        const label = document.getElementById('reminder-label');
 
-    if (direction.value === 'before') {
-        hasil = jumlahHari;
-    } else if (direction.value === 'after') {
-        hasil = -jumlahHari;
+        if (!direction || !days || !offset || !label) return;
+
+        let jumlahHari = parseInt(days.value, 10);
+        if (isNaN(jumlahHari) || jumlahHari < 0) jumlahHari = 0;
+
+        let hasil = 0;
+        if (direction.value === 'before') {
+            hasil = jumlahHari;
+        } else if (direction.value === 'after') {
+            hasil = -jumlahHari;
+        }
+
+        if (direction.value === 'today') {
+            hasil = 0;
+            days.value = 0;
+            days.disabled = true;
+        } else {
+            days.disabled = false;
+        }
+
+        offset.value = hasil;
+
+        const keterangan = hasil > 0
+            ? jumlahHari + ' hari sebelum jatuh tempo'
+            : hasil < 0
+                ? jumlahHari + ' hari setelah jatuh tempo'
+                : 'Hari jatuh tempo';
+
+        label.value = 'Pengingat ' + keterangan;
     }
 
-    if (direction.value === 'today') {
-        hasil = 0;
-        days.value = 0;
-        days.disabled = true;
-    } else {
-        days.disabled = false;
-    }
+    document.addEventListener('DOMContentLoaded', function () {
+        const direction = document.getElementById('reminder-direction');
+        const days = document.getElementById('reminder-days');
 
-    offset.value = hasil;
-
-    const keterangan = hasil > 0
-        ? jumlahHari + ' hari sebelum jatuh tempo'
-        : hasil < 0
-            ? jumlahHari + ' hari setelah jatuh tempo'
-            : 'Hari jatuh tempo';
-
-    label.value = 'Pengingat ' + keterangan;
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-
-    const direction = document.getElementById('reminder-direction');
-    const days = document.getElementById('reminder-days');
-
-    if (direction && days) {
-        direction.addEventListener('change', updateReminderOffset);
-        days.addEventListener('input', updateReminderOffset);
-
-        updateReminderOffset();
-    }
-
-});
-
+        if (direction && days) {
+            direction.addEventListener('change', updateReminderOffset);
+            days.addEventListener('input', updateReminderOffset);
+            updateReminderOffset();
+        }
+    });
 </script>
