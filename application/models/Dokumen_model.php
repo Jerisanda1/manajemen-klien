@@ -183,22 +183,30 @@ class Dokumen_model extends CI_Model {
     }
 
     /**
-     * FASE 1: Ambil dokumen yang akan berakhir (H-N s/d hari ini)
+     * Ambil dokumen yang sudah masuk rentang pengingat klien, sebelum hari berakhir.
      * Dokumen dikembalikan jika salah satu kanal yang aktif belum berhasil.
      */
-    public function get_dokumen_akan_berakhir($hari = 30, $email_enabled = TRUE, $wa_enabled = TRUE) {
+    public function get_dokumen_akan_berakhir($email_enabled = TRUE, $wa_enabled = TRUE) {
         if (!$email_enabled && !$wa_enabled) return [];
-
-        $today    = date('Y-m-d');
-        $deadline = date('Y-m-d', strtotime("+{$hari} days"));
 
         $this->db
             ->select('d.*, c.nama_klien, c.email as email_klien, c.nama_pic')
             ->from('documents d')
             ->join('clients c', 'c.id = d.client_id', 'left')
-            ->where('d.tanggal_berakhir >=', $today)
-            ->where('d.tanggal_berakhir <=', $deadline);
+            ->where('DATEDIFF(d.tanggal_berakhir, CURDATE()) BETWEEN 1 AND c.reminder_days_before', null, false);
         $this->_where_pending_reminder_channels('last_reminder_sent_at', 'wa_reminder_sent_at', $email_enabled, $wa_enabled);
+        return $this->db->order_by('d.tanggal_berakhir', 'ASC')->get()->result();
+    }
+
+    public function get_dokumen_berakhir_hari_ini($email_enabled = TRUE, $wa_enabled = TRUE) {
+        if (!$email_enabled && !$wa_enabled) return [];
+
+        $this->db
+            ->select('d.*, c.nama_klien, c.email as email_klien, c.nama_pic')
+            ->from('documents d')
+            ->join('clients c', 'c.id = d.client_id', 'left')
+            ->where('d.tanggal_berakhir', date('Y-m-d'));
+        $this->_where_pending_reminder_channels('expiry_day_notified_at', 'wa_expiry_day_notified_at', $email_enabled, $wa_enabled);
         return $this->db->order_by('d.tanggal_berakhir', 'ASC')->get()->result();
     }
 
@@ -244,6 +252,18 @@ class Dokumen_model extends CI_Model {
         return $this->db
             ->where('id', (int) $doc_id)
             ->update('documents', ['wa_reminder_sent_at' => date('Y-m-d H:i:s')]);
+    }
+
+    public function mark_expiry_day_notified($doc_id) {
+        return $this->db
+            ->where('id', (int) $doc_id)
+            ->update('documents', ['expiry_day_notified_at' => date('Y-m-d H:i:s')]);
+    }
+
+    public function mark_expiry_day_wa_notified($doc_id) {
+        return $this->db
+            ->where('id', (int) $doc_id)
+            ->update('documents', ['wa_expiry_day_notified_at' => date('Y-m-d H:i:s')]);
     }
 
     // Kolom expired lama tetap dipakai sebagai status email.

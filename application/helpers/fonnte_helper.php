@@ -5,12 +5,19 @@ if (!function_exists('kirim_wa_fonnte')) {
     function kirim_wa_fonnte($target, $message)
     {
         $CI =& get_instance();
-        $CI->config->load('fonnte');
-        $token = trim((string) $CI->config->item('fonnte_token'));
+        $CI->load->model('Pengaturan_model', 'notification_sender_model');
         $target = trim((string) $target);
 
+        try {
+            $sender = $CI->notification_sender_model->get_notification_sender_config();
+        } catch (RuntimeException $e) {
+            log_message('error', 'Pengaturan pengirim WhatsApp tidak dapat dibaca: ' . $e->getMessage());
+            return ['status' => false, 'reason' => 'Pengaturan pengirim WhatsApp tidak dapat dibaca. Periksa kunci enkripsi server.'];
+        }
+
+        $token = trim((string) $sender['fonnte_token']);
         if ($token === '') {
-            return ['status' => false, 'reason' => 'Token Fonnte belum dikonfigurasi.'];
+            return ['status' => false, 'reason' => 'Akun WhatsApp pengirim belum dikonfigurasi di Pengaturan.'];
         }
         if ($target === '') {
             return ['status' => false, 'reason' => 'Nomor WhatsApp admin kosong di company_settings.no_telp.'];

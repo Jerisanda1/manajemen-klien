@@ -52,7 +52,9 @@ $makeImage = function ($relativePath) {
     if ($mime === '') return null;
     return 'data:image/' . $mime . ';base64,' . base64_encode(file_get_contents($path));
 };
-$logoBase64 = $kop ? $makeImage($val($settings, ['logo'], '')) : null;
+$logoBase64 = $kop
+    ? $makeImage($val($settings, ['kop_surat', 'logo'], ''))
+    : null;
 $ttdBase64 = $ttd ? $makeImage($val($settings, ['ttd'], '')) : null;
 
 $subtotal = (float) $val($invoice, ['subtotal'], 0);

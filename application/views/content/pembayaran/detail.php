@@ -27,6 +27,12 @@ $tgl = function ($tanggal) use ($bulan) {
 
 $id = (int) $penawaran->id;
 $status = isset($penawaran->status) ? $penawaran->status : 'Draft';
+$items = isset($items) && is_array($items) ? $items : [];
+$taxes = isset($taxes) && is_array($taxes) ? $taxes : [];
+$invoiceList = isset($invoiceList) && is_array($invoiceList) ? $invoiceList : [];
+$rupiah = function ($amount) {
+    return 'Rp ' . number_format((float) $amount, 0, ',', '.');
+};
 
 $statusBadge = [
     'Draft'     => 'bg-gray-100 text-gray-600 border-gray-200',
@@ -66,6 +72,7 @@ if (!$unggahan) {
 }
 
 $successMessage = $this->session->flashdata('success');
+$errorMessage = $this->session->flashdata('error');
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -94,6 +101,11 @@ $successMessage = $this->session->flashdata('success');
             <?php if ($successMessage): ?>
                 <div class="mb-4 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                     <?= $e($successMessage) ?>
+                </div>
+            <?php endif; ?>
+            <?php if ($errorMessage): ?>
+                <div class="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    <?= $e($errorMessage) ?>
                 </div>
             <?php endif; ?>
 
@@ -197,6 +209,41 @@ $successMessage = $this->session->flashdata('success');
                     </div>
                 </div>
 
+                <?php if ($items): ?>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">Rincian Penawaran</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead><tr class="border-b text-left text-xs text-gray-500">
+                                    <th class="py-2 pr-3">Item</th><th class="py-2 px-3 text-right">Qty</th><th class="py-2 px-3 text-right">Harga</th><th class="py-2 pl-3 text-right">Jumlah</th>
+                                </tr></thead>
+                                <tbody>
+                                <?php foreach ($items as $item): ?>
+                                    <tr class="border-b border-gray-100">
+                                        <td class="py-3 pr-3"><?= $e($item->description) ?></td>
+                                        <td class="py-3 px-3 text-right"><?= $e($item->quantity) ?> <?= $e($item->unit) ?></td>
+                                        <td class="py-3 px-3 text-right"><?= $rupiah($item->unit_price) ?></td>
+                                        <td class="py-3 pl-3 text-right"><?= $rupiah($item->line_total) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="flex justify-end mt-4">
+                            <div class="w-full max-w-xs space-y-2 text-sm">
+                                <div class="flex justify-between"><span class="text-gray-500">Subtotal</span><strong><?= $rupiah($penawaran->subtotal ?? 0) ?></strong></div>
+                                <?php if ((float) ($penawaran->discount_amount ?? 0) > 0): ?>
+                                    <div class="flex justify-between"><span class="text-gray-500">Diskon</span><strong>- <?= $rupiah($penawaran->discount_amount) ?></strong></div>
+                                <?php endif; ?>
+                                <?php foreach ($taxes as $tax): ?>
+                                    <div class="flex justify-between"><span class="text-gray-500"><?= $e($tax->tax_name) ?></span><strong><?= $rupiah($tax->tax_amount) ?></strong></div>
+                                <?php endforeach; ?>
+                                <div class="flex justify-between border-t pt-2 text-base"><span class="font-bold">Total</span><strong class="text-[#9f2b2b]"><?= $rupiah($penawaran->total_amount ?? 0) ?></strong></div>
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <!-- Pratinjau Dokumen: tetap berada di bawah Informasi Penawaran -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <div class="flex items-center justify-between gap-3 mb-4">
@@ -287,7 +334,21 @@ $successMessage = $this->session->flashdata('success');
                 <!-- Invoice Terkait -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <h3 class="text-lg font-bold text-gray-900 mb-1">Invoice Terkait</h3>
-                    <p class="text-sm text-gray-500 mb-4">Belum ada invoice dari penawaran ini.</p>
+                    <?php if ($invoiceList): ?>
+                        <div class="space-y-3 mb-4">
+                            <?php foreach ($invoiceList as $invoice): ?>
+                                <a href="<?= site_url('pembayaran/detail/invoice/' . (int) $invoice->id) ?>" class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 hover:border-[#9f2b2b] transition-colors">
+                                    <span class="min-w-0">
+                                        <span class="block text-sm font-semibold text-[#9f2b2b]"><?= $e($invoice->no_invoice) ?></span>
+                                        <span class="block text-xs text-gray-500"><?= $e($invoice->status) ?></span>
+                                    </span>
+                                    <span class="shrink-0 text-sm font-semibold"><?= $rupiah($invoice->total_amount) ?></span>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-sm text-gray-500 mb-4">Belum ada invoice dari penawaran ini.</p>
+                    <?php endif; ?>
 
                     <?php if ($status === 'Disetujui'): ?>
                         <a href="<?= site_url('pembayaran/tambah/invoice?penawaran_id=' . $id) ?>"
@@ -303,7 +364,7 @@ $successMessage = $this->session->flashdata('success');
                         </span>
                     <?php endif; ?>
 
-                    <p class="text-xs text-gray-400 mt-3">Aktif setelah status penawaran disetujui.</p>
+                    <p class="text-xs text-gray-400 mt-3">Aktif setelah status penawaran disetujui. Rincian harga akan disalin ke invoice dan keduanya tetap terhubung.</p>
                 </div>
             </div>
         </div>

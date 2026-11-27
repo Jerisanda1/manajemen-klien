@@ -9,25 +9,11 @@ class Cron extends CI_Controller {
 
         $this->load->model('Dokumen_model', 'dokumen_model');
         $this->load->model('Pembayaran_model', 'pembayaran_model');
+        $this->load->model('Project_model', 'project_model');
 
-        // Load konfigurasi
-        $this->load->config('email_reminder');
-        $this->load->config('fonnte');
+        $this->load->config('email_reminder', TRUE);
 
-        // Paksa Library Email membaca konfigurasi dari email_reminder.php
-        $email_config = array(
-            'protocol'  => $this->config->item('protocol'),
-            'smtp_host' => $this->config->item('smtp_host'),
-            'smtp_port' => $this->config->item('smtp_port'),
-            'smtp_user' => $this->config->item('smtp_user'),
-            'smtp_pass' => $this->config->item('smtp_pass'),
-            'mailtype'  => $this->config->item('mailtype'),
-            'charset'   => $this->config->item('charset'),
-            'newline'   => $this->config->item('newline'),
-            'crlf'      => $this->config->item('crlf')
-        );
-
-        $this->load->library('email', $email_config);
+        $this->load->library('Notifikasi');
 
         // Load helper Fonnte
         $this->load->helper('fonnte');
@@ -35,7 +21,7 @@ class Cron extends CI_Controller {
 
     // Validasi key akses via browser
     private function _key_valid() {
-        $expected = (string) $this->config->item('cron_key');
+        $expected = (string) $this->config->item('cron_key', 'email_reminder');
         $given    = (string) $this->input->get('key');
 
         return $expected !== '' && hash_equals($expected, $given);
@@ -48,6 +34,7 @@ class Cron extends CI_Controller {
             show_404();
         }
 
+        date_default_timezone_set('Asia/Makassar');
         $br = is_cli() ? PHP_EOL : '<br>';
 
         // Ambil email dan nomor WA admin dari database
@@ -61,13 +48,9 @@ class Cron extends CI_Controller {
         $admin_email = trim((string) $admin->email);
         $admin_wa    = trim((string) $admin->no_telp);
 
-        // ================================================================
-        // FASE 1: Reminder dokumen yang AKAN BERAKHIR (H-30)
-        // ================================================================
-        echo "[FASE 1] Reminder Dokumen Akan Berakhir" . $br;
+        echo "[REMINDER DOKUMEN]" . $br;
 
         $docs_akan = $this->dokumen_model->get_dokumen_akan_berakhir(
-            30,
             $admin_email !== '',
             $admin_wa !== ''
         );
@@ -85,46 +68,146 @@ class Cron extends CI_Controller {
 
         echo "Total: {$r1['total']}, Email OK: {$r1['email']}, WA OK: {$r1['wa']}, Gagal: {$r1['gagal']}{$error_summary}" . $br . $br;
 
-        // ================================================================
-        // FASE 2: Notifikasi dokumen yang SUDAH EXPIRED
-        // ================================================================
-        echo "[FASE 2] Notifikasi Dokumen Sudah Expired" . $br;
+        echo "[PENGINGAT DOKUMEN HARI H]" . $br;
+        $docs_hari_h = $this->dokumen_model->get_dokumen_berakhir_hari_ini(
+            $admin_email !== '',
+            $admin_wa !== ''
+        );
+        $hariHResult = $this->_proses_reminder(
+            $docs_hari_h,
+            $admin_email,
+            $admin_wa,
+            'hari_h'
+        );
+        echo "Total: {$hariHResult['total']}, Email OK: {$hariHResult['email']}, WA OK: {$hariHResult['wa']}, Gagal: {$hariHResult['gagal']}" . $br . $br;
 
+        echo "[NOTIFIKASI DOKUMEN KEDALUWARSA]" . $br;
         $docs_expired = $this->dokumen_model->get_dokumen_sudah_expired(
             $admin_email !== '',
             $admin_wa !== ''
         );
-
-        $r2 = $this->_proses_reminder(
+        $expiredResult = $this->_proses_reminder(
             $docs_expired,
             $admin_email,
             $admin_wa,
             'expired'
         );
+        echo "Total: {$expiredResult['total']}, Email OK: {$expiredResult['email']}, WA OK: {$expiredResult['wa']}, Gagal: {$expiredResult['gagal']}" . $br . $br;
 
-        $error_summary = empty($r2['errors'])
-            ? ''
-            : ' | Detail: ' . implode('; ', array_slice($r2['errors'], 0, 3));
-
-        echo "Total: {$r2['total']}, Email OK: {$r2['email']}, WA OK: {$r2['wa']}, Gagal: {$r2['gagal']}{$error_summary}" . $br . $br;
+        echo $br . "[REMINDER PROJECT]" . $br;
+        $projects = $this->project_model->get_projects_for_reminder(
+            $admin_email !== '',
+            $admin_wa !== ''
+        );
+        $projectResult = $this->_proses_reminder_project(
+            $projects,
+            $admin_email,
+            $admin_wa
+        );
+        echo "Total: {$projectResult['total']}, Email OK: {$projectResult['email']}, WA OK: {$projectResult['wa']}, Gagal: {$projectResult['gagal']}" . $br;
 
         echo "Selesai.";
     }
 
-    /**
-     * Helper generik untuk proses kirim email + WA ke daftar dokumen.
-     *
-     * @param array  $docs
-     * @param string $admin_email
-     * @param string $admin_wa
-     * @param string $tipe 'akan_berakhir' | 'expired'
-     * @return array ['total','email','wa','gagal','errors']
-     */
+    private function _proses_reminder_project($projects, $admin_email, $admin_wa)
+    {
+        $result = ['total' => 0, 'email' => 0, 'wa' => 0, 'gagal' => 0];
 
+        foreach ($projects as $project) {
+            $result['total']++;
+            $daysLeft = (int) (new DateTime(date('Y-m-d')))
+                ->diff(new DateTime($project->tanggal_selesai))
+                ->format('%r%a');
+            $isOverdue = $daysLeft < 0;
+            $projectUrl = site_url('project/detail/' . (int) $project->id);
+            $emailSentAt = $isOverdue
+                ? $project->expired_notified_at
+                : $project->last_reminder_sent_at;
+            $waSentAt = $isOverdue
+                ? $project->wa_expired_notified_at
+                : $project->wa_reminder_sent_at;
+
+            if ($admin_email !== '' && empty($emailSentAt)) {
+                $subject =
+                    $isOverdue
+                        ? '[TERLAMBAT] Project "' . $project->nama_project . '" melewati tanggal selesai'
+                        : '[PENGINGAT] Project "' . $project->nama_project
+                            . ($daysLeft === 0 ? '" selesai hari ini' : '" selesai dalam ' . $daysLeft . ' hari');
+                $message =
+                    '<p>Project <strong>' . html_escape($project->nama_project)
+                    . '</strong> untuk klien ' . html_escape($project->nama_klien) . (
+                        $isOverdue
+                            ? ' telah melewati tanggal selesai ' . abs($daysLeft) . ' hari yang lalu ('
+                            : ($daysLeft === 0
+                                ? ' dijadwalkan selesai hari ini ('
+                                : ' dijadwalkan selesai dalam ' . $daysLeft . ' hari (')
+                    )
+                    . date('d M Y', strtotime($project->tanggal_selesai)) . ').</p>'
+                    . '<p><a href="' . html_escape($projectUrl) . '">Lihat project</a></p>';
+                list($emailSent, $emailError) = $this->notifikasi->email(
+                    $admin_email,
+                    $subject,
+                    $message
+                );
+
+                if ($emailSent) {
+                    $marked = $isOverdue
+                        ? $this->project_model->mark_expired_notified($project->id)
+                        : $this->project_model->mark_reminder_sent($project->id);
+                    if ($marked) {
+                        $result['email']++;
+                    } else {
+                        $result['gagal']++;
+                        log_message('error', 'Gagal menyimpan status reminder email project ID ' . $project->id);
+                    }
+                } else {
+                    $result['gagal']++;
+                    log_message(
+                        'error',
+                        'Gagal mengirim reminder email project ID ' . $project->id . ': ' . $emailError
+                    );
+                }
+            }
+
+            if ($admin_wa !== '' && empty($waSentAt)) {
+                $message = ($isOverdue ? "PROJECT TERLAMBAT\n\n" : "PENGINGAT PROJECT\n\n")
+                    . "Project: {$project->nama_project}\n"
+                    . "Klien: {$project->nama_klien}\n"
+                    . "PIC: {$project->nama_pic}\n"
+                    . "Tanggal selesai: " . date('d M Y', strtotime($project->tanggal_selesai)) . "\n"
+                    . ($isOverdue
+                        ? "Terlambat: " . abs($daysLeft) . " hari\n"
+                        : ($daysLeft === 0 ? "Sisa: hari ini\n" : "Sisa: {$daysLeft} hari\n"))
+                    . "Detail: {$projectUrl}";
+                $response = kirim_wa_fonnte($admin_wa, $message);
+
+                if (!empty($response['status'])) {
+                    $marked = $isOverdue
+                        ? $this->project_model->mark_expired_wa_notified($project->id)
+                        : $this->project_model->mark_reminder_wa_sent($project->id);
+                    if ($marked) {
+                        $result['wa']++;
+                    } else {
+                        $result['gagal']++;
+                        log_message('error', 'Gagal menyimpan status reminder WhatsApp project ID ' . $project->id);
+                    }
+                } else {
+                    $result['gagal']++;
+                    log_message(
+                        'error',
+                        'Gagal mengirim reminder WhatsApp project ID ' . $project->id
+                        . ': ' . (isset($response['reason']) ? $response['reason'] : 'Tidak ada keterangan.')
+                    );
+                }
+            }
+        }
+
+        return $result;
+    }
 
 /**
  * REMINDER INVOICE OTOMATIS
- * Mengirim email pada H-30 dan hari jatuh tempo.
+ * Menggunakan jarak pengingat H-N yang diatur pada data klien.
  */
 public function kirim_reminder_invoice()
 {
@@ -133,7 +216,11 @@ public function kirim_reminder_invoice()
         show_404();
     } 
 
-    $this->load->library('Notifikasi');
+    date_default_timezone_set('Asia/Makassar');
+
+    $this->load->library('invoice_reminder');
+    $channels = $this->invoice_reminder->get_channels();
+
     $br = is_cli() ? PHP_EOL : '<br>';
 
     echo "[REMINDER INVOICE]" . $br;
@@ -158,13 +245,11 @@ public function kirim_reminder_invoice()
 
         $selisih = (int) $today->diff($jatuhTempo)->format('%r%a');
 
-        // Hanya memproses H-30 dan hari H
-        if (!in_array($selisih, [30, 0], true)) {
+        $offset = (int) $inv->reminder_days_before;
+        if ($offset < 1 || $offset > 365 || $selisih !== $offset) {
             $dilewati++;
             continue;
         }
-
-        $offset = $selisih;
 
         $total++;
 
@@ -173,6 +258,7 @@ public function kirim_reminder_invoice()
 // WHATSAPP FONNTE
 // ==============================
 
+if ($channels['whatsapp']) {
 $nomorWa = trim((string) $inv->hp_pic);
 
 if ($nomorWa === '') {
@@ -185,7 +271,7 @@ if ($nomorWa === '') {
     $offset
 )) {
 
-    $waktu = ($offset === 30) ? '30 hari lagi' : 'hari ini';
+    $waktu = $offset . ' hari lagi';
 
     $pesanWa =
         "*PENGINGAT PEMBAYARAN INVOICE*\n\n" .
@@ -221,27 +307,20 @@ if ($nomorWa === '') {
 
     echo "WA SKIP: Invoice {$inv->no_invoice} sudah dikirim." . $br;
 }
+}
 
 
 // ==============================
 // EMAIL MELALUI NOTIFIKASI
 // ==============================
 
+if ($channels['email']) {
 $email = trim((string) $inv->email_pic);
 
-// Periksa riwayat email secara independen
-if ($this->pembayaran_model->sudah_dikirim_otomatis(
-    $inv->id,
-    'email',
-    $offset
-)) {
-
+if ($this->pembayaran_model->sudah_dikirim_otomatis($inv->id, 'email', $offset)) {
     echo "EMAIL SKIP: Invoice {$inv->no_invoice} sudah dikirim." . $br;
-
 } elseif ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-
     $keterangan = 'Alamat email PIC kosong atau tidak valid.';
-
     $this->pembayaran_model->add_pengiriman(
         $inv->id,
         'email',
@@ -251,26 +330,12 @@ if ($this->pembayaran_model->sudah_dikirim_otomatis(
         1,
         $offset
     );
-
     $gagal++;
     echo "EMAIL GAGAL: Invoice {$inv->no_invoice} - {$keterangan}" . $br;
-
 } else {
+    list($subject, $message) = $this->notifikasi->pesan_pengingat($inv, $offset);
+    list($success, $keterangan) = $this->notifikasi->email($email, $subject, $message);
 
-    // Gunakan format pesan dari Notifikasi.php
-    list($subject, $message) = $this->notifikasi->pesan_pengingat(
-        $inv,
-        $offset
-    );
-
-    // Gunakan satu layanan SMTP terpusat
-    list($success, $keterangan) = $this->notifikasi->email(
-        $email,
-        $subject,
-        $message
-    );
-
-    // Catat hasil pengiriman
     $this->pembayaran_model->add_pengiriman(
         $inv->id,
         'email',
@@ -289,99 +354,6 @@ if ($this->pembayaran_model->sudah_dikirim_otomatis(
         echo "EMAIL GAGAL: Invoice {$inv->no_invoice} - {$keterangan}" . $br;
     }
 }
-
-
-
-        $labelWaktu = ($offset === 30)
-            ? '30 hari lagi'
-            : 'hari ini';
-
-        $subject = ($offset === 30)
-            ? 'Pengingat Invoice - H-30'
-            : 'Pengingat Invoice - Jatuh Tempo Hari Ini';
-
-        $namaPIC = htmlspecialchars($inv->nama_pic ?: 'Pelanggan', ENT_QUOTES, 'UTF-8');
-        $noInvoice = htmlspecialchars($inv->no_invoice, ENT_QUOTES, 'UTF-8');
-        $perihal = htmlspecialchars($inv->perihal, ENT_QUOTES, 'UTF-8');
-        $tanggal = date('d-m-Y', strtotime($inv->jatuh_tempo));
-
-        $message = '
-            <div style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
-                <h2>Pengingat Pembayaran Invoice</h2>
-
-                <p>Yth. ' . $namaPIC . ',</p>
-
-                <p>
-                    Kami ingin mengingatkan bahwa invoice berikut
-                    memiliki jadwal jatuh tempo ' . $labelWaktu . '.
-                </p>
-
-                <table cellpadding="8" cellspacing="0"
-                    style="border-collapse:collapse;border:1px solid #ddd;">
-                    <tr>
-                        <td><strong>No. Invoice</strong></td>
-                        <td>' . $noInvoice . '</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Perihal</strong></td>
-                        <td>' . $perihal . '</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Jatuh Tempo</strong></td>
-                        <td>' . $tanggal . '</td>
-                    </tr>
-                </table>
-
-                <p>
-                    Mohon melakukan pembayaran sesuai jadwal yang telah
-                    ditentukan. Jika pembayaran sudah dilakukan,
-                    silakan abaikan email ini.
-                </p>
-
-                <p>Terima kasih.</p>
-                <hr>
-                <small>Tridatu Solution</small>
-            </div>
-        ';
-
-        $this->email->clear();
-
-        $this->email->from(
-            $this->config->item('smtp_user'),
-            'Tridatu Solution'
-        );
-
-        $this->email->to($email);
-        $this->email->subject($subject);
-        $this->email->message($message);
-
-        $success = $this->email->send();
-
-        $keterangan = '';
-
-        if (!$success) {
-            $debug = $this->email->print_debugger(['headers']);
-            $keterangan = trim(
-                preg_replace('/\s+/', ' ', strip_tags($debug))
-            );
-        }
-
-        $this->pembayaran_model->add_pengiriman(
-            $inv->id,
-            'email',
-            $email,
-            $success,
-            $keterangan,
-            1,
-            $offset
-        );
-
-        if ($success) {
-            $berhasil++;
-            echo "BERHASIL: Invoice {$inv->no_invoice} ke {$email}." . $br;
-        } else {
-            $gagal++;
-            echo "GAGAL: Invoice {$inv->no_invoice} - {$keterangan}" . $br;
         }
     }
 
@@ -416,11 +388,11 @@ if ($this->pembayaran_model->sudah_dikirim_otomatis(
 
             $email_column = $tipe === 'expired'
                 ? 'expired_notified_at'
-                : 'last_reminder_sent_at';
+                : ($tipe === 'hari_h' ? 'expiry_day_notified_at' : 'last_reminder_sent_at');
 
             $wa_column = $tipe === 'expired'
                 ? 'wa_expired_notified_at'
-                : 'wa_reminder_sent_at';
+                : ($tipe === 'hari_h' ? 'wa_expiry_day_notified_at' : 'wa_reminder_sent_at');
 
             // Sisa hari: positif jika belum expired, negatif jika sudah lewat
             $sisa_hari = (int) (new DateTime(date('Y-m-d')))
@@ -433,43 +405,39 @@ if ($this->pembayaran_model->sudah_dikirim_otomatis(
             // ---------- A. EMAIL ----------
             if ($admin_email !== '' && empty($doc->{$email_column})) {
 
-                $this->email->clear();
-
-                $this->email->from(
-                    $this->config->item('smtp_user'),
-                    'Sistem Tridatu'
-                );
-
-                $this->email->to($admin_email);
-
                 if ($tipe === 'expired') {
 
-                    $this->email->subject(
-                        '[EXPIRED] Dokumen "' . $doc->nama_dokumen . '" Sudah Berakhir'
-                    );
+                    $subject = '[EXPIRED] Dokumen "' . $doc->nama_dokumen . '" Sudah Berakhir';
+                    $message = $this->_template_email_expired($doc, $sisa_hari);
 
-                    $this->email->message(
-                        $this->_template_email_expired($doc, $sisa_hari)
-                    );
+                } elseif ($tipe === 'hari_h') {
+
+                    $subject = '[HARI H] Dokumen "' . $doc->nama_dokumen . '" Berakhir Hari Ini';
+                    $message = $this->_template_email_akan_berakhir($doc, 0);
 
                 } else {
 
-                    $this->email->subject(
-                        '[PENGINGAT] Dokumen "' . $doc->nama_dokumen . '" Berakhir dalam ' . $sisa_hari . ' Hari'
-                    );
-
-                    $this->email->message(
-                        $this->_template_email_akan_berakhir($doc, $sisa_hari)
-                    );
+                    $subject = '[PENGINGAT] Dokumen "' . $doc->nama_dokumen . '" Berakhir dalam ' . $sisa_hari . ' Hari';
+                    $message = $this->_template_email_akan_berakhir($doc, $sisa_hari);
                 }
 
-                if ($this->email->send()) {
+                list($emailSent, $email_error) = $this->notifikasi->email(
+                    $admin_email,
+                    $subject,
+                    $message
+                );
+
+                if ($emailSent) {
 
                     $result['email']++;
 
-                    $email_ok = $tipe === 'expired'
-                        ? $this->dokumen_model->mark_expired_notified($doc->id)
-                        : $this->dokumen_model->mark_reminder_sent($doc->id);
+                    if ($tipe === 'expired') {
+                        $email_ok = $this->dokumen_model->mark_expired_notified($doc->id);
+                    } elseif ($tipe === 'hari_h') {
+                        $email_ok = $this->dokumen_model->mark_expiry_day_notified($doc->id);
+                    } else {
+                        $email_ok = $this->dokumen_model->mark_reminder_sent($doc->id);
+                    }
 
                     if (!$email_ok) {
                         $result['errors'][] =
@@ -478,18 +446,6 @@ if ($this->pembayaran_model->sudah_dikirim_otomatis(
                     }
 
                 } else {
-
-                    $email_error = trim(
-                        preg_replace(
-                            '/\s+/',
-                            ' ',
-                            strip_tags($this->email->print_debugger())
-                        )
-                    );
-
-                    $email_error = $email_error !== ''
-                        ? $email_error
-                        : 'server email menolak pengiriman.';
 
                     $result['errors'][] =
                         'Dokumen ID ' . $doc->id . ' email: ' . $email_error;
@@ -518,6 +474,18 @@ if ($this->pembayaran_model->sudah_dikirim_otomatis(
                                 "Segera tindak lanjuti perpanjangan dokumen.\n\n" .
                                 "🔗 Detail: " . site_url('dokumen/detail/' . $doc->id);
 
+                } elseif ($tipe === 'hari_h') {
+
+                    $pesan_wa = "⚠️ *DOKUMEN BERAKHIR HARI INI* ⚠️\n\n" .
+                                "Halo Admin,\n" .
+                                "Dokumen berikut berakhir hari ini:\n\n" .
+                                "📄 *Nama*: {$doc->nama_dokumen}\n" .
+                                "🏢 *Klien*: {$doc->nama_klien}\n" .
+                                "👤 *PIC*: {$doc->nama_pic}\n" .
+                                "📅 *Berakhir*: " . date('d M Y', strtotime($doc->tanggal_berakhir)) . "\n\n" .
+                                "Mohon segera tindak lanjuti perpanjangan dokumen.\n\n" .
+                                "🔗 Detail: " . site_url('dokumen/detail/' . $doc->id);
+
                 } else {
 
                     $pesan_wa = "⚠️ *PENGINGAT DOKUMEN* ⚠️\n\n" .
@@ -539,9 +507,13 @@ if ($this->pembayaran_model->sudah_dikirim_otomatis(
 
                     $result['wa']++;
 
-                    $wa_ok = $tipe === 'expired'
-                        ? $this->dokumen_model->mark_expired_wa_notified($doc->id)
-                        : $this->dokumen_model->mark_reminder_wa_sent($doc->id);
+                    if ($tipe === 'expired') {
+                        $wa_ok = $this->dokumen_model->mark_expired_wa_notified($doc->id);
+                    } elseif ($tipe === 'hari_h') {
+                        $wa_ok = $this->dokumen_model->mark_expiry_day_wa_notified($doc->id);
+                    } else {
+                        $wa_ok = $this->dokumen_model->mark_reminder_wa_sent($doc->id);
+                    }
 
                     if (!$wa_ok) {
                         $result['errors'][] =
@@ -584,15 +556,19 @@ if ($this->pembayaran_model->sudah_dikirim_otomatis(
         $nama_dok   = htmlspecialchars((string) $doc->nama_dokumen);
         $nama_klien = htmlspecialchars((string) $doc->nama_klien);
         $nama_pic   = htmlspecialchars((string) $doc->nama_pic);
+        $keterangan_sisa = (int) $sisa_hari === 0
+            ? 'berakhir hari ini'
+            : 'berakhir dalam ' . (int) $sisa_hari . ' hari';
+        $judul = (int) $sisa_hari === 0 ? 'Dokumen Berakhir Hari Ini' : 'Pengingat Dokumen';
 
         return '
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
             <div style="background: #d97706; color: white; padding: 20px;">
-                <h2 style="margin: 0;">⚠️ Pengingat Dokumen</h2>
+                <h2 style="margin: 0;">⚠️ ' . $judul . '</h2>
             </div>
             <div style="padding: 24px;">
                 <p>Halo Admin,</p>
-                <p>Dokumen berikut akan segera berakhir. Mohon segera ditindaklanjuti:</p>
+                <p>Dokumen berikut ' . $keterangan_sisa . '. Mohon segera ditindaklanjuti:</p>
                 <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
                     <tr>
                         <td style="padding: 8px 0; color: #6b7280; width: 120px;">Nama Dokumen</td>
@@ -612,7 +588,7 @@ if ($this->pembayaran_model->sudah_dikirim_otomatis(
                     </tr>
                     <tr>
                         <td style="padding: 8px 0; color: #6b7280;">Sisa Waktu</td>
-                        <td style="padding: 8px 0; font-weight: bold; color: #d97706;">' . (int) $sisa_hari . ' hari lagi</td>
+                        <td style="padding: 8px 0; font-weight: bold; color: #d97706;">' . ((int) $sisa_hari === 0 ? 'Hari ini' : (int) $sisa_hari . ' hari lagi') . '</td>
                     </tr>
                 </table>
                 <p>Mohon segera hubungi PIC klien untuk proses perpanjangan dokumen.</p>

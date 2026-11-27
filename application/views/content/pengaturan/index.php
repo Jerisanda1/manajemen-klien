@@ -3,7 +3,7 @@
     <!-- Header Halaman -->
     <div class="mb-8 max-w-[1000px] mx-auto">
         <h2 class="text-3xl font-bold text-gray-900 tracking-tight">Pengaturan Sistem</h2>
-        <p class="text-sm text-gray-500 mt-1">Kelola akun, identitas perusahaan, aset dokumen, dan pengingat pembayaran invoice.</p>
+        <p class="text-sm text-gray-500 mt-1">Kelola akun, identitas perusahaan, aset dokumen, dan saluran pengingat.</p>
     </div>
 
     <!-- Layout Pengaturan: Top Bar Tabs & Konten -->
@@ -24,7 +24,6 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Aset & Dokumen
                 </button>
-
 <button onclick="switchTab('reminder')" id="btn-tab-reminder"
     class="tab-btn flex items-center gap-2 py-4 text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-800 font-medium transition-colors whitespace-nowrap focus:outline-none">
 
@@ -36,7 +35,7 @@
         </path>
     </svg>
 
-    Reminder Invoice
+    Reminder
 </button>
 
             </nav>
@@ -382,20 +381,192 @@
 
             </div>
 
-            <!-- TAB 4: REMINDER INVOICE -->
-<div id="tab-reminder" class="tab-content hidden animate-fade-in space-y-6">
+            <!-- TAB REMINDER -->
+            <div id="tab-reminder" class="tab-content hidden animate-fade-in space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+                    <div class="mb-6 border-b border-slate-100 pb-5">
+                        <h3 class="text-xl font-bold text-gray-900">Akun Pengirim Reminder</h3>
+                        <p class="text-sm text-gray-500 mt-1">
+                            Satu konfigurasi pengirim email dan WhatsApp dipakai untuk reminder invoice,
+                            dokumen kerja sama, dan project.
+                        </p>
+                    </div>
+
+                    <?php if (!empty($notification_sender_error)): ?>
+                        <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                            Pengaturan pengirim tidak dapat dibuka: <?= html_escape($notification_sender_error) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($notification_sender)): ?>
+                        <div class="mb-6 grid gap-3 sm:grid-cols-2">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                                <span class="font-semibold text-slate-700">Password SMTP:</span>
+                                <span class="<?= !empty($notification_sender['smtp_password_configured']) ? 'text-emerald-700' : 'text-amber-700' ?>">
+                                    <?= !empty($notification_sender['smtp_password_configured']) ? 'sudah tersedia' : 'belum tersedia' ?>
+                                </span>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                                <span class="font-semibold text-slate-700">Token Fonnte:</span>
+                                <span class="<?= !empty($notification_sender['fonnte_token_configured']) ? 'text-emerald-700' : 'text-amber-700' ?>">
+                                    <?= !empty($notification_sender['fonnte_token_configured']) ? 'sudah tersedia' : 'belum tersedia' ?>
+                                </span>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <form action="<?= site_url('pengaturan/update_notification_sender') ?>" method="POST" class="space-y-6">
+                        <?php if ($this->config->item('csrf_protection')): ?>
+                            <input type="hidden" name="<?= $this->security->get_csrf_token_name() ?>" value="<?= $this->security->get_csrf_hash() ?>">
+                        <?php endif; ?>
+
+                        <div>
+                            <h4 class="mb-4 text-sm font-bold uppercase tracking-wide text-slate-700">Email SMTP</h4>
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Host SMTP
+                                    <input type="text" name="smtp_host" required maxlength="255"
+                                           value="<?= html_escape($notification_sender['smtp_host'] ?? '') ?>"
+                                           placeholder="smtp.example.com"
+                                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#9f2b2b] focus:outline-none">
+                                </label>
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Port
+                                    <input type="number" name="smtp_port" required min="1" max="65535"
+                                           value="<?= html_escape((string) ($notification_sender['smtp_port'] ?? '')) ?>"
+                                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#9f2b2b] focus:outline-none">
+                                </label>
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Enkripsi
+                                    <select name="smtp_crypto" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#9f2b2b] focus:outline-none">
+                                        <?php foreach (['ssl' => 'SSL', 'tls' => 'TLS', '' => 'Tanpa enkripsi'] as $value => $label): ?>
+                                            <option value="<?= html_escape($value) ?>" <?= ($notification_sender['smtp_crypto'] ?? '') === $value ? 'selected' : '' ?>>
+                                                <?= html_escape($label) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </label>
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Email akun SMTP
+                                    <input type="email" name="smtp_user" required maxlength="255"
+                                           value="<?= html_escape($notification_sender['smtp_user'] ?? '') ?>"
+                                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#9f2b2b] focus:outline-none">
+                                </label>
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Password SMTP
+                                    <input type="password" name="smtp_password" maxlength="4096" autocomplete="new-password"
+                                           placeholder="Kosongkan jika tidak ingin mengganti"
+                                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#9f2b2b] focus:outline-none">
+                                </label>
+                                <label class="block text-sm font-medium text-slate-700">
+                                    Alamat email pengirim
+                                    <input type="email" name="email_from" required maxlength="255"
+                                           value="<?= html_escape($notification_sender['email_from'] ?? '') ?>"
+                                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#9f2b2b] focus:outline-none">
+                                </label>
+                                <label class="block text-sm font-medium text-slate-700 md:col-span-2">
+                                    Nama pengirim
+                                    <input type="text" name="email_from_name" required maxlength="150"
+                                           value="<?= html_escape($notification_sender['email_from_name'] ?? '') ?>"
+                                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#9f2b2b] focus:outline-none">
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-100 pt-6">
+                            <h4 class="mb-2 text-sm font-bold uppercase tracking-wide text-slate-700">WhatsApp Fonnte</h4>
+                            <p class="mb-4 text-sm text-slate-500">
+                                Nomor pengirim mengikuti perangkat WhatsApp yang terhubung pada token Fonnte.
+                                Untuk mengganti nomor, hubungkan perangkat di Fonnte lalu masukkan token akun tersebut.
+                            </p>
+                            <label class="block text-sm font-medium text-slate-700">
+                                Token Fonnte
+                                <input type="password" name="fonnte_token" maxlength="4096" autocomplete="new-password"
+                                       placeholder="Kosongkan jika tidak ingin mengganti"
+                                       class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-[#9f2b2b] focus:outline-none">
+                            </label>
+                        </div>
+
+                        <div class="border-t border-slate-100 pt-5">
+                            <p class="mb-4 text-xs text-slate-500">
+                                Password SMTP dan token Fonnte tidak ditampilkan kembali dan disimpan terenkripsi.
+                                Jika penyimpanan rahasia gagal, pastikan NOTIFICATION_SETTINGS_KEY tersedia pada environment server.
+                            </p>
+                            <button type="submit" class="rounded-xl bg-[#9f2b2b] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#8a2525]">
+                                Simpan Pengaturan Pengirim
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+        <div class="mb-6 border-b border-slate-100 pb-5">
+            <h3 class="text-xl font-bold text-gray-900">Jadwal Pengingat per Klien</h3>
+            <p class="text-sm text-gray-500 mt-1">
+                Tentukan berapa hari sebelum jatuh tempo invoice, berakhirnya dokumen,
+                atau selesainya project setiap klien akan diingatkan.
+            </p>
+        </div>
+
+        <?php if (empty($reminder_clients)): ?>
+            <div class="p-8 text-center border border-dashed border-slate-300 rounded-xl">
+                <p class="text-sm font-medium text-slate-600">Belum ada data klien.</p>
+            </div>
+        <?php else: ?>
+            <div class="space-y-3">
+                <?php foreach ($reminder_clients as $client): ?>
+                    <form action="<?= site_url('pengaturan/update_reminder_klien') ?>"
+                          method="POST"
+                          class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_180px_auto] gap-4 items-end rounded-xl border border-slate-200 p-4">
+                        <?php if ($this->config->item('csrf_protection')): ?>
+                            <input type="hidden"
+                                   name="<?= $this->security->get_csrf_token_name() ?>"
+                                   value="<?= $this->security->get_csrf_hash() ?>">
+                        <?php endif; ?>
+                        <input type="hidden" name="client_id" value="<?= (int) $client->id ?>">
+
+                        <div>
+                            <p class="font-semibold text-gray-900"><?= html_escape($client->nama_klien) ?></p>
+                            <p class="text-xs text-gray-500 mt-1">PIC: <?= html_escape($client->nama_pic ?: '-') ?></p>
+                        </div>
+
+                        <div>
+                            <label for="reminder-days-<?= (int) $client->id ?>"
+                                   class="block text-xs font-medium text-gray-700 mb-1.5">
+                                Hari sebelum tanggal acuan
+                            </label>
+                            <input type="number"
+                                   id="reminder-days-<?= (int) $client->id ?>"
+                                   name="reminder_days_before"
+                                   min="1"
+                                   max="365"
+                                   value="<?= (int) ($client->reminder_days_before ?: 30) ?>"
+                                   class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b]"
+                                   required>
+                        </div>
+
+                        <button type="submit"
+                                class="px-4 py-2 bg-[#9f2b2b] hover:bg-[#8a2525] text-white text-sm font-semibold rounded-lg transition-colors">
+                            Simpan
+                        </button>
+                    </form>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div>
 
     <!-- CARD INFORMASI -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+    <div class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
 
         <div class="mb-6 border-b border-slate-100 pb-5">
             <h3 class="text-xl font-bold text-gray-900">
-                Pengaturan Reminder Invoice
+                Saluran Pengingat Invoice
             </h3>
 
             <p class="text-sm text-gray-500 mt-1">
-                Atur sendiri jadwal pengingat pembayaran invoice
-                melalui Email atau WhatsApp.
+                Atur hari pengingat setiap klien pada daftar di atas.
+                Aturan aktif di bawah ini hanya menentukan saluran Email dan WhatsApp;
+                offset hari global tidak lagi menentukan waktu pengiriman.
             </p>
         </div>
 
@@ -411,7 +582,7 @@
             <?php endif; ?>
 
             <h4 class="font-semibold text-gray-800">
-                Tambah Jadwal Reminder
+            Tambah Preferensi Saluran
             </h4>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -514,7 +685,7 @@
 
 
     <!-- CARD DAFTAR JADWAL -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+    <div class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
 
         <div class="mb-6 border-b border-slate-100 pb-5">
             <h3 class="text-xl font-bold text-gray-900">
@@ -960,7 +1131,11 @@
 
     // --- 6. INISIALISASI SAAT HALAMAN DI-LOAD ---
     document.addEventListener('DOMContentLoaded', () => {
-        const activeTab = localStorage.getItem('active_settings_tab') || 'akun';
+        const fragmentTab = window.location.hash.substring(1);
+        const savedTab = localStorage.getItem('active_settings_tab') || 'akun';
+        const activeTab = document.getElementById('tab-' + fragmentTab)
+            ? fragmentTab
+            : (savedTab === 'pengirim' ? 'reminder' : savedTab);
         switchTab(activeTab);
     });
 

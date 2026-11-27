@@ -29,7 +29,30 @@ window.TridatuFS = (function () {
     // IndexedDB
     // ==========================================================
     let dbPromise = null;
+    let persistencePromise = null;
+
+    function requestPersistentStorage() {
+        if (persistencePromise) return persistencePromise;
+        if (!navigator.storage || typeof navigator.storage.persist !== 'function') {
+            persistencePromise = Promise.resolve(false);
+            return persistencePromise;
+        }
+
+        persistencePromise = navigator.storage.persist().then(persisted => {
+            if (!persisted) {
+                console.warn('[TridatuFS] Browser tidak menjamin data lokal tetap tersimpan.');
+            }
+            return persisted;
+        }).catch(err => {
+            console.warn('[TridatuFS] Gagal meminta penyimpanan persisten:', err);
+            return false;
+        });
+
+        return persistencePromise;
+    }
+
     function getDB() {
+        requestPersistentStorage();
         if (dbPromise) return dbPromise;
         dbPromise = new Promise((resolve, reject) => {
             const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -39,8 +62,18 @@ window.TridatuFS = (function () {
                     db.createObjectStore(STORE);
                 }
             };
-            req.onsuccess = () => resolve(req.result);
+            req.onsuccess = () => {
+                const db = req.result;
+                db.onversionchange = () => {
+                    db.close();
+                    dbPromise = null;
+                };
+                resolve(db);
+            };
             req.onerror = () => reject(req.error);
+        }).catch(err => {
+            dbPromise = null;
+            throw err;
         });
         return dbPromise;
     }
@@ -56,6 +89,7 @@ window.TridatuFS = (function () {
     }
 
     async function idbSet(key, value) {
+        await requestPersistentStorage();
         const db = await getDB();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE, 'readwrite');
@@ -110,14 +144,14 @@ window.TridatuFS = (function () {
         return { handle: await idbGet(FOLDER_KEY), key: FOLDER_KEY, legacy: false };
     }
 
-    async function getFolderHandle(documentId = null, forceNew = false) {
+    async function getFolderHandle(documentId = null, forceNew = false, mode = 'readwrite') {
         if (!SUPPORTED) return null;
 
         if (!forceNew) {
             const stored = await getStoredHandle(documentId);
             if (!stored.handle) return null;
 
-            const ok = await ensurePermission(stored.handle, 'readwrite');
+            const ok = await ensurePermission(stored.handle, mode);
             if (!ok) return null;
             if (stored.legacy && documentId !== null && documentId !== undefined) {
                 await idbSet(stored.key, stored.handle);
@@ -126,7 +160,7 @@ window.TridatuFS = (function () {
         }
 
         try {
-            const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+            const handle = await window.showDirectoryPicker({ mode });
             const key = documentId !== null && documentId !== undefined
                 ? documentFolderKey(documentId)
                 : FOLDER_KEY;
@@ -138,7 +172,7 @@ window.TridatuFS = (function () {
         }
     }
 
-    async function getStoredFolderAccess(documentId = null) {
+    async function getStoredFolderAccess(documentId = null, mode = 'read') {
         if (!SUPPORTED) {
             return { handle: null, permission: 'unsupported' };
         }
@@ -148,11 +182,11 @@ window.TridatuFS = (function () {
             return { handle: null, permission: 'missing' };
         }
 
-        const permission = await stored.handle.queryPermission({ mode: 'readwrite' });
+        const permission = await stored.handle.queryPermission({ mode });
         return { handle: stored.handle, permission };
     }
 
-    async function requestFolderAccess(documentId = null) {
+    async function requestFolderAccess(documentId = null, mode = 'read') {
         if (!SUPPORTED) {
             return { handle: null, permission: 'unsupported' };
         }
@@ -162,7 +196,13 @@ window.TridatuFS = (function () {
             return { handle: null, permission: 'missing' };
         }
 
-        const granted = await ensurePermission(stored.handle, 'readwrite');
+        let permission = 'denied';
+        try {
+            permission = await stored.handle.requestPermission({ mode });
+        } catch (err) {
+            console.warn('[TridatuFS] Permission request failed:', err);
+        }
+        const granted = permission === 'granted';
         if (granted && stored.legacy && documentId !== null && documentId !== undefined) {
             await idbSet(stored.key, stored.handle);
         }
@@ -254,7 +294,7 @@ window.TridatuFS = (function () {
             return { ok: true, mode: 'download', savedName: fileName };
         }
 
-        const root = rootHandle || await getFolderHandle(documentId);
+        const root = rootHandle || await getFolderHandle(documentId, false, 'readwrite');
         if (!root) return { ok: false, mode: 'folder', msg: 'Folder tidak dipilih.' };
         if (documentId === null || documentId === undefined || String(documentId) === '') {
             return { ok: false, mode: 'folder', msg: 'ID dokumen tidak tersedia untuk menyimpan hubungan folder.' };
@@ -289,13 +329,18 @@ window.TridatuFS = (function () {
     async function readFile({ documentId, klienId, klienNama, fileName, fileHash }) {
         if (!SUPPORTED) return null;
         try {
-            const root = await getFolderHandle(documentId);
-            if (!root) return null;
-            const klienFolder = await getKlienFolder(root, klienId, klienNama, false);
+            const stored = await getStoredHandle(documentId);
+            if (!stored.handle) return null;
+
+            const permission = await stored.handle.queryPermission({ mode: 'read' });
+            if (permission !== 'granted') return null;
+
+            const klienFolder = await getKlienFolder(stored.handle, klienId, klienNama, false);
             const savedName = buildSavedName(fileName, fileHash);
             const fh = await klienFolder.getFileHandle(savedName, { create: false });
             return await fh.getFile();
         } catch (err) {
+            console.warn('[TridatuFS] File lokal tidak dapat dibaca:', err);
             return null;
         }
     }
@@ -314,7 +359,7 @@ window.TridatuFS = (function () {
      */
     async function deleteFile({ documentId, klienId, klienNama, fileName, fileHash }) {
         if (!SUPPORTED) return { ok: true, mode: 'download' };
-        const root = await getFolderHandle(documentId);
+        const root = await getFolderHandle(documentId, false, 'readwrite');
         if (!root) return { ok: false, mode: 'folder', msg: 'Folder tidak dipilih.' };
         try {
             const klienFolder = await getKlienFolder(root, klienId, klienNama, false);

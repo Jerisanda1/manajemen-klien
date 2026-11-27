@@ -47,6 +47,58 @@ $status  = $isEdit ? $penawaran->status : 'Draft';
 $posted = $this->input->method() === 'post';
 $kop = $posted ? (bool) $this->input->post('sertakan_kop') : ($isEdit ? (bool) $penawaran->sertakan_kop : true);
 $ttd = $posted ? (bool) $this->input->post('sertakan_ttd') : ($isEdit ? (bool) $penawaran->sertakan_ttd : true);
+$itemsForm = $this->input->post('items');
+if (!is_array($itemsForm)) {
+    $itemsForm = [];
+    foreach (($items ?? []) as $item) {
+        $itemsForm[] = [
+            'description' => $item->description,
+            'quantity' => $item->quantity,
+            'unit' => $item->unit,
+            'unit_price' => $item->unit_price,
+        ];
+    }
+}
+if (!$itemsForm) {
+    $itemsForm = [['description' => '', 'quantity' => 1, 'unit' => 'unit', 'unit_price' => 0]];
+}
+$taxesForm = $this->input->post('taxes');
+if (!is_array($taxesForm)) {
+    $taxesForm = [];
+    foreach (($taxes ?? []) as $tax) {
+        $taxesForm[] = [
+            'tax_name' => $tax->tax_name,
+            'tax_type' => $tax->tax_type,
+            'tax_rate' => $tax->tax_rate,
+        ];
+    }
+}
+if (!$posted && !$isEdit && !$taxesForm) {
+    $taxesForm = [
+        ['tax_name' => 'PPN', 'tax_type' => 'percentage', 'tax_rate' => 11],
+        ['tax_name' => 'PPh', 'tax_type' => 'percentage', 'tax_rate' => 2],
+    ];
+}
+$formErr = isset($formErr) ? $formErr : '';
+$settings = isset($settings) ? $settings : null;
+$discountValue = $this->input->post('discount_amount');
+if ($discountValue === null) $discountValue = $isEdit ? ($penawaran->discount_amount ?? 0) : 0;
+$paymentMethodValue = $this->input->post('payment_method');
+if ($paymentMethodValue === null) $paymentMethodValue = $isEdit ? ($penawaran->payment_method ?? '') : 'Transfer Bank';
+$paymentAccountValue = $this->input->post('payment_account');
+if ($paymentAccountValue === null) $paymentAccountValue = $isEdit ? ($penawaran->payment_account ?? '') : '';
+$rekeningDefault = '';
+if ($settings) {
+    $rekeningDefault = implode("\n", array_filter([
+        !empty($settings->nama_bank) ? 'Bank: ' . $settings->nama_bank : '',
+        !empty($settings->nama_cabang) ? 'Cabang: ' . $settings->nama_cabang : '',
+        !empty($settings->nomor_rekening) ? 'No. Rekening: ' . $settings->nomor_rekening : '',
+        !empty($settings->nama_pemilik_rekening) ? 'Nama Pemilik: ' . $settings->nama_pemilik_rekening : '',
+    ]));
+}
+if (!$isEdit && $paymentAccountValue === '') $paymentAccountValue = $rekeningDefault;
+$notesValue = $this->input->post('notes');
+if ($notesValue === null) $notesValue = $isEdit ? ($penawaran->notes ?? '') : '';
 
 $picAwal = '';
 $labelKlien = 'Pilih Klien';
@@ -83,6 +135,9 @@ $kunci = $isEdit;
 <body class="bg-[#f4f6f9] font-sans text-gray-800 antialiased min-h-screen">
 
     <div class="max-w-[1280px] mx-auto p-4 md:p-6 lg:p-8">
+        <?php if ($formErr): ?>
+            <div class="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><?= $e($formErr) ?></div>
+        <?php endif; ?>
         
         <!-- Header -->
         <div class="mb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -125,7 +180,7 @@ $kunci = $isEdit;
                                         <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                         <span class="font-bold text-sm text-gray-900">Template Baku</span>
                                     </div>
-                                    <p class="text-xs text-gray-500 leading-relaxed">Nomor, tanggal, dan format dibuat otomatis. Admin cukup mengisi perihal dan isi.</p>
+                                    <p class="text-xs text-gray-500 leading-relaxed">Isi data klien, rincian pekerjaan dan harga; dokumen penawaran disusun otomatis.</p>
                                 </div>
                             </label>
                             <label class="cursor-pointer">
@@ -228,10 +283,72 @@ $kunci = $isEdit;
                                 <input id="pic" type="text" class="w-full px-3 py-2.5 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-500 cursor-not-allowed" readonly tabindex="-1" value="<?= $e($picAwal) ?>">
                             </div>
 
-                            <!-- Isi Surat -->
+                            <!-- Keterangan -->
                             <div class="field-template md:col-span-2 <?= $mode !== 'template' ? 'hidden' : '' ?>">
-                                <label class="block text-xs font-medium text-gray-700 mb-1.5">Isi Surat</label>
+                                <label class="block text-xs font-medium text-gray-700 mb-1.5">Keterangan / Syarat</label>
                                 <textarea id="isi_surat" name="isi_surat" class="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#9f2b2b] focus:ring-1 focus:ring-[#9f2b2b] min-h-[150px]"><?= $e($val('isi_surat')) ?></textarea>
+                            </div>
+
+                            <div class="field-template md:col-span-2 <?= $mode !== 'template' ? 'hidden' : '' ?>">
+                                <div class="flex items-center justify-between mb-4">
+                                    <div>
+                                        <h4 class="text-base font-bold text-gray-900">Rincian Penawaran</h4>
+                                        <p class="text-xs text-gray-500 mt-1">Tambahkan jasa atau produk; rincian ini akan disalin ke invoice saat dibuat.</p>
+                                    </div>
+                                    <button type="button" onclick="tambahItemPenawaran()" class="px-3 py-2 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100">+ Tambah Item</button>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm">
+                                        <thead><tr class="text-left text-xs text-gray-500 border-b">
+                                            <th class="py-2 pr-2">Deskripsi</th><th class="py-2 px-2 w-20">Qty</th><th class="py-2 px-2 w-24">Satuan</th><th class="py-2 px-2 w-36">Harga</th><th class="py-2 pl-2 w-36 text-right">Jumlah</th><th class="w-8"></th>
+                                        </tr></thead>
+                                        <tbody id="penawaranItems">
+                                            <?php foreach ($itemsForm as $i => $item): ?>
+                                                <tr class="penawaran-item border-b">
+                                                    <td class="py-2 pr-2"><input type="text" name="items[<?= (int) $i ?>][description]" value="<?= $e($item['description'] ?? '') ?>" required placeholder="Nama produk/jasa" class="w-full min-w-[150px] px-2 py-2 border rounded-lg"></td>
+                                                    <td class="py-2 px-2"><input type="number" min="0.01" step="0.01" name="items[<?= (int) $i ?>][quantity]" value="<?= $e($item['quantity'] ?? 1) ?>" oninput="hitungPenawaran()" required class="item-qty w-full px-2 py-2 border rounded-lg"></td>
+                                                    <td class="py-2 px-2"><input type="text" name="items[<?= (int) $i ?>][unit]" value="<?= $e($item['unit'] ?? 'unit') ?>" class="w-full px-2 py-2 border rounded-lg"></td>
+                                                    <td class="py-2 px-2"><input type="number" min="0" step="1" name="items[<?= (int) $i ?>][unit_price]" value="<?= $e($item['unit_price'] ?? 0) ?>" oninput="hitungPenawaran()" required class="item-price w-full px-2 py-2 border rounded-lg"></td>
+                                                    <td class="py-2 pl-2 text-right font-medium item-total">Rp0</td>
+                                                    <td class="text-right"><button type="button" onclick="hapusItemPenawaran(this)" class="text-red-500 px-1">×</button></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <div class="flex justify-between items-center mb-3">
+                                            <h5 class="font-semibold text-sm">Pajak / Biaya Tambahan</h5>
+                                            <button type="button" onclick="tambahPajakPenawaran()" class="text-xs font-semibold text-blue-700">+ Tambah</button>
+                                        </div>
+                                        <input type="hidden" name="has_tax_section" value="1">
+                                        <div id="penawaranTaxes" class="space-y-2">
+                                            <?php foreach ($taxesForm as $i => $tax): ?>
+                                                <div class="tax-row grid grid-cols-12 gap-2">
+                                                    <input name="taxes[<?= (int) $i ?>][tax_name]" value="<?= $e($tax['tax_name'] ?? '') ?>" placeholder="Nama pajak" class="col-span-5 min-w-0 px-2 py-2 border rounded-lg text-sm">
+                                                    <select name="taxes[<?= (int) $i ?>][tax_type]" class="tax-type col-span-3 min-w-0 px-1 py-2 border rounded-lg text-xs" onchange="hitungPenawaran()">
+                                                        <option value="percentage" <?= ($tax['tax_type'] ?? '') === 'percentage' ? 'selected' : '' ?>>%</option>
+                                                        <option value="fixed" <?= ($tax['tax_type'] ?? '') === 'fixed' ? 'selected' : '' ?>>Rp</option>
+                                                    </select>
+                                                    <input type="number" min="0" step="0.01" name="taxes[<?= (int) $i ?>][tax_rate]" value="<?= $e($tax['tax_rate'] ?? 0) ?>" oninput="hitungPenawaran()" class="tax-rate col-span-3 min-w-0 px-2 py-2 border rounded-lg text-sm">
+                                                    <button type="button" onclick="hapusPajakPenawaran(this)" class="col-span-1 text-red-500">×</button>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-xl p-4 space-y-3">
+                                        <div class="flex justify-between text-sm"><span class="text-gray-500">Subtotal</span><strong id="subtotalText">Rp0</strong></div>
+                                        <div><label class="block text-xs text-gray-600 mb-1">Diskon (Rp)</label><input type="number" min="0" step="1" id="discountAmount" name="discount_amount" value="<?= $e($discountValue) ?>" oninput="hitungPenawaran()" class="w-full px-3 py-2 border rounded-lg text-sm"></div>
+                                        <div class="flex justify-between text-sm"><span class="text-gray-500">Total Pajak</span><strong id="taxTotalText">Rp0</strong></div>
+                                        <div class="border-t pt-3 flex justify-between items-center"><span class="font-bold">TOTAL</span><strong id="grandTotalText" class="text-xl text-[#9f2b2b]">Rp0</strong></div>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+                                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Metode Pembayaran</label><input type="text" name="payment_method" value="<?= $e($paymentMethodValue) ?>" placeholder="Transfer Bank / Tunai" class="w-full px-3 py-2.5 border rounded-lg text-sm"></div>
+                                    <div><label class="block text-xs font-medium text-gray-700 mb-1">Rekening / Tujuan Pembayaran</label><textarea name="payment_account" rows="4" class="w-full px-3 py-2.5 border rounded-lg text-sm"><?= $e($paymentAccountValue) ?></textarea></div>
+                                    <div class="md:col-span-2"><label class="block text-xs font-medium text-gray-700 mb-1">Catatan</label><textarea name="notes" rows="3" class="w-full px-3 py-2.5 border rounded-lg text-sm" placeholder="Catatan tambahan untuk klien"><?= $e($notesValue) ?></textarea></div>
+                                </div>
                             </div>
 
                             <!-- Checkboxes -->
@@ -349,6 +466,80 @@ $kunci = $isEdit;
         document.querySelectorAll('.field-template').forEach(el => el.classList.toggle('hidden', mode !== 'template'));
         document.querySelectorAll('.field-unggah').forEach(el => el.classList.toggle('hidden', mode !== 'unggah'));
     }
+
+    let penawaranItemIndex = document.querySelectorAll('.penawaran-item').length;
+    let penawaranTaxIndex = document.querySelectorAll('.tax-row').length;
+    const formatRupiahPenawaran = value => new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        maximumFractionDigits: 0
+    }).format(value || 0);
+
+    function tambahItemPenawaran() {
+        const index = penawaranItemIndex++;
+        const row = document.createElement('tr');
+        row.className = 'penawaran-item border-b';
+        row.innerHTML = `
+            <td class="py-2 pr-2"><input type="text" name="items[${index}][description]" required placeholder="Nama produk/jasa" class="w-full min-w-[150px] px-2 py-2 border rounded-lg"></td>
+            <td class="py-2 px-2"><input type="number" min="0.01" step="0.01" name="items[${index}][quantity]" value="1" oninput="hitungPenawaran()" required class="item-qty w-full px-2 py-2 border rounded-lg"></td>
+            <td class="py-2 px-2"><input type="text" name="items[${index}][unit]" value="unit" class="w-full px-2 py-2 border rounded-lg"></td>
+            <td class="py-2 px-2"><input type="number" min="0" step="1" name="items[${index}][unit_price]" value="0" oninput="hitungPenawaran()" required class="item-price w-full px-2 py-2 border rounded-lg"></td>
+            <td class="py-2 pl-2 text-right font-medium item-total">Rp0</td>
+            <td class="text-right"><button type="button" onclick="hapusItemPenawaran(this)" class="text-red-500 px-1">×</button></td>`;
+        document.getElementById('penawaranItems').appendChild(row);
+        hitungPenawaran();
+    }
+
+    function hapusItemPenawaran(button) {
+        if (document.querySelectorAll('.penawaran-item').length <= 1) {
+            alert('Minimal harus ada satu item penawaran.');
+            return;
+        }
+        button.closest('.penawaran-item').remove();
+        hitungPenawaran();
+    }
+
+    function tambahPajakPenawaran() {
+        const index = penawaranTaxIndex++;
+        const row = document.createElement('div');
+        row.className = 'tax-row grid grid-cols-12 gap-2';
+        row.innerHTML = `
+            <input name="taxes[${index}][tax_name]" placeholder="Nama pajak" class="col-span-5 min-w-0 px-2 py-2 border rounded-lg text-sm">
+            <select name="taxes[${index}][tax_type]" class="tax-type col-span-3 min-w-0 px-1 py-2 border rounded-lg text-xs" onchange="hitungPenawaran()"><option value="percentage">%</option><option value="fixed">Rp</option></select>
+            <input type="number" min="0" step="0.01" name="taxes[${index}][tax_rate]" value="0" oninput="hitungPenawaran()" class="tax-rate col-span-3 min-w-0 px-2 py-2 border rounded-lg text-sm">
+            <button type="button" onclick="hapusPajakPenawaran(this)" class="col-span-1 text-red-500">×</button>`;
+        document.getElementById('penawaranTaxes').appendChild(row);
+        hitungPenawaran();
+    }
+
+    function hapusPajakPenawaran(button) {
+        button.closest('.tax-row').remove();
+        hitungPenawaran();
+    }
+
+    function hitungPenawaran() {
+        let subtotal = 0;
+        document.querySelectorAll('.penawaran-item').forEach(row => {
+            const qty = Math.max(0, Number(row.querySelector('.item-qty').value) || 0);
+            const price = Math.max(0, Number(row.querySelector('.item-price').value) || 0);
+            const amount = qty * price;
+            subtotal += amount;
+            row.querySelector('.item-total').textContent = formatRupiahPenawaran(amount);
+        });
+        const discountInput = document.getElementById('discountAmount');
+        const discount = Math.min(subtotal, Math.max(0, Number(discountInput.value) || 0));
+        const taxable = subtotal - discount;
+        let taxes = 0;
+        document.querySelectorAll('#penawaranTaxes .tax-row').forEach(row => {
+            const rate = Math.max(0, Number(row.querySelector('.tax-rate').value) || 0);
+            taxes += row.querySelector('.tax-type').value === 'percentage' ? taxable * rate / 100 : rate;
+        });
+        document.getElementById('subtotalText').textContent = formatRupiahPenawaran(subtotal);
+        document.getElementById('taxTotalText').textContent = formatRupiahPenawaran(taxes);
+        document.getElementById('grandTotalText').textContent = formatRupiahPenawaran(taxable + taxes);
+    }
+
+    hitungPenawaran();
 
     // --- FILE PREVIEW ---
     const fileInput = document.getElementById('berkas');

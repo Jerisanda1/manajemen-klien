@@ -99,6 +99,10 @@ class Pembayaran extends CI_Controller
             'action'      => $this->project_context_action($action),
             'mode'        => $mode,
             'uploadErr'   => $this->upload_err,
+            'formErr'     => $this->form_err,
+            'settings'    => $this->Pengaturan_model->get_settings(),
+            'items'       => $penawaran ? $this->Pembayaran_model->get_penawaran_details($penawaran->id) : [],
+            'taxes'       => $penawaran ? $this->Pembayaran_model->get_penawaran_taxes($penawaran->id) : [],
         ];
     }
 
@@ -146,6 +150,11 @@ class Pembayaran extends CI_Controller
         $this->mode = ($this->input->post('mode') === 'unggah') ? 'unggah' : 'template';
 
         $ok   = $this->validasi();
+        $rincian = NULL;
+        if ($ok && $this->mode === 'template') {
+            $rincian = $this->ambil_rincian_dokumen();
+            if ($rincian === FALSE) $ok = FALSE;
+        }
         $file = null;
         if ($this->mode === 'unggah') {
             $file = $this->proses_upload(TRUE);
@@ -157,9 +166,20 @@ class Pembayaran extends CI_Controller
 
         $data = $this->ambil_input(TRUE);
         if (is_array($file)) $data = array_merge($data, $file);
+        if ($rincian !== NULL) {
+            $data = array_merge($data, $this->header_rincian($rincian));
+        }
 
         $projectId = (int) $data['project_id'];
-        $this->Pembayaran_model->insert_penawaran($data);
+        $tersimpan = $this->Pembayaran_model->insert_penawaran(
+            $data,
+            $rincian !== NULL ? $rincian['items'] : NULL,
+            $rincian !== NULL ? $rincian['taxes'] : NULL
+        );
+        if (!$tersimpan) {
+            $this->form_err = 'Penawaran gagal disimpan. Periksa kembali struktur database.';
+            return $this->tambah($tab);
+        }
         $this->session->set_flashdata('success', 'Penawaran berhasil dibuat.');
         if ($this->input->get('from') === 'project_detail' && $projectId > 0) {
             redirect('project/detail/' . $projectId);
@@ -180,6 +200,9 @@ class Pembayaran extends CI_Controller
             'penawaran'  => $penawaran,
             'riwayat'    => $this->Pembayaran_model->get_riwayat($id),
             'statusList' => $this->statusList['penawaran'],
+            'invoiceList' => $this->Pembayaran_model->get_invoices_by_penawaran($id),
+            'items'       => $this->Pembayaran_model->get_penawaran_details($id),
+            'taxes'       => $this->Pembayaran_model->get_penawaran_taxes($id),
         ], FALSE);
     }
 
@@ -238,7 +261,7 @@ class Pembayaran extends CI_Controller
         $ok = $this->form_validation->run();
         $rincian = NULL;
         if ($ok && $cara === 'template') {
-            $rincian = $this->ambil_rincian_invoice();
+            $rincian = $this->ambil_rincian_dokumen();
             if ($rincian === FALSE) $ok = FALSE;
         }
         $file = NULL;
@@ -504,6 +527,11 @@ public function kirim_wa($id)
         $this->mode      = ($lama->dibuat_lewat === 'Unggahan') ? 'unggah' : 'template';
 
         $ok   = $this->validasi();
+        $rincian = NULL;
+        if ($ok && $this->mode === 'template') {
+            $rincian = $this->ambil_rincian_dokumen();
+            if ($rincian === FALSE) $ok = FALSE;
+        }
         $file = null;
         if ($this->mode === 'unggah') {
             $file = $this->proses_upload(empty($lama->file_path));
@@ -515,8 +543,20 @@ public function kirim_wa($id)
 
         $data = $this->ambil_input(FALSE);
         if (is_array($file)) $data = array_merge($data, $file);
+        if ($rincian !== NULL) {
+            $data = array_merge($data, $this->header_rincian($rincian));
+        }
 
-        $this->Pembayaran_model->update_penawaran($id, $data);
+        $tersimpan = $this->Pembayaran_model->update_penawaran(
+            $id,
+            $data,
+            $rincian !== NULL ? $rincian['items'] : NULL,
+            $rincian !== NULL ? $rincian['taxes'] : NULL
+        );
+        if (!$tersimpan) {
+            $this->form_err = 'Penawaran gagal diperbarui.';
+            return $this->edit($tab, $id);
+        }
 
         if (is_array($file) && !empty($lama->file_path)) {
             $f = APPPATH . 'uploads/penawaran/' . basename($lama->file_path);
@@ -548,7 +588,18 @@ public function kirim_wa($id)
         $p->alamat            = $klien ? $klien->alamat : NULL;
         $p->nama_project      = $in['project_id'] ? $this->Pembayaran_model->get_project_nama($in['project_id']) : NULL;
 
-        $this->stream_pdf_penawaran($p, TRUE);
+        $rincian = $this->ambil_rincian_dokumen();
+        if ($rincian !== FALSE) {
+            foreach ($this->header_rincian($rincian) as $key => $value) {
+                $p->$key = $value;
+            }
+        }
+        $this->stream_pdf_penawaran(
+            $p,
+            TRUE,
+            $rincian !== FALSE ? $rincian['items'] : [],
+            $rincian !== FALSE ? $rincian['taxes'] : []
+        );
     }
 
     /* ---------- UNDUH ---------- */
@@ -565,7 +616,7 @@ public function kirim_wa($id)
     }
 
     // Helper khusus Penawaran
-    private function stream_pdf_penawaran($p, $inline)
+    private function stream_pdf_penawaran($p, $inline, $items = NULL, $taxes = NULL)
     {
         if (file_exists(FCPATH . 'vendor/autoload.php')) {
             require_once FCPATH . 'vendor/autoload.php';
@@ -575,10 +626,18 @@ public function kirim_wa($id)
         }
 
         $settings = $this->Pengaturan_model->get_settings();
+        if ($items === NULL) {
+            $items = !empty($p->id) ? $this->Pembayaran_model->get_penawaran_details($p->id) : [];
+        }
+        if ($taxes === NULL) {
+            $taxes = !empty($p->id) ? $this->Pembayaran_model->get_penawaran_taxes($p->id) : [];
+        }
 
         $html = $this->load->view('content/pembayaran/pdf', [
             'penawaran' => $p,
-            'settings'  => $settings
+            'settings'  => $settings,
+            'items'     => $items,
+            'taxes'     => $taxes,
         ], TRUE);
 
         $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => FALSE]);
@@ -763,7 +822,18 @@ if (!$settings) {
         $tab = (string) $this->input->post('tab', TRUE);
         if (!$this->Pembayaran_model->valid_tab($tab)) redirect('pembayaran');
 
-        $this->Pembayaran_model->delete($tab, $this->input->post('id', TRUE));
+        $id = (int) $this->input->post('id', TRUE);
+        if (!$this->Pembayaran_model->delete($tab, $id)) {
+            if ($tab === 'penawaran') {
+                $this->session->set_flashdata(
+                    'error',
+                    'Penawaran tidak dapat dihapus karena masih terhubung dengan invoice.'
+                );
+                redirect('pembayaran/detail/penawaran/' . $id);
+            }
+            $this->session->set_flashdata('error', 'Dokumen gagal dihapus.');
+            redirect('pembayaran?tab=' . $tab);
+        }
         $this->session->set_flashdata('success', ($tab === 'invoice' ? 'Invoice' : 'Penawaran') . ' berhasil dihapus.');
         redirect('pembayaran?tab=' . $tab);
     }
@@ -850,6 +920,16 @@ if (!$settings) {
     {
         $projectList = $this->Pembayaran_model->get_project_options();
         $projectContext = $this->project_context($projectList);
+        $penawaranList = $inv ? [] : $this->Pembayaran_model->get_penawaran_disetujui();
+        $penawaranIds = array_map(function ($penawaran) {
+            return (int) $penawaran->id;
+        }, $penawaranList);
+        $itemsByPenawaran = $this->Pembayaran_model->get_penawaran_details_by_ids($penawaranIds);
+        $taxesByPenawaran = $this->Pembayaran_model->get_penawaran_taxes_by_ids($penawaranIds);
+        foreach ($penawaranList as $penawaran) {
+            $penawaran->items = $itemsByPenawaran[$penawaran->id] ?? [];
+            $penawaran->taxes = $taxesByPenawaran[$penawaran->id] ?? [];
+        }
 
         return [
             'title'         => $title,
@@ -859,7 +939,7 @@ if (!$settings) {
             'projectList'   => $projectList,
             'preKlien'      => $projectContext['klien_id'],
             'preProject'    => $projectContext['project_id'],
-            'penawaranList' => $inv ? [] : $this->Pembayaran_model->get_penawaran_disetujui(),
+            'penawaranList' => $penawaranList,
             'nomorBaru'     => $this->Pembayaran_model->next_nomor_invoice(date('Y')),
             'pre'           => $inv ? 0 : (int) $this->input->get('penawaran_id'),
             'action'        => $this->project_context_action($action),
@@ -875,12 +955,12 @@ if (!$settings) {
         $this->render('form_invoice', $this->data_invoice('Tambah Invoice', null, site_url('pembayaran/simpan/invoice')), FALSE);
     }
 
-    private function ambil_rincian_invoice()
+    private function ambil_rincian_dokumen()
     {
         $itemsPost = $this->input->post('items');
         $taxesPost = $this->input->post('taxes');
         if (!is_array($itemsPost)) {
-            $this->form_err = 'Rincian item invoice belum diisi.';
+            $this->form_err = 'Rincian item belum diisi.';
             return FALSE;
         }
 
@@ -907,7 +987,7 @@ if (!$settings) {
             ];
         }
         if (!$items) {
-            $this->form_err = 'Minimal harus ada satu item invoice yang valid.';
+            $this->form_err = 'Minimal harus ada satu item yang valid.';
             return FALSE;
         }
 
@@ -918,15 +998,15 @@ if (!$settings) {
         $totalPajak = 0;
         $urutPajak = 1;
 
-        // Default sesuai template Tridatu: PPN 11% dan PPh 2%.
-        // Jika form tidak mengirim baris pajak sama sekali, gunakan nilai default
-        // agar invoice template tidak tersimpan tanpa pajak secara tidak sengaja.
-        if (!is_array($taxesPost) || empty($taxesPost)) {
+        // Default pajak hanya untuk form lama yang belum mengirim penanda bagian pajak.
+        if ((!is_array($taxesPost) || empty($taxesPost)) &&
+            $this->input->post('has_tax_section') !== '1') {
             $taxesPost = [
                 ['tax_name' => 'PPN', 'tax_type' => 'percentage', 'tax_rate' => 11],
                 ['tax_name' => 'PPh', 'tax_type' => 'percentage', 'tax_rate' => 2],
             ];
         }
+        if (!is_array($taxesPost)) $taxesPost = [];
 
         foreach ($taxesPost as $row) {
             if (!is_array($row)) continue;
@@ -955,6 +1035,18 @@ if (!$settings) {
             'payment_method' => trim((string) $this->input->post('payment_method', TRUE)),
             'payment_account' => trim((string) $this->input->post('payment_account', TRUE)),
             'notes' => trim((string) $this->input->post('notes', TRUE)),
+        ];
+    }
+
+    private function header_rincian($rincian)
+    {
+        return [
+            'subtotal' => $rincian['subtotal'],
+            'discount_amount' => $rincian['discount_amount'],
+            'total_amount' => $rincian['total_amount'],
+            'payment_method' => $rincian['payment_method'],
+            'payment_account' => $rincian['payment_account'],
+            'notes' => $rincian['notes'],
         ];
     }
 
@@ -1085,7 +1177,7 @@ private function hapus_folder_snapshot($folder)
 
         $rincian = NULL;
         if ($ok && $cara === 'template') {
-            $rincian = $this->ambil_rincian_invoice();
+            $rincian = $this->ambil_rincian_dokumen();
             if ($rincian === FALSE) $ok = FALSE;
         }
         $file = NULL;

@@ -101,9 +101,97 @@ class Project_model extends CI_Model
     // Mengupdate data project
     public function update($id, $data)
     {
+        $current = $this->db->select('tanggal_selesai')
+            ->get_where('project', ['id' => (int) $id])
+            ->row();
+
+        if (
+            $current &&
+            array_key_exists('tanggal_selesai', $data) &&
+            $current->tanggal_selesai !== $data['tanggal_selesai']
+        ) {
+            $data['last_reminder_sent_at'] = NULL;
+            $data['wa_reminder_sent_at'] = NULL;
+            $data['expired_notified_at'] = NULL;
+            $data['wa_expired_notified_at'] = NULL;
+        }
+
         return $this->db
             ->where('id', (int) $id)
             ->update('project', $data);
+    }
+
+    public function get_projects_for_reminder($email_enabled = TRUE, $wa_enabled = TRUE)
+    {
+        if (!$email_enabled && !$wa_enabled) {
+            return [];
+        }
+
+        $this->db
+            ->select('p.id, p.nama_project, p.tanggal_selesai, p.last_reminder_sent_at, p.wa_reminder_sent_at, p.expired_notified_at, p.wa_expired_notified_at, c.nama_klien, c.nama_pic, c.reminder_days_before')
+            ->from('project p')
+            ->join('clients c', 'c.id = p.klien_id', 'inner')
+            ->where('p.status', 'Berjalan')
+            ->where('p.tanggal_selesai IS NOT NULL', null, false);
+
+        $this->db->group_start();
+        if ($email_enabled) {
+            $this->db->group_start()
+                ->group_start()
+                    ->where('DATEDIFF(p.tanggal_selesai, CURDATE()) BETWEEN 0 AND c.reminder_days_before', null, false)
+                    ->where('p.last_reminder_sent_at IS NULL', null, false)
+                ->group_end()
+                ->or_group_start()
+                    ->where('DATEDIFF(p.tanggal_selesai, CURDATE()) < 0', null, false)
+                    ->where('p.expired_notified_at IS NULL', null, false)
+                ->group_end()
+            ->group_end();
+        }
+        if ($wa_enabled) {
+            if ($email_enabled) {
+                $this->db->or_group_start();
+            } else {
+                $this->db->group_start();
+            }
+            $this->db->group_start()
+                ->group_start()
+                    ->where('DATEDIFF(p.tanggal_selesai, CURDATE()) BETWEEN 0 AND c.reminder_days_before', null, false)
+                    ->where('p.wa_reminder_sent_at IS NULL', null, false)
+                ->group_end()
+                ->or_group_start()
+                    ->where('DATEDIFF(p.tanggal_selesai, CURDATE()) < 0', null, false)
+                    ->where('p.wa_expired_notified_at IS NULL', null, false)
+                ->group_end()
+            ->group_end()
+            ->group_end();
+        }
+        $this->db->group_end();
+
+        return $this->db->order_by('p.tanggal_selesai', 'ASC')->get()->result();
+    }
+
+    public function mark_reminder_sent($id)
+    {
+        return $this->db->where('id', (int) $id)
+            ->update('project', ['last_reminder_sent_at' => date('Y-m-d H:i:s')]);
+    }
+
+    public function mark_reminder_wa_sent($id)
+    {
+        return $this->db->where('id', (int) $id)
+            ->update('project', ['wa_reminder_sent_at' => date('Y-m-d H:i:s')]);
+    }
+
+    public function mark_expired_notified($id)
+    {
+        return $this->db->where('id', (int) $id)
+            ->update('project', ['expired_notified_at' => date('Y-m-d H:i:s')]);
+    }
+
+    public function mark_expired_wa_notified($id)
+    {
+        return $this->db->where('id', (int) $id)
+            ->update('project', ['wa_expired_notified_at' => date('Y-m-d H:i:s')]);
     }
 
     // =========================================

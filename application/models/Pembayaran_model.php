@@ -83,21 +83,44 @@ public function get_project_nama($id)
                         ->get()->row();
     }
 
-    public function insert_penawaran($data)
+    public function insert_penawaran($data, $items = NULL, $taxes = NULL)
     {
+        $this->db->trans_begin();
         $this->db->insert('penawaran', $data);
         $id = $this->db->insert_id();
-        $this->add_riwayat($id, $data['status']);
+        if ($id) {
+            $this->add_riwayat($id, $data['status']);
+            if ($items !== NULL) {
+                $this->simpan_rincian_penawaran($id, $items, $taxes);
+            }
+        }
+
+        if (!$id || $this->db->trans_status() === FALSE) {
+            $this->db->trans_rollback();
+            return FALSE;
+        }
+
+        $this->db->trans_commit();
         return $id;
     }
 
-    public function update_penawaran($id, $data)
+    public function update_penawaran($id, $data, $items = NULL, $taxes = NULL)
     {
+        $this->db->trans_begin();
         $lama = $this->db->select('status')->get_where('penawaran', ['id' => (int) $id])->row();
         $this->db->where('id', (int) $id)->update('penawaran', $data);
         if ($lama && isset($data['status']) && $lama->status !== $data['status']) {
             $this->add_riwayat($id, $data['status']);
         }
+        if ($items !== NULL) {
+            $this->replace_penawaran_details($id, $items, $taxes);
+        }
+        if ($this->db->trans_status() === FALSE) {
+            $this->db->trans_rollback();
+            return FALSE;
+        }
+        $this->db->trans_commit();
+        return TRUE;
     }
 
     public function update_status_penawaran($id, $status)
@@ -137,13 +160,128 @@ public function get_project_nama($id)
 
 public function get_penawaran_disetujui()
 {
-    return $this->db->select('d.id, d.no_penawaran, d.perihal, d.isi_surat, d.klien_id, d.project_id, d.dibuat_lewat, k.nama_klien, p.nama_project')
+    return $this->db->select('d.id, d.no_penawaran, d.perihal, d.isi_surat, d.klien_id, d.project_id, d.dibuat_lewat, d.subtotal, d.discount_amount, d.total_amount, d.notes, d.payment_method, d.payment_account, k.nama_klien, p.nama_project')
                     ->from('penawaran d')
                     ->join('clients k', 'k.id = d.klien_id', 'left')
                     ->join('project p', 'p.id = d.project_id', 'left')
                     ->where('d.status', 'Disetujui')
                     ->order_by('d.id', 'DESC')
                     ->get()->result();
+}
+
+public function get_penawaran_details($penawaran_id)
+{
+    return $this->db
+        ->select('
+            id,
+            penawaran_id,
+            nama_item,
+            nama_item AS description,
+            deskripsi,
+            kuantitas,
+            kuantitas AS quantity,
+            satuan,
+            satuan AS unit,
+            harga_satuan,
+            harga_satuan AS unit_price,
+            subtotal,
+            subtotal AS line_total,
+            urutan
+        ', FALSE)
+        ->where('penawaran_id', (int) $penawaran_id)
+        ->order_by('urutan', 'ASC')
+        ->order_by('id', 'ASC')
+        ->get('penawaran_details')
+        ->result();
+}
+
+public function get_penawaran_taxes($penawaran_id)
+{
+    return $this->db
+        ->select("
+            id,
+            penawaran_id,
+            nama_pajak,
+            nama_pajak AS tax_name,
+            jenis,
+            CASE WHEN persentase = 0 THEN 'fixed' ELSE 'percentage' END AS tax_type,
+            persentase,
+            CASE WHEN persentase = 0 THEN nilai ELSE persentase END AS tax_rate,
+            nilai,
+            nilai AS tax_amount,
+            dasar_perhitungan,
+            urutan
+        ", FALSE)
+        ->where('penawaran_id', (int) $penawaran_id)
+        ->order_by('urutan', 'ASC')
+        ->order_by('id', 'ASC')
+        ->get('penawaran_taxes')
+        ->result();
+}
+
+public function get_penawaran_details_by_ids($penawaran_ids)
+{
+    if (!$penawaran_ids) return [];
+    $rows = $this->db
+        ->select('penawaran_id, nama_item AS description, kuantitas AS quantity, satuan AS unit, harga_satuan AS unit_price, subtotal AS line_total')
+        ->where_in('penawaran_id', $penawaran_ids)
+        ->order_by('urutan', 'ASC')
+        ->order_by('id', 'ASC')
+        ->get('penawaran_details')
+        ->result();
+    $grouped = [];
+    foreach ($rows as $row) $grouped[$row->penawaran_id][] = $row;
+    return $grouped;
+}
+
+public function get_penawaran_taxes_by_ids($penawaran_ids)
+{
+    if (!$penawaran_ids) return [];
+    $rows = $this->db
+        ->select("
+            penawaran_id,
+            nama_pajak AS tax_name,
+            CASE WHEN persentase = 0 THEN 'fixed' ELSE 'percentage' END AS tax_type,
+            CASE WHEN persentase = 0 THEN nilai ELSE persentase END AS tax_rate
+        ", FALSE)
+        ->where_in('penawaran_id', $penawaran_ids)
+        ->order_by('urutan', 'ASC')
+        ->order_by('id', 'ASC')
+        ->get('penawaran_taxes')
+        ->result();
+    $grouped = [];
+    foreach ($rows as $row) $grouped[$row->penawaran_id][] = $row;
+    return $grouped;
+}
+
+private function simpan_rincian_penawaran($penawaran_id, $items, $taxes)
+{
+    foreach ($items as $item) {
+        $item['penawaran_id'] = (int) $penawaran_id;
+        $this->db->insert('penawaran_details', $item);
+    }
+
+    foreach ($taxes as $tax) {
+        $tax['penawaran_id'] = (int) $penawaran_id;
+        $this->db->insert('penawaran_taxes', $tax);
+    }
+}
+
+private function replace_penawaran_details($penawaran_id, $items, $taxes)
+{
+    $this->db->where('penawaran_id', (int) $penawaran_id)->delete('penawaran_details');
+    $this->db->where('penawaran_id', (int) $penawaran_id)->delete('penawaran_taxes');
+    $this->simpan_rincian_penawaran($penawaran_id, $items, $taxes);
+}
+
+public function get_invoices_by_penawaran($penawaran_id)
+{
+    return $this->db
+        ->select('id, no_invoice, tanggal_invoice, status, total_amount')
+        ->where('penawaran_id', (int) $penawaran_id)
+        ->order_by('id', 'DESC')
+        ->get('invoice')
+        ->result();
 }
 
 public function next_nomor_invoice($tahun)
@@ -236,6 +374,13 @@ public function delete($tab, $id)
     // Sesuaikan nama tabel di bawah ini jika di database Anda berbeda
     $table = ($tab === 'invoice') ? 'invoice' : 'penawaran'; 
 
+    if ($tab === 'penawaran') {
+        if ($this->db->where('penawaran_id', (int) $id)->count_all_results('invoice') > 0) {
+            return FALSE;
+        }
+        $this->db->where('penawaran_id', (int) $id)->delete('penawaran_details');
+        $this->db->where('penawaran_id', (int) $id)->delete('penawaran_taxes');
+    }
     $this->db->where('id', $id);
     return $this->db->delete($table);
 }
@@ -254,7 +399,7 @@ public function get_by_id($tab, $id)
 /* ---------- PENGINGAT OTOMATIS ---------- */
 public function get_invoice_belum_bayar()
 {
-    return $this->db->select('i.id, i.no_invoice, i.perihal, i.jatuh_tempo, k.nama_pic, k.email AS email_pic, k.no_hp AS hp_pic')
+    return $this->db->select('i.id, i.no_invoice, i.perihal, i.jatuh_tempo, k.nama_pic, k.email AS email_pic, k.no_hp AS hp_pic, k.reminder_days_before')
                     ->from('invoice i')
                     ->join('clients k', 'k.id = i.klien_id', 'left')
                     ->where('i.status', 'Belum dibayar')

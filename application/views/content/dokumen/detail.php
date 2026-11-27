@@ -118,7 +118,7 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
                     <?php elseif($isOwnLocal): ?>
                         <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3 mb-4 flex items-start gap-2.5">
                             <svg class="w-5 h-5 text-emerald-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                            <div><p class="text-sm font-semibold text-emerald-700">File tersimpan di Perangkat Ini</p><p class="text-xs text-emerald-600 mt-0.5">File aman tersimpan di perangkat Anda.</p></div>
+                            <div><p class="text-sm font-semibold text-emerald-700">File tersimpan di Perangkat Ini</p><p class="text-xs text-emerald-600 mt-0.5">Setelah restart, browser mungkin meminta izin folder lagi. Izinkan akses atau pilih ulang folder yang sama.</p></div>
                         </div>
                     <?php endif; ?>
 
@@ -402,7 +402,7 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
                 btnIzinFolder.disabled = true;
                 btnIzinFolder.textContent = 'Meminta izin...';
                 try {
-                    const access = await TridatuFS.requestFolderAccess(DOC.id);
+                    const access = await TridatuFS.requestFolderAccess(DOC.id, 'read');
                     if (access.permission !== 'granted') {
                         const message = access.permission === 'missing'
                             ? 'Folder belum terhubung. Pilih folder utama untuk menghubungkan kembali.'
@@ -431,7 +431,7 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
                 btnPilihFolder.disabled = true;
                 btnPilihFolder.textContent = 'Memeriksa folder...';
                 try {
-                    const h = await TridatuFS.getFolderHandle(DOC.id, true);
+                    const h = await TridatuFS.getFolderHandle(DOC.id, true, 'read');
                     if (h) {
                         showPreviewState('loading');
                         await loadLocalPreview();
@@ -459,49 +459,61 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
         btnSyncDetail.addEventListener('click', async () => {
             const btnText = document.getElementById('btnSyncDetailText');
             const originalText = btnText.textContent;
-
-            // 1. Ambil file
-            let file = null;
-            let fileSource = '';
-
-            if (TridatuFS.isSupported()) {
-                // Coba baca dari folder
-                const fromFolder = await TridatuFS.readFile({
-                    documentId: DOC.id,
-                    klienId:   DOC.klienId,
-                    klienNama: DOC.klienNama,
-                    fileName:  DOC.fileName,
-                    fileHash:  DOC.fileHash
-                });
-                if (fromFolder) {
-                    file = fromFolder;
-                    fileSource = 'folder';
-                }
-            }
-
-            // Fallback: pilih file manual
-            if (!file) {
-                file = await TridatuFS.pickFile();
-                fileSource = 'picker';
-            }
-
-            if (!file) return; // user cancel
-
-            // 2. Hash & validasi
             btnSyncDetail.disabled = true;
-            btnText.textContent = 'Menghitung hash...';
-            const fileHash = await hitungHash(file);
+            btnText.textContent = 'Memeriksa folder...';
 
-            if (fileHash !== DOC.fileHash) {
-                btnSyncDetail.disabled = false;
-                btnText.textContent = originalText;
-                showToast('File berbeda dari aslinya. Gunakan Edit Dokumen jika ingin mengganti file.', 'error');
-                return;
-            }
-
-            // 3. Upload
-            btnText.textContent = 'Mengunggah...';
             try {
+                let file = null;
+
+                if (TridatuFS.isSupported()) {
+                    let access = { permission: 'missing' };
+                    try {
+                        access = await TridatuFS.requestFolderAccess(DOC.id, 'read');
+                    } catch (permissionError) {
+                        console.warn('Izin folder lokal tidak dapat dipulihkan:', permissionError);
+                    }
+                    if (access.permission === 'granted') {
+                        file = await TridatuFS.readFile({
+                            documentId: DOC.id,
+                            klienId: DOC.klienId,
+                            klienNama: DOC.klienNama,
+                            fileName: DOC.fileName,
+                            fileHash: DOC.fileHash
+                        });
+                    }
+
+                    if (!file) {
+                        showToast('Akses folder perlu dipulihkan. Pilih folder utama tempat dokumen ini disimpan.', 'info');
+                        try {
+                            const root = await TridatuFS.getFolderHandle(DOC.id, true, 'read');
+                            if (root) {
+                                file = await TridatuFS.readFile({
+                                    documentId: DOC.id,
+                                    klienId: DOC.klienId,
+                                    klienNama: DOC.klienNama,
+                                    fileName: DOC.fileName,
+                                    fileHash: DOC.fileHash
+                                });
+                            }
+                        } catch (folderError) {
+                            console.warn('Folder lokal belum dapat dihubungkan:', folderError);
+                        }
+                    }
+                }
+
+                if (!file) {
+                    showToast('Pilih file dokumen untuk diunggah secara manual.', 'info');
+                    file = await TridatuFS.pickFile();
+                }
+                if (!file) return;
+
+                btnText.textContent = 'Menghitung hash...';
+                const fileHash = await hitungHash(file);
+                if (fileHash !== DOC.fileHash) {
+                    throw new Error('File berbeda dari aslinya. Gunakan Edit Dokumen jika ingin mengganti file.');
+                }
+
+                btnText.textContent = 'Mengunggah...';
                 const fd = new FormData();
                 fd.append('id', DOC.id);
                 fd.append('device_id', DEVICE_ID);
@@ -515,14 +527,15 @@ $fileHash8 = substr($doc->file_hash ?? '', 0, 8);
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
                 const data = await res.json();
-                if (!data.status) throw new Error(data.msg || 'Gagal mengunggah.');
+                if (!res.ok || !data.status) throw new Error(data.msg || 'Gagal mengunggah.');
 
                 showToast('Berhasil diunggah ke Server Sistem!', 'success');
                 setTimeout(() => window.location.reload(), 1200);
             } catch (err) {
+                showToast(err.message || 'Terjadi kesalahan.', 'error');
+            } finally {
                 btnSyncDetail.disabled = false;
                 btnText.textContent = originalText;
-                showToast(err.message || 'Terjadi kesalahan.', 'error');
             }
         });
     }

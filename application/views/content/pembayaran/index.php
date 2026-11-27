@@ -202,7 +202,8 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fSumber !== '' || $fStatus !== '')
                         <?php foreach($rows as $r): ?>
                         <tr class="border-b border-gray-100 hover:bg-gray-50/60 transition-colors group">
                             <td class="px-5 py-4">
-                                <a href="<?= site_url('pembayaran/detail/' . $tab . '/' . (int) $r->id) ?>" class="text-sm font-semibold text-blue-600 underline underline-offset-2 decoration-blue-300 hover:text-blue-800 hover:decoration-blue-500 line-clamp-2" title="Lihat Detail">
+                                <!-- Link nomor: buka dokumen di tab baru -->
+                                <a href="<?= site_url('pembayaran/unduh/' . $tab . '/' . (int) $r->id) ?>?inline=1" target="_blank" rel="noopener noreferrer" class="text-sm font-semibold text-blue-600 underline underline-offset-2 decoration-blue-300 hover:text-blue-800 hover:decoration-blue-500 line-clamp-2" title="Buka Dokumen">
                                     <?= $e($r->nomor) ?>
                                 </a>
                             </td>
@@ -223,8 +224,9 @@ $adaFilter = ($q !== '' || $fKlien !== '' || $fSumber !== '' || $fStatus !== '')
                             </td>
                             <td class="px-5 py-4 text-center">
                                 <div class="flex justify-center items-center gap-1.5">
-                                    <a href="<?= site_url('pembayaran/unduh/' . $tab . '/' . (int) $r->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Unduh Dokumen">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    <!-- Tombol Detail (menggantikan tombol Unduh) -->
+                                    <a href="<?= site_url('pembayaran/detail/' . $tab . '/' . (int) $r->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-lg transition-all shadow-sm" title="Lihat Detail">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </a>
                                     <a href="<?= site_url('pembayaran/edit/' . $tab . '/' . (int) $r->id) ?>" class="p-1.5 bg-white border border-gray-200 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 rounded-lg transition-all shadow-sm" title="Edit Data">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>

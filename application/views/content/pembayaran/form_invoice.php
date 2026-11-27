@@ -71,6 +71,12 @@ foreach ($penawaranList as $x) {
         'perihal'   => (string) $x->perihal,
         'isi'       => $x->dibuat_lewat === 'Unggahan' ? '' : (string) $x->isi_surat,
         'no'        => $x->no_penawaran,
+        'items'     => isset($x->items) ? $x->items : [],
+        'taxes'     => isset($x->taxes) ? $x->taxes : [],
+        'discount'  => (float) ($x->discount_amount ?? 0),
+        'payment_method' => (string) ($x->payment_method ?? ''),
+        'payment_account' => (string) ($x->payment_account ?? ''),
+        'notes'     => (string) ($x->notes ?? ''),
     ];
 }
 
@@ -426,7 +432,7 @@ foreach ($penawaranList as $x) {
                                 <?php endif; ?>
 
                                 <p class="text-xs text-gray-500 mt-1">
-                                    Data Klien, Project, dan Isi Surat akan terisi otomatis dari penawaran ini.
+                                    Data klien, project, item, pajak, dan nilai penawaran akan disalin ke invoice dan masih dapat disesuaikan.
                                 </p>
 
                                 <?= $err('penawaran_id') ?>
@@ -807,6 +813,7 @@ if ($settings) {
                 <button type="button" onclick="tambahPajak()"
                     class="text-xs font-semibold text-blue-700">+ Tambah</button>
             </div>
+            <input type="hidden" name="has_tax_section" value="1">
             <div id="invoiceTaxes" class="space-y-2">
                 <?php foreach ($taxesForm as $i => $tax): ?>
                     <div class="tax-row grid grid-cols-12 gap-2">
@@ -1062,6 +1069,7 @@ if ($rekeningTampil === null) {
 
     <script>
     const EDIT = <?= $isEdit ? 'true' : 'false' ?>;
+    const POSTED = <?= $posted ? 'true' : 'false' ?>;
     const PW = <?= json_encode($pwData, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 
     // --- TOGGLE VISIBILITY & CARD STYLE ---
@@ -1466,6 +1474,8 @@ if ($rekeningTampil === null) {
         if (document.getElementById('isi_surat')) {
             document.getElementById('isi_surat').value = d.isi;
         }
+
+        isiRincianDariPenawaran(d);
     }
 
     // Trigger on load
@@ -1474,6 +1484,10 @@ if ($rekeningTampil === null) {
 
         if (klienVal) {
             sinkronProject(klienVal);
+        }
+        const penawaranId = document.getElementById('penawaran_id')?.value;
+        if (!POSTED && penawaranId && PW[penawaranId]) {
+            isiDariPenawaran(penawaranId);
         }
     });
 
@@ -1607,6 +1621,44 @@ function hitungInvoice() {
     document.getElementById('taxTotalText').textContent = rupiah(totalPajak);
     document.getElementById('grandTotalText').textContent =
         rupiah(dasarPajak + totalPajak);
+}
+
+function isiRincianDariPenawaran(data) {
+    if (!data) return;
+
+    const itemContainer = document.getElementById('invoiceItems');
+    itemContainer.innerHTML = '';
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (items.length) {
+        items.forEach((item, index) => {
+            tambahItem();
+            const row = itemContainer.querySelectorAll('.invoice-item')[index];
+            row.querySelector('[name$="[description]"]').value = item.description || '';
+            row.querySelector('.item-qty').value = item.quantity || 1;
+            row.querySelector('[name$="[unit]"]').value = item.unit || 'unit';
+            row.querySelector('.item-price').value = item.unit_price || 0;
+        });
+    } else {
+        tambahItem();
+    }
+
+    const taxContainer = document.getElementById('invoiceTaxes');
+    taxContainer.innerHTML = '';
+    (data.taxes || []).forEach((tax, index) => {
+        tambahPajak();
+        const row = taxContainer.querySelectorAll('.tax-row')[index];
+        row.querySelector('[name$="[tax_name]"]').value = tax.tax_name || '';
+        row.querySelector('.tax-type').value = tax.tax_type || 'percentage';
+        row.querySelector('.tax-rate').value = tax.tax_rate || 0;
+    });
+    document.getElementById('discountAmount').value = data.discount || 0;
+    const paymentMethod = document.querySelector('[name="payment_method"]');
+    const paymentAccount = document.querySelector('[name="payment_account"]');
+    const notes = document.querySelector('[name="notes"]');
+    if (paymentMethod) paymentMethod.value = data.payment_method || '';
+    if (paymentAccount) paymentAccount.value = data.payment_account || '';
+    if (notes) notes.value = data.notes || '';
+    hitungInvoice();
 }
 
 document.addEventListener('DOMContentLoaded', hitungInvoice);

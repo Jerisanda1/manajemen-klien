@@ -1,5 +1,6 @@
 <?php
 /** @var object $invoice */
+/** @var object|null $settings */
 $e = function ($v) { return htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8'); };
 $bulan = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 $tgl = function ($tanggal) use ($bulan) {
@@ -8,6 +9,25 @@ $tgl = function ($tanggal) use ($bulan) {
 };
 $kop = !isset($invoice->sertakan_kop) || $invoice->sertakan_kop;
 $ttd = !isset($invoice->sertakan_ttd) || $invoice->sertakan_ttd;
+if (!isset($settings) || !is_object($settings)) {
+    $settings = null;
+}
+if (!empty($invoice->snapshot_data)) {
+    $snapshot = json_decode($invoice->snapshot_data);
+    if (json_last_error() === JSON_ERROR_NONE && is_object($snapshot)) {
+        $settings = $snapshot;
+    }
+}
+$namaPerusahaan = $settings && !empty($settings->nama_perusahaan)
+    ? $settings->nama_perusahaan
+    : 'Tridatu Solution';
+$kopUrl = null;
+if ($kop && $settings) {
+    $asset = !empty($settings->kop_surat) ? $settings->kop_surat : (!empty($settings->logo) ? $settings->logo : '');
+    if ($asset && file_exists(FCPATH . $asset)) {
+        $kopUrl = base_url($asset);
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -23,6 +43,7 @@ $ttd = !isset($invoice->sertakan_ttd) || $invoice->sertakan_ttd;
         .top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #a62626; padding-bottom:16px; margin-bottom:28px; }
         .top h1 { margin:0; font-size:22px; }
         .top small { color:#64748b; }
+        .kop-img { max-width:240px; max-height:100px; object-fit:contain; display:block; }
         .meta { font-size:14px; line-height:1.7; margin-bottom:24px; }
         .meta .r { display:flex; }
         .meta .l { width:120px; color:#64748b; }
@@ -37,7 +58,14 @@ $ttd = !isset($invoice->sertakan_ttd) || $invoice->sertakan_ttd;
     <div class="sheet">
         <?php if ($kop): ?>
             <div class="top">
-                <div><h1>Tridatu Solution</h1><small>Jl. Alamat perusahaan, Bali</small></div>
+                <div>
+                    <?php if ($kopUrl): ?>
+                        <img src="<?= $e($kopUrl) ?>" class="kop-img" alt="Kop Surat">
+                    <?php else: ?>
+                        <h1><?= $e($namaPerusahaan) ?></h1>
+                        <small><?= $e($settings && !empty($settings->alamat) ? $settings->alamat : 'Jl. Alamat perusahaan, Bali') ?></small>
+                    <?php endif; ?>
+                </div>
                 <div style="text-align:right;font-size:14px;color:#475569">No. <?= $e($invoice->no_invoice) ?><br><?= $tgl($invoice->tanggal_invoice) ?></div>
             </div>
         <?php else: ?>

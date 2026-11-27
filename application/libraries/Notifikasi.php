@@ -8,12 +8,7 @@ class Notifikasi
     public function __construct()
     {
         $this->CI =& get_instance();
-        $this->CI->config->load('notifikasi', TRUE);
-    }
-
-    private function c($k)
-    {
-        return $this->CI->config->item($k, 'notifikasi');
+        $this->CI->load->model('Pengaturan_model', 'notification_sender_model');
     }
 
     // Mengembalikan [berhasil(bool), keterangan(string)]
@@ -25,58 +20,68 @@ class Notifikasi
     /* ---------- SMTP (Utama saat ini) ---------- */
     private function email_smtp($ke, $subjek, $isi)
     {
-        if (!$this->c('email_smtp_user') || !$this->c('email_smtp_pass')) {
-            return [FALSE, 'SMTP belum diisi di application/config/notifikasi.php.'];
+        try {
+            $sender = $this->CI->notification_sender_model->get_notification_sender_config();
+        } catch (RuntimeException $e) {
+            log_message('error', 'Pengaturan pengirim email tidak dapat dibaca: ' . $e->getMessage());
+            return [FALSE, 'Pengaturan pengirim email tidak dapat dibaca. Periksa kunci enkripsi server.'];
+        }
+
+        if ($sender['smtp_user'] === '' || $sender['smtp_password'] === '') {
+            return [FALSE, 'Akun SMTP pengirim belum dikonfigurasi di Pengaturan.'];
         }
 
         $this->CI->load->library('email');
         $this->CI->email->clear();
         $this->CI->email->initialize([
-    'protocol'       => 'smtp',
-    'smtp_host'      => $this->c('email_smtp_host'),
-    'smtp_port'      => (int) $this->c('email_smtp_port'),
-    'smtp_user'      => $this->c('email_smtp_user'),
-    'smtp_pass'      => $this->c('email_smtp_pass'),
-    'smtp_crypto'    => $this->c('email_smtp_crypto'),
-    'smtp_timeout'   => 15,
-    'smtp_keepalive' => FALSE,
-    'mailtype'       => 'html',
-    'charset'        => 'utf-8',
-    'newline'        => "\r\n",
-    'crlf'           => "\r\n",
-    'validate'       => TRUE,
+            'protocol'       => 'smtp',
+            'smtp_host'      => $sender['smtp_host'],
+            'smtp_port'      => (int) $sender['smtp_port'],
+            'smtp_user'      => $sender['smtp_user'],
+            'smtp_pass'      => $sender['smtp_password'],
+            'smtp_crypto'    => $sender['smtp_crypto'],
+            'smtp_timeout'   => 15,
+            'smtp_keepalive' => FALSE,
+            'mailtype'       => 'html',
+            'charset'        => 'utf-8',
+            'newline'        => "\r\n",
+            'crlf'           => "\r\n",
+            'validate'       => TRUE,
         ]);
-        $this->CI->email->from($this->c('email_from') ?: $this->c('email_smtp_user'), $this->c('email_from_name'));
+        $this->CI->email->from(
+            $sender['email_from'] ?: $sender['smtp_user'],
+            $sender['email_from_name']
+        );
         $this->CI->email->to($ke);
         $this->CI->email->subject($subjek);
         $this->CI->email->message($isi);
-if ($this->CI->email->send(FALSE)) {
-    return [TRUE, ''];
-}
+        if ($this->CI->email->send(FALSE)) {
+            return [TRUE, ''];
+        }
 
 
-$debug = $this->CI->email->print_debugger();
+        $debug = $this->CI->email->print_debugger();
 
-// Deteksi batas pengiriman Gmail
-if (
-    stripos($debug, 'Daily user sending limit exceeded') !== FALSE ||
-    stripos($debug, '550-5.4.5') !== FALSE
-) {
-    return [
-        FALSE,
-        'Email belum terkirim karena akun Gmail mencapai batas pengiriman. Silakan coba kembali dalam 1-24 jam.'
-    ];
-}
+        // Deteksi batas pengiriman Gmail
+        if (
+            stripos($debug, 'Daily user sending limit exceeded') !== FALSE ||
+            stripos($debug, '550-5.4.5') !== FALSE
+        ) {
+            return [
+                FALSE,
+                'Email belum terkirim karena akun Gmail mencapai batas pengiriman. Silakan coba kembali dalam 1-24 jam.'
+            ];
+        }
 
-// Untuk error lainnya, tetap simpan pesan diagnostik
-$err = trim(
-    preg_replace('/\s+/', ' ', strip_tags($debug))
-);
+        // Untuk error lainnya, tetap simpan pesan diagnostik
+        $err = trim(
+            preg_replace('/\s+/', ' ', strip_tags($debug))
+        );
 
-return [
-    FALSE,
-    $err !== '' ? $err : 'Pengiriman email gagal. Silakan coba kembali.'
-];
+        return [
+            FALSE,
+            $err !== '' ? $err : 'Pengiriman email gagal. Silakan coba kembali.'
+        ];
     }
 
     // $hari: selisih hari ke jatuh tempo (positif = belum, 0 = hari ini, negatif = terlambat)

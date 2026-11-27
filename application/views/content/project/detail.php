@@ -18,6 +18,10 @@
  *  - Kolom Status dihitung dari tanggal berakhir (Aktif / Akan Berakhir / Expired)
  *  - Sinkron ke server hanya untuk dokumen yang masih di perangkat ini
  *
+ * Tabel Penawaran & Invoice:
+ *  - Nomor dokumen = buka dokumen di tab baru (pembayaran/unduh/...?inline=1)
+ *  - Ikon mata di Aksi = halaman detail
+ *
  * Field tambahan yang dibutuhkan di setiap baris $dokumen:
  *   storage_type, device_id, file_name, file_hash
  */
@@ -487,8 +491,11 @@ $statusDokumen = function ($tanggalBerakhir) {
                                 <?php foreach ($penawaran as $p): ?>
                                     <tr class="hover:bg-slate-50 transition-colors">
                                         <td class="cell-ellipsis" title="<?= $e($p['no']) ?>">
-                                            <a href="<?= site_url('pembayaran/detail/penawaran/' . (int) $p['id']) ?>"
-                                               class="font-semibold text-blue-600 hover:underline">
+                                            <!-- Nomor: buka dokumen di tab baru -->
+                                            <a href="<?= site_url('pembayaran/unduh/penawaran/' . (int) $p['id']) ?>?inline=1"
+                                               target="_blank" rel="noopener noreferrer"
+                                               class="font-semibold text-blue-600 hover:underline"
+                                               title="Buka Dokumen">
                                                 <?= $e($p['no']) ?>
                                             </a>
                                         </td>
@@ -571,8 +578,11 @@ $statusDokumen = function ($tanggalBerakhir) {
                                 <?php foreach ($invoice as $i): ?>
                                     <tr class="hover:bg-slate-50 transition-colors">
                                         <td class="cell-ellipsis" title="<?= $e($i['no']) ?>">
-                                            <a href="<?= site_url('pembayaran/detail/invoice/' . (int) $i['id']) ?>"
-                                               class="font-semibold text-blue-600 hover:underline">
+                                            <!-- Nomor: buka dokumen di tab baru -->
+                                            <a href="<?= site_url('pembayaran/unduh/invoice/' . (int) $i['id']) ?>?inline=1"
+                                               target="_blank" rel="noopener noreferrer"
+                                               class="font-semibold text-blue-600 hover:underline"
+                                               title="Buka Dokumen">
                                                 <?= $e($i['no']) ?>
                                             </a>
                                         </td>
@@ -1050,7 +1060,7 @@ document.querySelectorAll('.btn-preview-dok').forEach(btn => {
 
             let file = null;
             if (TridatuFS.isSupported()) {
-                const access = await TridatuFS.requestFolderAccess(documentId);
+                const access = await TridatuFS.requestFolderAccess(documentId, 'read');
                 try {
                     if (access.permission === 'granted') {
                         file = await TridatuFS.readFile({
@@ -1066,7 +1076,7 @@ document.querySelectorAll('.btn-preview-dok').forEach(btn => {
                 }
 
                 if (!file) {
-                    const root = await TridatuFS.getFolderHandle(documentId, true);
+                    const root = await TridatuFS.getFolderHandle(documentId, true, 'read');
                     if (root) {
                         file = await TridatuFS.readFile({
                             documentId: documentId,
@@ -1154,16 +1164,42 @@ document.querySelectorAll('.btn-sync-dok').forEach(btn => {
 
             // 1. Coba baca file dari folder yang dipilih menggunakan File System Access API.
             if (TridatuFS.isSupported()) {
+                let access = { permission: 'missing' };
                 try {
-                    file = await TridatuFS.readFile({
-                        documentId: Number(id || 0),
-                        klienId: klienId,
-                        klienNama: klienNama,
-                        fileName: fileName,
-                        fileHash: expectedHash
-                    });
+                    access = await TridatuFS.requestFolderAccess(Number(id || 0), 'read');
+                } catch (permissionError) {
+                    console.warn('Izin folder lokal tidak dapat dipulihkan:', permissionError);
+                }
+                try {
+                    if (access.permission === 'granted') {
+                        file = await TridatuFS.readFile({
+                            documentId: Number(id || 0),
+                            klienId: klienId,
+                            klienNama: klienNama,
+                            fileName: fileName,
+                            fileHash: expectedHash
+                        });
+                    }
                 } catch (readError) {
                     console.warn('Tidak dapat membaca folder lokal:', readError);
+                }
+
+                if (!file) {
+                    showToast('Akses folder perlu dipulihkan. Pilih folder utama tempat dokumen ini disimpan.', 'info');
+                    try {
+                        const root = await TridatuFS.getFolderHandle(Number(id || 0), true, 'read');
+                        if (root) {
+                            file = await TridatuFS.readFile({
+                                documentId: Number(id || 0),
+                                klienId: klienId,
+                                klienNama: klienNama,
+                                fileName: fileName,
+                                fileHash: expectedHash
+                            });
+                        }
+                    } catch (folderError) {
+                        console.warn('Folder lokal belum dapat dihubungkan:', folderError);
+                    }
                 }
             }
 

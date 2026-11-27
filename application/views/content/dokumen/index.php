@@ -589,17 +589,44 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
 
                 // 1. Coba baca file dari folder yang dipilih menggunakan File System Access API.
                 if (TridatuFS.isSupported()) {
+                    let access = { permission: 'missing' };
                     try {
-                        file = await TridatuFS.readFile({
-                            documentId: id,
-                            klienId: klienId,
-                            klienNama: klienNama,
-                            fileName: fileName,
-                            fileHash: expectedHash
-                        });
+                        access = await TridatuFS.requestFolderAccess(id, 'read');
+                    } catch (permissionError) {
+                        console.warn('Izin folder lokal tidak dapat dipulihkan:', permissionError);
+                    }
+                    try {
+                        if (access.permission === 'granted') {
+                            file = await TridatuFS.readFile({
+                                documentId: id,
+                                klienId: klienId,
+                                klienNama: klienNama,
+                                fileName: fileName,
+                                fileHash: expectedHash
+                            });
+                        }
                     } catch (readError) {
                         // Jika akses folder gagal, tetap sediakan pemilihan file manual.
                         console.warn('Tidak dapat membaca folder lokal:', readError);
+                    }
+
+                    // Sambungkan ulang folder tersimpan jika izin hilang atau handle tidak tersedia.
+                    if (!file) {
+                        showToast('Pilih folder utama tempat dokumen ini disimpan.', 'info');
+                        try {
+                            const root = await TridatuFS.getFolderHandle(id, true, 'read');
+                            if (root) {
+                                file = await TridatuFS.readFile({
+                                    documentId: id,
+                                    klienId: klienId,
+                                    klienNama: klienNama,
+                                    fileName: fileName,
+                                    fileHash: expectedHash
+                                });
+                            }
+                        } catch (folderError) {
+                            console.warn('Folder lokal belum dapat dihubungkan:', folderError);
+                        }
                     }
                 }
 
@@ -708,7 +735,7 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
                     }
                 } else {
                     // Minta izin browser untuk handle tersimpan sebelum mencoba membaca file.
-                    const access = await TridatuFS.requestFolderAccess(documentId);
+                    const access = await TridatuFS.requestFolderAccess(documentId, 'read');
                     try {
                         if (access.permission === 'granted') {
                             file = await TridatuFS.readFile({
@@ -725,7 +752,7 @@ $renderFilter = function ($key, $name, $semuaLabel, $options, $selected, $search
 
                     // Jika folder atau file tidak ditemukan, buka pemilih folder bawaan browser.
                     if (!file) {
-                        const root = await TridatuFS.getFolderHandle(documentId, true);
+                        const root = await TridatuFS.getFolderHandle(documentId, true, 'read');
                         if (root) {
                             file = await TridatuFS.readFile({
                                 documentId: documentId,

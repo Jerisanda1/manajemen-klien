@@ -11,6 +11,15 @@ class Pengaturan extends MY_Controller {
     public function index() {
         // PERBAIKAN: Menggunakan 'id_user' sesuai session dari Auth.php
         $user_id = $this->session->userdata('id_user') ?: 1; 
+        $notification_sender_error = '';
+
+        try {
+            $notification_sender = $this->pengaturan_model->get_notification_sender_form_data();
+        } catch (RuntimeException $e) {
+            log_message('error', 'Pengaturan pengirim tidak dapat ditampilkan: ' . $e->getMessage());
+            $notification_sender = NULL;
+            $notification_sender_error = $e->getMessage();
+        }
 
         $data = [
             'title'    => 'Pengaturan - Tridatu',
@@ -18,9 +27,117 @@ class Pengaturan extends MY_Controller {
             'settings' => $this->pengaturan_model->get_settings(),
             'types'    => $this->pengaturan_model->get_all_types(),
             'user'     => $this->pengaturan_model->get_user($user_id),
-            'reminder_rules'  => $this->pengaturan_model->get_all_reminder_rules()
+            'reminder_rules'  => $this->pengaturan_model->get_all_reminder_rules(),
+            'reminder_clients' => $this->pengaturan_model->get_clients_for_reminder(),
+            'notification_sender' => $notification_sender,
+            'notification_sender_error' => $notification_sender_error
         ];
         $this->load->view('main', $data);
+    }
+
+    public function update_notification_sender()
+    {
+        if ($this->input->method(TRUE) !== 'POST') {
+            show_404();
+        }
+
+        $smtpHost = trim((string) $this->input->post('smtp_host', TRUE));
+        $smtpPort = trim((string) $this->input->post('smtp_port', TRUE));
+        $smtpCrypto = trim((string) $this->input->post('smtp_crypto', TRUE));
+        $smtpUser = trim((string) $this->input->post('smtp_user', TRUE));
+        $emailFrom = trim((string) $this->input->post('email_from', TRUE));
+        $emailFromName = trim((string) $this->input->post('email_from_name', TRUE));
+        $smtpPassword = (string) $this->input->post('smtp_password', FALSE);
+        $fonnteToken = trim((string) $this->input->post('fonnte_token', FALSE));
+
+        $validHost = preg_match('/^[a-zA-Z0-9.-]+$/', $smtpHost) === 1;
+        $validPort = ctype_digit($smtpPort) && (int) $smtpPort >= 1 && (int) $smtpPort <= 65535;
+        $validCrypto = in_array($smtpCrypto, ['', 'ssl', 'tls'], TRUE);
+        $validSmtpUser = filter_var($smtpUser, FILTER_VALIDATE_EMAIL) !== FALSE;
+        $validFrom = filter_var($emailFrom, FILTER_VALIDATE_EMAIL) !== FALSE;
+
+        if (
+            !$validHost || strlen($smtpHost) > 255 ||
+            !$validPort ||
+            !$validCrypto ||
+            !$validSmtpUser ||
+            !$validFrom ||
+            $emailFromName === '' || strlen($emailFromName) > 150 ||
+            strlen($smtpPassword) > 4096 ||
+            strlen($fonnteToken) > 4096
+        ) {
+            $this->session->set_flashdata(
+                'error',
+                'Periksa kembali host, port, enkripsi, email, nama pengirim, dan panjang kredensial.'
+            );
+            redirect('pengaturan#pengirim');
+            return;
+        }
+
+        try {
+            $saved = $this->pengaturan_model->save_notification_sender_settings([
+                'smtp_host' => $smtpHost,
+                'smtp_port' => (int) $smtpPort,
+                'smtp_crypto' => $smtpCrypto,
+                'smtp_user' => $smtpUser,
+                'email_from' => $emailFrom,
+                'email_from_name' => $emailFromName,
+                'smtp_password' => $smtpPassword,
+                'fonnte_token' => $fonnteToken,
+            ]);
+        } catch (RuntimeException $e) {
+            log_message('error', 'Gagal mengenkripsi pengaturan pengirim: ' . $e->getMessage());
+            $this->session->set_flashdata('error', $e->getMessage());
+            redirect('pengaturan#pengirim');
+            return;
+        }
+
+        $this->session->set_flashdata(
+            $saved ? 'success' : 'error',
+            $saved
+                ? 'Pengaturan akun pengirim untuk semua reminder berhasil disimpan.'
+                : 'Gagal menyimpan pengaturan akun pengirim.'
+        );
+        redirect('pengaturan#pengirim');
+    }
+
+    public function update_reminder_klien()
+    {
+        if ($this->input->method(TRUE) !== 'POST') {
+            show_404();
+        }
+
+        $clientId = $this->input->post('client_id');
+        $days = $this->input->post('reminder_days_before');
+
+        if ($clientId === NULL || !ctype_digit((string) $clientId) || (int) $clientId < 1) {
+            $this->session->set_flashdata('error', 'Klien reminder tidak valid.');
+            redirect('pengaturan');
+            return;
+        }
+
+        if (
+            $days === NULL ||
+            !ctype_digit((string) $days) ||
+            (int) $days < 1 ||
+            (int) $days > 365
+        ) {
+            $this->session->set_flashdata('error', 'Hari reminder harus berupa angka 1 sampai 365.');
+            redirect('pengaturan');
+            return;
+        }
+
+        $client = $this->pengaturan_model->get_client_for_reminder($clientId);
+        if (!$client) {
+            show_404();
+        }
+
+        $saved = $this->pengaturan_model->update_client_reminder_days($clientId, $days);
+        $this->session->set_flashdata(
+            $saved ? 'success' : 'error',
+            $saved ? 'Pengaturan reminder klien berhasil disimpan.' : 'Gagal menyimpan pengaturan reminder klien.'
+        );
+        redirect('pengaturan');
     }
 
     // Proses Simpan Informasi Perusahaan

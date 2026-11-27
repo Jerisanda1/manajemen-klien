@@ -280,6 +280,8 @@ class Dokumen extends MY_Controller {
             $update_data['expired_notified_at']   = NULL;
             $update_data['wa_reminder_sent_at']   = NULL;
             $update_data['wa_expired_notified_at'] = NULL;
+            $update_data['expiry_day_notified_at'] = NULL;
+            $update_data['wa_expiry_day_notified_at'] = NULL;
         }
 
         $is_new_cloud_file = ($storage_type === 'cloud' && !empty($_FILES['file_dokumen']['name']));

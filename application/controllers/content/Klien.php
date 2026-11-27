@@ -45,7 +45,6 @@ class Klien extends MY_Controller {
         $this->form_validation->set_rules('tanggal_mulai', 'Tanggal Mulai', 'required');
         $this->form_validation->set_rules('nama_pic', 'Nama PIC', 'required');
         $this->form_validation->set_rules('no_hp', 'Nomor HP', 'required');
-
         if ($this->form_validation->run() == FALSE) {
             $this->session->set_flashdata('error', validation_errors());
             redirect('klien/tambah');
@@ -73,7 +72,6 @@ class Klien extends MY_Controller {
     $this->form_validation->set_rules('tanggal_mulai', 'Tanggal Mulai', 'required');
     $this->form_validation->set_rules('nama_pic', 'Nama PIC', 'required');
     $this->form_validation->set_rules('no_hp', 'Nomor HP', 'required');
-
     if ($this->form_validation->run() == FALSE) {
         $this->session->set_flashdata('error', validation_errors());
         redirect('klien/tambah');
@@ -169,7 +167,6 @@ class Klien extends MY_Controller {
         $this->form_validation->set_rules('tanggal_mulai', 'Tanggal Mulai', 'required');
         $this->form_validation->set_rules('nama_pic', 'Nama PIC', 'required');
         $this->form_validation->set_rules('no_hp', 'Nomor HP', 'required');
-
         $id = $this->input->post('id');
 
         if ($this->form_validation->run() == FALSE) {
